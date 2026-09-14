@@ -1,5 +1,8 @@
 # ComfyUI-H3-Continuum 3.8.1 — V3.8X
 
+![Uploading exec-7cbb1899-cece-4794-b94f-c287dc62b2a9.png…]()
+
+
 > This is the current **V3.8X / package 3.8.1 guide**. It documents the supported seven-node surface and the supplied V3.8X workflow. The older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0); do not combine its workflow or instructions with this guide.
 
 **Download V3.8X workflow: [JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) | [ZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip)** — [Latest release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/latest)
