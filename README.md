@@ -1,6 +1,7 @@
 # ComfyUI-H3-Continuum 3.8.1 — V3.8X
 
-![Uploading exec-7cbb1899-cece-4794-b94f-c287dc62b2a9.png…]()
+<img width="1536" height="1024" alt="exec-7cbb1899-cece-4794-b94f-c287dc62b2a9" src="https://github.com/user-attachments/assets/bfc4fa85-bd45-48df-87c5-e45fa6d065b1" />
+
 
 
 > This is the current **V3.8X / package 3.8.1 guide**. It documents the supported seven-node surface and the supplied V3.8X workflow. The older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0); do not combine its workflow or instructions with this guide.
