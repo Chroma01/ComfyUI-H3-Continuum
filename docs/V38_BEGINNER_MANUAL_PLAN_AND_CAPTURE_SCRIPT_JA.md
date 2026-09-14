@@ -15,14 +15,13 @@
 - README冒頭に「Web対応AIへこのREADMEを読ませる」案内を置く。ChatGPT／Gemini／Grokの現行公式情報に限定し、URLだけでrepository全文を読めるとは保証しない。GeminiのImport codeと、失敗時のREADME貼付／uploadを案内する。
 - Size Source／Resolution／Manual Width・HeightはV3.8 Sampler本体に搭載されたため、通常workflowに外部MP／size nodeは不要と説明する。32×32は音声だけを聴く診断用であり、映像品質の推奨値にはしない。
 - Issue #13はOpen、StandardにはProduction mitigationなし、R6-Aは一条件で改善したが最終4×8ではno-opだった、という証拠範囲を固定する。「解決済み」「全く改善方法がない」のどちらにも誇張しない。
-- ユーザーが `http://127.0.0.6:8188/` で起動した `00058` ワークフローを使用した。ユーザー所有backendは停止しない。
 - READMEの測定例は今回の4-step実測へ更新し、旧6-step値と混在させない。commit/pushは今後の明示依頼時のみ。
 
 作成日: 2026-09-06
 
 対象: `H3 Continuum Sampler V3.8`の現在のMain UI
 
-再開時の正本: この文書と`PROJECT_STATE.md`
+再開時の正本: この文書と公開README
 
 ## この文書を読めば撮影準備から再開できる
 
@@ -30,11 +29,9 @@
 
 撮影開始の指示を受けた担当者は、最初に次を読みます。
 
-1. `AGENTS.md`
-2. `PROJECT_STATE.md`
-3. この文書
-4. `README_JA.md`の「10秒を5秒ずつ確認しながら作る」
-5. `examples/workflows/MiniMax_H3_Continuum_V38.json`
+1. この文書
+2. `README_JA.md`の「10秒を5秒ずつ確認しながら作る」
+3. `examples/workflows/MiniMax_H3_Continuum_V38x.json`
 
 撮影開始前に、表示ラベル、標準Workflow、公開ノード数、Review／Take動作がこの台本と一致するか確認します。違いがある場合は、古い画面を撮影せず、先に台本を現在のUIへ合わせます。
 

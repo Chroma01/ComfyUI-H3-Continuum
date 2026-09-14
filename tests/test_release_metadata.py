@@ -6,7 +6,7 @@ import tomllib
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "3.8.0"
+EXPECTED_VERSION = "3.8.1"
 
 
 def test_v35_release_metadata_is_consistent():
@@ -25,6 +25,7 @@ def test_v35_public_documents_identify_the_current_release():
     readme_ja = (ROOT / "README_JA.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert readme.startswith(f"# ComfyUI-H3-Continuum {EXPECTED_VERSION}\n")
-    assert readme_ja.startswith(f"# ComfyUI-H3-Continuum {EXPECTED_VERSION}\n")
+    expected_heading = f"# ComfyUI-H3-Continuum {EXPECTED_VERSION} — V3.8X\n"
+    assert readme.startswith(expected_heading)
+    assert readme_ja.startswith(expected_heading)
     assert f"## {EXPECTED_VERSION}" in changelog

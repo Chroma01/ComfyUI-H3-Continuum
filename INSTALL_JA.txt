@@ -23,7 +23,7 @@ V3.8の公開ノードは7個です。
 
 標準の入出力経路は、Sampler V3.8 → ComfyUI Core Video / Audio Decode → Finalize → Core Create Video → Core Save Videoです。Hi-Res Fixは標準経路に含みません。サイズは `Size Source = First Image`（初期画像がある場合）または `Manual`（Width / Heightを入力）で指定します。
 
-配布Workflowは `examples/workflows/MiniMax_H3_Continuum_V38.json` と同じJSONを含む同名ZIPです。このZIPはWorkflowだけを格納しており、手順3のカスタムノード本体ZIPとは別物です。Spectrum初期設定のgraphをそのまま配布するため、Spectrum、rgthree、KJNodes、ComfyUI-Easy-Useを別途導入してください。Turboへ切り替えてもこれらのノードはgraphに残ります。モデルや画像・音声は含みません。保存済みファイル名は各自の入力へ置き換え、不要な入力はOFFにしてください。
+配布Workflowは `examples/workflows/MiniMax_H3_Continuum_V38x.json` と同じJSONを含む同名ZIPです。このV3.8X（package 3.8.1）ZIPはWorkflowだけを格納しており、手順3のカスタムノード本体ZIPとは別物です。旧V3.8.0は`v3.8.0` tagから導入できます。Spectrum対応graphですが、保存状態ではSpectrumとTurbo LoRAはどちらもOFFです。Spectrum、rgthree、KJNodesを別途導入してください。ComfyUI-Easy-Useは不要です。モデルや画像・音声は含みません。保存済みファイル名は各自の入力へ置き換え、不要な入力はOFFにしてください。
 
 最小確認:
 - chunks: 2 または 3

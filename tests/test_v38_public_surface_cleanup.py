@@ -123,12 +123,12 @@ def test_registry_package_keeps_one_workflow_and_excludes_development_assets():
     assert "examples/*" in rules
     assert "!examples/workflows/" in rules
     assert "examples/workflows/*" in rules
-    assert "!examples/workflows/MiniMax_H3_Continuum_V38.json" in rules
-    assert "!examples/workflows/MiniMax_H3_Continuum_V38.zip" in rules
+    assert "!examples/workflows/MiniMax_H3_Continuum_V38x.json" in rules
+    assert "!examples/workflows/MiniMax_H3_Continuum_V38x.zip" in rules
     assert "*.zip" in rules
 
     workflow = json.loads(
-        (ROOT / "examples/workflows/MiniMax_H3_Continuum_V38.json").read_text(
+        (ROOT / "examples/workflows/MiniMax_H3_Continuum_V38x.json").read_text(
             encoding="utf-8"
         )
     )
@@ -170,8 +170,8 @@ def test_registry_manifest_matches_every_declared_source_file():
     assert {
         path for path in entries if path.startswith("examples/")
     } == {
-        "examples/workflows/MiniMax_H3_Continuum_V38.json",
-        "examples/workflows/MiniMax_H3_Continuum_V38.zip",
+        "examples/workflows/MiniMax_H3_Continuum_V38x.json",
+        "examples/workflows/MiniMax_H3_Continuum_V38x.zip",
     }
 
     for relative_path, expected_digest in entries.items():

@@ -21,12 +21,21 @@ from ComfyUI_H3_Continuum_Join.run_storage import (
 from ComfyUI_H3_Continuum_Join.branch_provenance import (
     TAKE_ACTION_CONTINUE,
     TAKE_ACTION_USE,
+    physical_groups,
 )
 from ComfyUI_H3_Continuum_Join.state import make_plan
 from ComfyUI_H3_Continuum_Join.v2.seeds import derive_chunk_seed
 from ComfyUI_H3_Continuum_Join.v2.session import make_chunk_entry
-from ComfyUI_H3_Continuum_Join.v3.nodes import H3ContinuumSamplerProduction
-from ComfyUI_H3_Continuum_Join.v3.nodes import H3ContinuumSamplerV3
+from ComfyUI_H3_Continuum_Join.v3.nodes import (
+    H3ContinuumSamplerProduction,
+    H3ContinuumSamplerV3,
+    PROJECTION_CURRENT_REVIEW_UNIT,
+    PROJECTION_FULL_ACCEPTED_PREFIX,
+    _apply_review_decode_scope,
+    _review_decode_chunk_range,
+    resolve_projection_decision,
+)
+from ComfyUI_H3_Continuum_Join.v3.plan import prepare_physical_decode_entries
 from ComfyUI_H3_Continuum_Join.v3.review_control import (
     GENERATION_MODE_FULL_RUN,
     GENERATION_MODE_REVIEW,
@@ -186,11 +195,23 @@ def _persist(
     updated_utc: str,
 ) -> RunStorageController:
     controller = _controller(tmp_path, contract)
-    entries = []
-    for position in range(prefix):
-        entry = _entry(position, contract)
-        entries.append(entry)
-        controller.commit_chunk(entry, position=position)
+    entries = [_entry(position, contract) for position in range(prefix)]
+    terminal = bool(
+        ((contract.get("global") or {}).get("execution_semantics") or {}).get(
+            "flf_execution"
+        ) == "terminal_merged_10s_seed_v2"
+    )
+    for group in physical_groups(
+        chunks=int(contract["chunk_count"]),
+        terminal_merge_enabled=terminal,
+    ):
+        if group.end > prefix:
+            break
+        positions = tuple(range(group.start - 1, group.end))
+        controller.commit_group(
+            tuple(entries[position] for position in positions),
+            positions=positions,
+        )
     if review_unit is not None:
         start, end = review_unit
         controller.review_generation_mode = GENERATION_MODE_REVIEW
@@ -1223,6 +1244,220 @@ def test_production_internal_review_configures_storage_and_finalizes_metadata(
     }
     assert storage.finalized["review_pause_metadata"]["review_unit"]["start"] == 1
     assert "review status" in outputs[3]
+
+
+def test_production_uses_reconciled_review_unit_for_decode_scope(monkeypatch):
+    import ComfyUI_H3_Continuum_Join.run_storage as run_storage
+
+    contract = _contract(chunks=3)
+    entries = [_entry(position, contract) for position in range(3)]
+    full_decode, full_plan = prepare_physical_decode_entries(
+        entries,
+        chunk_seconds=5.0,
+        preserve_final_frame=False,
+        terminal_merged=False,
+    )
+
+    class _Storage:
+        review_generation_mode = None
+        review_execution = None
+        finalized = None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def configure_review(self, **kwargs):
+            self.review_generation_mode = kwargs["generation_mode"]
+
+        def summary(self, *, detailed=False):
+            return "storage summary"
+
+        def review_pause_metadata(self):
+            return {
+                "review_unit": {"start": 2, "end": 2, "physical_group": 2},
+                "review_pause_reason": "review_each_chunk",
+            }
+
+        def finalize(self, **kwargs):
+            self.finalized = kwargs
+
+    storage = _Storage()
+    monkeypatch.setattr(run_storage, "run_storage_scope", lambda *a, **k: storage)
+    monkeypatch.setattr(run_storage, "automatic_project_key", lambda *a, **k: "key")
+
+    def fake_v3_run(self, **kwargs):
+        storage.review_execution = SimpleNamespace(
+            status_hint="review status",
+            finish_remaining=False,
+            next_review_unit_start=2,
+            next_review_unit_end=2,
+            partial_review=True,
+            smart_regenerate=False,
+        )
+        return (
+            [{"samples": entry["video"]} for entry in full_decode],
+            [{"samples": entry["audio"]} for entry in full_decode],
+            full_plan,
+            {
+                "last_state": {},
+                "session": {"session_id": "session", "chunks": entries},
+                "report": "sampling report",
+            },
+        )
+
+    monkeypatch.setattr(H3ContinuumSamplerV3, "run", fake_v3_run)
+    kwargs = _production_kwargs()
+    kwargs["chunks"] = 3
+    outputs = H3ContinuumSamplerProduction().run(**kwargs)
+
+    assert len(outputs[0]) == len(outputs[1]) == 1
+    assert torch.equal(outputs[0][0]["samples"], entries[1]["video"])
+    assert outputs[2]["target_frames"] == 120
+    assert outputs[2]["chunks"][0]["chunk_index"] == 2
+    assert len(storage.finalized["session"]["chunks"]) == 3
+    assert "Decode preview: Chunk 2" in outputs[3]
+
+
+def test_review_decode_range_only_selects_a_current_review_unit():
+    execution = SimpleNamespace(
+        finish_remaining=False,
+        next_review_unit_start=2,
+        next_review_unit_end=2,
+        partial_review=True,
+        smart_regenerate=False,
+    )
+    storage = SimpleNamespace(
+        review_generation_mode=GENERATION_MODE_REVIEW,
+        review_execution=execution,
+    )
+    assert _review_decode_chunk_range(
+        storage,
+        capture_refine_context=False,
+    ) == (2, 2)
+    assert _review_decode_chunk_range(
+        storage,
+        capture_refine_context=True,
+    ) == (2, 2)
+
+    execution.partial_review = False
+    assert _review_decode_chunk_range(
+        storage,
+        capture_refine_context=False,
+    ) is None
+    execution.smart_regenerate = True
+    assert _review_decode_chunk_range(
+        storage,
+        capture_refine_context=False,
+    ) == (2, 2)
+    execution.finish_remaining = True
+    assert _review_decode_chunk_range(
+        storage,
+        capture_refine_context=False,
+    ) is None
+
+
+def test_projection_decision_is_pure_and_refuses_to_split_physical_groups():
+    session = {"chunks": [{}, {}, {}]}
+    execution = SimpleNamespace(
+        finish_remaining=False,
+        next_review_unit_start=2,
+        next_review_unit_end=3,
+        partial_review=False,
+        smart_regenerate=True,
+    )
+
+    decision = resolve_projection_decision(
+        review_execution=execution,
+        effective_result_status=REVISION_STATUS_REVIEW_READY,
+        session=session,
+        physical_group_facts=((1,), (2, 3)),
+    )
+    assert decision.kind == PROJECTION_CURRENT_REVIEW_UNIT
+    assert (decision.start_chunk, decision.end_chunk) == (2, 3)
+
+    split_terminal_group = resolve_projection_decision(
+        review_execution=SimpleNamespace(
+            finish_remaining=False,
+            next_review_unit_start=2,
+            next_review_unit_end=2,
+            partial_review=True,
+            smart_regenerate=False,
+        ),
+        effective_result_status=REVISION_STATUS_REVIEW_READY,
+        session=session,
+        physical_group_facts=((1,), (2, 3)),
+    )
+    assert split_terminal_group.kind == PROJECTION_FULL_ACCEPTED_PREFIX
+
+    complete = resolve_projection_decision(
+        review_execution=execution,
+        effective_result_status=REVISION_STATUS_COMPLETE,
+        session=session,
+        physical_group_facts=((1,), (2, 3)),
+    )
+    assert complete.kind == PROJECTION_FULL_ACCEPTED_PREFIX
+
+
+def test_partial_review_rebuilds_decode_outputs_without_truncating_session():
+    contract = _contract(chunks=3)
+    entries = [_entry(position, contract) for position in range(3)]
+    full_decode, full_plan = prepare_physical_decode_entries(
+        entries,
+        chunk_seconds=5.0,
+        preserve_final_frame=False,
+        terminal_merged=False,
+    )
+    result = {
+        "last_state": {},
+        "session": {"session_id": "session", "chunks": entries},
+        "report": "sampling report",
+    }
+    outputs = (
+        [{"samples": entry["video"]} for entry in full_decode],
+        [{"samples": entry["audio"]} for entry in full_decode],
+        full_plan,
+        result,
+        {"full_refine_context": True},
+    )
+    refine_context = outputs[4]
+    storage = SimpleNamespace(
+        review_generation_mode=GENERATION_MODE_REVIEW,
+        review_execution=SimpleNamespace(
+            finish_remaining=False,
+            next_review_unit_start=2,
+            next_review_unit_end=2,
+            partial_review=True,
+            smart_regenerate=False,
+        ),
+    )
+
+    scoped = _apply_review_decode_scope(
+        outputs,
+        storage=storage,
+        capture_refine_context=True,
+        configured_chunks=3,
+        chunk_seconds=5.0,
+        first_frame=None,
+        last_frame=None,
+        timeline_video_source=None,
+    )
+
+    assert len(scoped[0]) == len(scoped[1]) == 1
+    assert torch.equal(scoped[0][0]["samples"], entries[1]["video"])
+    assert torch.equal(scoped[1][0]["samples"], entries[1]["audio"])
+    assert scoped[2]["target_frames"] == 120
+    assert scoped[2]["chunks"][0]["sequence_index"] == 1
+    assert scoped[2]["chunks"][0]["chunk_index"] == 2
+    assert scoped[2]["second_pass_contract"]["physical_groups"][0][
+        "logical_chunks"
+    ] == [2]
+    assert len(scoped[3]["session"]["chunks"]) == 3
+    assert scoped[3]["session"] is result["session"]
+    assert scoped[3]["report"].endswith("Decode preview: Chunk 2")
+    assert scoped[4] is refine_context
 
 
 def test_production_review_mode_rejects_run_storage_off():

@@ -109,10 +109,13 @@ def test_three_chunks_are_committed_to_distinct_files(tmp_path):
         controller.commit_chunk(entry, position=position)
 
     chunks_root = controller.revision_root / "chunks"
-    assert [path.name for path in sorted(chunks_root.glob("*.safetensors"))] == [
-        "chunk_0001.safetensors",
-        "chunk_0002.safetensors",
-        "chunk_0003.safetensors",
+    raw_names = [path.name for path in chunks_root.glob("*.safetensors")]
+    assert len(raw_names) == 3
+    assert all(name.startswith("rev-revision-test-txn-") for name in raw_names)
+    assert sorted(name.rsplit("-", 2)[-2] for name in raw_names) == [
+        "chunk",
+        "chunk",
+        "chunk",
     ]
     records = controller.manifest["chunks"]
     assert [record["sequence_index"] for record in records] == [0, 1, 2]
@@ -122,9 +125,12 @@ def test_three_chunks_are_committed_to_distinct_files(tmp_path):
 
     persisted = json.loads(controller._manifest_path().read_text(encoding="utf-8"))
     assert [record["filename"] for record in persisted["chunks"]] == [
-        "chunk_0001.safetensors",
-        "chunk_0002.safetensors",
-        "chunk_0003.safetensors",
+        record["filename"] for record in records
+    ]
+    assert [name[-22:] for name in (record["filename"] for record in records)] == [
+        "chunk-0001.safetensors",
+        "chunk-0002.safetensors",
+        "chunk-0003.safetensors",
     ]
 
 
@@ -139,16 +145,16 @@ def test_interrupted_fixed_prompt_run_resumes_the_correct_prefix(tmp_path):
 
     assert [entry["seed"] for entry in entries] == [100, 101]
     assert [entry["clip_index"] for entry in entries] == [1, 2]
-    assert [record["filename"] for record in records] == [
-        "chunk_0001.safetensors",
-        "chunk_0002.safetensors",
+    assert [record["filename"][-22:] for record in records] == [
+        "chunk-0001.safetensors",
+        "chunk-0002.safetensors",
     ]
 
     resumed.commit_chunk(_entry(2), position=2)
-    assert [record["filename"] for record in resumed.manifest["chunks"]] == [
-        "chunk_0001.safetensors",
-        "chunk_0002.safetensors",
-        "chunk_0003.safetensors",
+    assert [record["filename"][-22:] for record in resumed.manifest["chunks"]] == [
+        "chunk-0001.safetensors",
+        "chunk-0002.safetensors",
+        "chunk-0003.safetensors",
     ]
 
 

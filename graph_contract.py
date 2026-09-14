@@ -91,6 +91,7 @@ def build_upstream_graph_contract(
     prompt: Any, unique_id: Any, *, require_video_vae: bool,
     require_reference_audio_vae: bool = False,
     require_audio_vae: bool = False,
+    reference_audio_route: str | None = None,
 ) -> tuple[dict[str, Any], bool, list[str]]:
     """Fingerprint MODEL/CLIP/VAE routes feeding the Continuum sampler."""
     if not isinstance(prompt, dict):
@@ -109,15 +110,14 @@ def build_upstream_graph_contract(
         ("video_vae", "video_vae", bool(require_video_vae)),
     ]
     if require_reference_audio_vae:
-        reference_audio_route = "reference_audio_vae"
-        direct_link = inputs.get(reference_audio_route)
-        if not (
-            isinstance(direct_link, (list, tuple))
-            and len(direct_link) == 2
-            and isinstance(direct_link[0], (str, int))
-            and isinstance(direct_link[1], int)
-        ):
-            reference_audio_route = "audio_references"
+        if reference_audio_route is None:
+            bundle_link = inputs.get("audio_references")
+            reference_audio_route = "audio_references" if (
+                isinstance(bundle_link, (list, tuple))
+                and len(bundle_link) == 2
+                and isinstance(bundle_link[0], (str, int))
+                and isinstance(bundle_link[1], int)
+            ) else "reference_audio_vae"
         # Keep the established descriptor key. The bundled route fingerprints
         # the helper and therefore its Audio VAE plus every ordered source.
         specs.append(("reference_audio_vae", reference_audio_route, True))

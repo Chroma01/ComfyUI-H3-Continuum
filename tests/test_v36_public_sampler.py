@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import pytest
 
 from ComfyUI_H3_Continuum_Join import nodes as root_nodes
@@ -26,9 +23,6 @@ from ComfyUI_H3_Continuum_Join.constants import (
     V2_CONTINUITY_AUTO,
 )
 from ComfyUI_H3_Continuum_Join.v3.nodes import H3ContinuumSamplerProduction
-
-
-ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_v36_is_registered_without_replacing_v35():
@@ -189,29 +183,3 @@ def test_v36_non_balanced_fallback_uses_legacy_reference_revision_identity():
 
     assert reference_identity == base_identity
     assert masked_identity != reference_identity
-
-
-def test_v36_template_uses_standard_backend_and_v35_template_is_unchanged():
-    v36 = json.loads(
-        (ROOT / "examples/workflows/MiniMax_H3_Continuum_V36.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    v35 = json.loads(
-        (ROOT / "examples/workflows/MiniMax_H3_Continuum_V35.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    v36_sampler = next(node for node in v36["nodes"] if node["id"] == 305)
-    v35_sampler = next(node for node in v35["nodes"] if node["id"] == 305)
-
-    assert v36_sampler["type"] == "H3ContinuumSamplerV36"
-    assert v36_sampler["properties"]["Node name for S&R"] == (
-        "H3ContinuumSamplerV36"
-    )
-    assert v36_sampler["widgets_values"][-1] == CONTINUATION_BACKEND_STANDARD
-    assert v36_sampler["widgets_values_named"]["continuation_backend"] == (
-        CONTINUATION_BACKEND_STANDARD
-    )
-    assert v35_sampler["type"] == "H3ContinuumSamplerV35"
-    assert "continuation_backend" not in v35_sampler["widgets_values_named"]

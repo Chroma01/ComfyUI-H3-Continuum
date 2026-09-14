@@ -389,7 +389,6 @@ def _initialize_comfy(comfy_root: Path):
         "ComfyUI-H3-Continuum",
         "ComfyUI-Spectrum-MiniMax-H3",
         "ComfyUI-SolAttn_triton",
-        "comfyui-easy-use",
         "comfyui-kjnodes",
         "rgthree-comfy",
     ]

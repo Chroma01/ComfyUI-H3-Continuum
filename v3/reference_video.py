@@ -10,7 +10,7 @@ from typing import Any
 
 import torch
 
-from .temporal import align_frame_count_up
+from ..temporal import align_frame_count_up
 
 
 REFERENCE_VIDEO_CONTRACT_VERSION = 1
@@ -279,4 +279,3 @@ def validate_reference_video_prompts(
         "<Video 1> tag; video still conditions generation, but an explicit tag is "
         "recommended."
     )
-

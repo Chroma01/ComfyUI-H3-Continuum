@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy, hashlib, logging
 from typing import Any
 import torch
+from ..branch_provenance import physical_groups
 from ..compatibility import accelerator_summary, check_comfy_h3_runtime
 from ..constants import (
     DIAGNOSTICS_FULL, DIAGNOSTICS_OFF, DIAGNOSTICS_OPTIONS, FPS,
@@ -30,7 +31,7 @@ from ..guide_timeline import (
     validate_guide_visible_range,
 )
 from ..model_patch import LayoutValidationProfiler, clone_model_for_chunk
-from ..state import assert_context_unchanged, context_fingerprint, make_plan, select_context, validate_state
+from ..state import assert_context_unchanged, context_fingerprint, make_plan, select_context
 from ..temporal import (
     align_frame_count_up,
     audio_latent_t,
@@ -40,6 +41,7 @@ from ..temporal import (
     video_latent_t,
 )
 from ..version import PACKAGE_VERSION
+
 from .decoder import decode_sequence, decode_sequence_with_seam, enforce_total_frames
 from .context_diagnostics import ContextDiagnosticsTracker
 from .h3_builder import attach_keyframes, empty_h3_latent, encode_identity_latents, encode_prompt_conditioning, encode_prompt_conditioning_cached, prepare_identity_assets
@@ -238,22 +240,6 @@ def _terminal_strategy_mismatch(
     return saved_strategy != FLF_STRATEGY
 
 
-def _terminal_sampling_plan(
-    *,
-    chunks: int,
-    completed: int,
-    merge_enabled: bool,
-) -> tuple[tuple[int, ...], bool]:
-    if completed >= int(chunks):
-        return (), False
-    if not merge_enabled:
-        return tuple(range(completed, int(chunks))), False
-    pair_start = int(chunks) - 2
-    if completed > pair_start:
-        raise SequenceRuntimeError("terminal merged pair cannot resume from only one logical half")
-    return tuple(range(completed, pair_start)), True
-
-
 def _physical_group_limit(value: int | None) -> int | None:
     """Validate the private V3 execution cap without changing sampling identity."""
 
@@ -264,6 +250,52 @@ def _physical_group_limit(value: int | None) -> int | None:
             "max_new_physical_groups must be None or a positive integer"
         )
     return value
+
+
+def _terminal_sampling_plan(
+    *,
+    chunks: int,
+    completed: int,
+    merge_enabled: bool,
+) -> tuple[tuple[int, ...], bool]:
+    """Legacy internal adapter delegated to the R3 Pure Planner."""
+
+    from ..v3.execution_planner import ExecutionPlanningError, build_execution_plan
+    from ..v3.planning_types import ContinuationSourceFacts
+
+    boundaries=tuple(
+        (int(group.start),int(group.end))
+        for group in physical_groups(
+            chunks=int(chunks),
+            terminal_merge_enabled=bool(merge_enabled),
+        )
+        if int(group.end)<=int(completed)
+    )
+    facts=ContinuationSourceFacts(
+        kind=("explicit_session" if int(completed)>0 else "none"),
+        accepted_chunks=int(completed),
+        reroll_from_chunk=0,
+        physical_group_boundaries=boundaries,
+    )
+    try:
+        plan=build_execution_plan(
+            continuation_source_facts=facts,
+            configured_chunks=int(chunks),
+            terminal_merge_enabled=bool(merge_enabled),
+            max_new_physical_groups=None,
+            review_execution=None,
+        )
+    except ExecutionPlanningError as exc:
+        raise SequenceRuntimeError(str(exc)) from exc
+    normal_indices=tuple(
+        descriptor.logical_chunks[0]-1
+        for descriptor in plan.groups_to_generate
+        if not descriptor.terminal_atomic
+    )
+    terminal_pending=any(
+        descriptor.terminal_atomic for descriptor in plan.groups_to_generate
+    )
+    return normal_indices,terminal_pending
 
 
 def _terminal_physical_seed_plan(
@@ -415,10 +447,22 @@ def _attach_terminal_flf_keyframes(
         metadata["minimax_frame_count"] = int(frame_count)
     return conditioning
 
-def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,sigmas:torch.Tensor,first_frame:torch.Tensor|None,last_frame:torch.Tensor|None,prompt_plan:dict[str,Any],width:int,height:int,continuity:str,base_seed:int,audio_continuity:bool,exact_total_duration:bool,diagnostics_mode:str,reroll_from_chunk:int,reroll_nonce:int,strict_compatibility:bool,debug:bool,seam_correction:str=SEAM_CORRECTION_OFF,enable_preview:bool=True,session:dict[str,Any]|None=None,initial_state:dict[str,Any]|None=None,latent_only:bool=False,reference_assets=None,reference_audio_source=None,reference_audio_vae=None,driving_audio_source=None,driving_audio_vae=None,reference_video_source=None,timeline_video_source=None,guide_source=None,capture_refine_context:bool=False,memory_attribution:bool=False,prompt_conditioning_cache:bool=False,reference_encode_cache:bool=False,continuation_transport:str=REFERENCE_CONTEXT_V1,max_new_physical_groups:int|None=None,_memory_attribution_collector:Any=None,_diagnostic_continuation_policy:Any=None):
+def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,sigmas:torch.Tensor,first_frame:torch.Tensor|None,last_frame:torch.Tensor|None,prompt_plan:dict[str,Any],width:int,height:int,continuity:str,base_seed:int,audio_continuity:bool,exact_total_duration:bool,diagnostics_mode:str,reroll_from_chunk:int,reroll_nonce:int,strict_compatibility:bool,debug:bool,seam_correction:str=SEAM_CORRECTION_OFF,enable_preview:bool=True,session:dict[str,Any]|None=None,initial_state:dict[str,Any]|None=None,latent_only:bool=False,reference_assets=None,reference_audio_source=None,reference_audio_vae=None,driving_audio_source=None,driving_audio_vae=None,reference_video_source=None,timeline_video_source=None,guide_source=None,capture_refine_context:bool=False,memory_attribution:bool=False,prompt_conditioning_cache:bool=False,reference_encode_cache:bool=False,continuation_transport:str=REFERENCE_CONTEXT_V1,max_new_physical_groups:int|None=None,_memory_attribution_collector:Any=None,_diagnostic_continuation_policy:Any=None):
     from ..conditioning import detect_conditioning_mode, conditioning_display_label
     from ..run_storage import get_active_run_storage
+    from ..v3.runtime_coordinator import (
+        InternalRuntimeCoordinator,
+        RuntimeCoordinatorError,
+    )
+    from ..v3.sampling_engine import sample_physical_group
     storage_controller=get_active_run_storage()
+    runtime_coordinator=InternalRuntimeCoordinator(
+        storage_controller=storage_controller,
+        input_session=session,
+        initial_state=initial_state,
+    )
+    session,initial_state=runtime_coordinator.prepare_inputs()
+    review_execution=None
     capture_refine_context=bool(capture_refine_context and latent_only)
     memory_attribution=bool(memory_attribution and capture_refine_context)
     prompt_conditioning_cache=bool(prompt_conditioning_cache and capture_refine_context and latent_only)
@@ -450,13 +494,13 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
     # Legacy workflow input only. Runtime compatibility is advisory in V3.4.
     strict_compatibility=False
     if width<=0 or height<=0 or width%32 or height%32: raise SequenceRuntimeError("width and height must be positive multiples of 32")
-    if session is not None and initial_state is not None:
-        LOG.warning("Both session and initial_state were supplied; using the session and ignoring initial_state")
-        initial_state=None
     if diagnostics_mode not in DIAGNOSTICS_OPTIONS: raise SequenceRuntimeError(f"unknown diagnostics mode: {diagnostics_mode!r}")
     if seam_correction not in SEAM_CORRECTION_OPTIONS: raise SequenceRuntimeError(f"unknown seam correction mode: {seam_correction!r}")
     if not 0<=int(reroll_from_chunk)<=chunks: raise SequenceRuntimeError("reroll_from_chunk must be 0 or a valid one-based chunk index")
-    if initial_state is not None and int(reroll_from_chunk) not in (0,1): raise SequenceRuntimeError("with initial_state, reroll_from_chunk can only be 0 or 1")
+    try:
+        runtime_coordinator.validate_initial_state_reroll(reroll_from_chunk)
+    except RuntimeCoordinatorError as exc:
+        raise SequenceRuntimeError(str(exc)) from exc
     try: conditioning_mode=detect_conditioning_mode(first_frame=first_frame,last_frame=last_frame,reference_assets=reference_assets)
     except ValueError as exc: raise SequenceRuntimeError(str(exc)) from exc
     conditioning_display=conditioning_display_label(has_first=first_frame is not None,has_last=last_frame is not None,has_reference=reference_assets is not None)
@@ -502,6 +546,7 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
     sequence_identity_hash=_continuation_transport_identity(sequence_identity_hash,continuation_transport)
     current_model_fingerprint=model_fingerprint(model,extra_wrapper_keys=("h3_continuum_join.apply_model.v1",))
     if storage_controller is not None:
+        runtime_coordinator.assert_storage_session_compatible()
         stored_session=storage_controller.prepare(model=model,model_fingerprint_value=current_model_fingerprint,clip=clip,video_vae=video_vae,sampler=sampler,sigmas=sigmas,prompt_plan=plan,width=width,height=height,chunk_seconds=chunk_seconds,continuity=continuity,audio_continuity=audio_continuity,base_seed=base_seed,reroll_from_chunk=reroll_from_chunk,reroll_nonce=reroll_nonce,first_frame_hash=assets.first_frame_hash,last_frame_hash=assets.last_frame_hash,identity_hash=sequence_identity_hash,strict_compatibility=strict_compatibility,existing_session=session,reference_contract=reference_assets.contract if reference_assets is not None else None,conditioning_mode=conditioning_mode,reference_audio_contract=reference_audio_source.contract if reference_audio_source is not None else None,reference_audio_vae=reference_audio_vae,driving_audio_contract=driving_audio_source.contract if driving_audio_source is not None else None,driving_audio_vae=driving_audio_vae,reference_video_contract=reference_video_source.contract if reference_video_source is not None else None,timeline_video_contract=timeline_video_source.contract if timeline_video_source is not None else None,guide_contract=guide_source.contract if guide_source is not None else None,execution_semantics=_terminal_execution_semantics(merge_enabled=terminal_merge_enabled,prompt_policy=terminal_prompt_policy,continuation_transport=continuation_transport))
         reroll_nonce=storage_controller.effective_reroll_nonce
         review_execution=getattr(storage_controller,"review_execution",None)
@@ -582,9 +627,59 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
     if session is not None:
         old_fingerprint=str(session.get("model_fingerprint",""))
         if old_fingerprint and old_fingerprint!=current_model_fingerprint: reuse_notes.append("model/accelerator fingerprint differs from the saved session; accepted chunks were kept")
+
+    # R4: the Coordinator is the sole owner of Storage / Session / State
+    # priority. The Pure Planner receives only its selected-source projection.
+    try:
+        continuation_selection=runtime_coordinator.select_continuation_source(
+            preserved=preserved,
+            initial_state=initial_state,
+            chunks=chunks,
+            width=width,
+            height=height,
+            reroll_from_chunk=int(reroll_from_chunk),
+            effective_reroll_from_chunk=int(effective_reroll_from_chunk),
+            terminal_merge_enabled=terminal_merge_enabled,
+        )
+    except RuntimeCoordinatorError as exc:
+        raise SequenceRuntimeError(str(exc)) from exc
+    entries=continuation_selection.entries
+    previous_state=continuation_selection.previous_state
+    continuation_source_facts=continuation_selection.continuation_source_facts
+    reuse_notes.extend(continuation_selection.notes)
+    retained_review_unit=None
+    inherited_review_unit=(
+        getattr(storage_controller,"inherited_review_unit",None)
+        if storage_controller is not None
+        else None
+    )
+    if isinstance(inherited_review_unit,dict):
+        from ..v3.review_control import ReviewUnit
+        retained_review_unit=ReviewUnit(
+            start=int(inherited_review_unit["start"]),
+            end=int(inherited_review_unit["end"]),
+            physical_group=int(inherited_review_unit["physical_group"]),
+        )
+    from ..v3.execution_planner import ExecutionPlanningError,build_execution_plan
+    try:
+        execution_plan=build_execution_plan(
+            continuation_source_facts=continuation_source_facts,
+            configured_chunks=chunks,
+            terminal_merge_enabled=terminal_merge_enabled,
+            max_new_physical_groups=max_new_physical_groups,
+            review_execution=review_execution,
+            retained_review_unit=retained_review_unit,
+        )
+    except ExecutionPlanningError as exc:
+        raise SequenceRuntimeError(str(exc)) from exc
+    if storage_controller is not None:
+        # Queue-local planning result only.  No Run Storage schema or persisted
+        # metadata is changed in R3.
+        storage_controller.execution_plan=execution_plan
+
     cache={}
     guide_assets=None
-    if len(preserved)<chunks:
+    if len(preserved)<chunks or capture_refine_context:
         if memory_collector is not None:
             capture_memory(memory_collector, "start_phase", phase="conditioning")
             capture_memory(memory_collector, "start_phase", phase="conditioning_identity_video_vae")
@@ -651,8 +746,37 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
         if timeline_video_source is None:
             if memory_collector is not None:
                 capture_memory(memory_collector, "start_phase", phase="conditioning_prompt_clip")
-            cache=_conditioning_cache(clip=clip,prompts=prompts,assets=assets,final_has_last_frame=last_frame is not None,reference_assets=reference_assets,reference_audio_assets=reference_audio_assets,timeline_video_assets=reference_video_assets,prompt_conditioning_cache=prompt_conditioning_cache,prompt_cache_event=prompt_cache_events.append)
-            if terminal_merge_enabled and terminal_prompt is not None:
+            planned_normal_indices=tuple(
+                descriptor.logical_chunks[0]-1
+                for descriptor in execution_plan.groups_to_generate
+                if not descriptor.terminal_atomic
+            )
+            if max_new_physical_groups is None:
+                # Preserve the established Full Run conditioning/cache set,
+                # including both logical prompts covered by Terminal Merge.
+                prepared_indices=tuple(range(chunks))
+            elif capture_refine_context:
+                normal_stop=chunks-2 if terminal_merge_enabled else chunks
+                reused_normal_indices=tuple(range(min(len(entries),normal_stop)))
+                prepared_indices=tuple(dict.fromkeys(
+                    reused_normal_indices+planned_normal_indices
+                ))
+            else:
+                prepared_indices=planned_normal_indices
+            prepared_prompts=[prompts[index] for index in prepared_indices]
+            prepare_last=bool(last_frame is not None and (
+                max_new_physical_groups is None or chunks-1 in prepared_indices
+            ))
+            prepare_terminal=any(
+                descriptor.terminal_atomic
+                for descriptor in execution_plan.groups_to_generate
+            ) or bool(
+                capture_refine_context
+                and terminal_merge_enabled
+                and len(entries)==chunks
+            )
+            cache=_conditioning_cache(clip=clip,prompts=prepared_prompts,assets=assets,final_has_last_frame=prepare_last,reference_assets=reference_assets,reference_audio_assets=reference_audio_assets,timeline_video_assets=reference_video_assets,prompt_conditioning_cache=prompt_conditioning_cache,prompt_cache_event=prompt_cache_events.append)
+            if prepare_terminal and terminal_prompt is not None:
                 terminal_key=_conditioning_cache_key(terminal_prompt,include_last=True,reference_assets=reference_assets)
                 if terminal_key not in cache:
                     cache.update(_conditioning_cache(clip=clip,prompts=[terminal_prompt],assets=assets,final_has_last_frame=True,reference_assets=reference_assets,reference_audio_assets=reference_audio_assets,timeline_video_assets=reference_video_assets,prompt_conditioning_cache=prompt_conditioning_cache,prompt_cache_event=prompt_cache_events.append))
@@ -660,20 +784,6 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
                 capture_memory(memory_collector, "finish_phase", phase="conditioning_prompt_clip")
         if memory_collector is not None:
             capture_memory(memory_collector, "finish_phase", phase="conditioning")
-    entries=preserved[:]; previous_state=None
-    if entries:
-        try: previous_state=entry_to_state(entries[-1])
-        except (SessionValidationError, ValueError) as exc:
-            reuse_notes.append(f"saved continuation state was rejected; generated a fresh run ({exc})")
-            entries=[]; previous_state=None
-    elif initial_state is not None:
-        try:
-            candidate=validate_state(initial_state)
-            if int(candidate["width"])!=width or int(candidate["height"])!=height:
-                reuse_notes.append("initial_state resolution differs; generated a fresh run")
-            else: previous_state=candidate
-        except ValueError as exc:
-            reuse_notes.append(f"initial_state was rejected; generated a fresh run ({exc})")
     initial_frame_count=align_frame_count_up(int(round(chunk_seconds*FPS))); retained_frames=sum(int(entry["plan"]["net_frames"]) for entry in entries); sampling_reports=[]
     context_diagnostics=ContextDiagnosticsTracker() if bool(debug) else None
     if context_diagnostics is not None:
@@ -682,10 +792,26 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
                 _record_context_diagnostics(tracker=context_diagnostics,reports=sampling_reports,state=entry_to_state(reused_entry),continuity=continuity,reused=True)
         elif previous_state is not None:
             _record_context_diagnostics(tracker=context_diagnostics,reports=sampling_reports,state=previous_state,continuity=continuity,reused=True)
-    normal_indices,terminal_merge_pending=_terminal_sampling_plan(chunks=chunks,completed=len(entries),merge_enabled=terminal_merge_enabled)
-    if max_new_physical_groups == 0:
-        normal_indices=()
-        terminal_merge_pending=False
+    normal_indices=tuple(
+        descriptor.logical_chunks[0]-1
+        for descriptor in execution_plan.groups_to_generate
+        if not descriptor.terminal_atomic
+    )
+    terminal_merge_pending=any(
+        descriptor.terminal_atomic
+        for descriptor in execution_plan.groups_to_generate
+    )
+    # Reuse the same group preparation for context capture; never resample or
+    # recommit accepted entries. An external initial State is not reconstructible
+    # from the saved prefix alone, so retain incomplete-context behavior for it.
+    reused_count=len(entries)
+    rebuild_prefix=bool(capture_refine_context and entries and not entries[0]["plan"]["continuation"])
+    terminal_reused=bool(rebuild_prefix and terminal_merge_enabled and reused_count==chunks)
+    if rebuild_prefix:
+        normal_stop=chunks-2 if terminal_merge_enabled else chunks
+        normal_indices=tuple(range(min(reused_count,normal_stop)))+tuple(normal_indices)
+        previous_state=None
+        retained_frames=0
     if adaptive_observer_event is not None:
         adaptive_observer_event(
             adaptive_continuity_observer,
@@ -699,6 +825,7 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
     if memory_collector is not None:
         capture_memory(memory_collector, "finish_phase", phase="preparation")
     for sequence_index in normal_indices:
+        reusing_group=sequence_index<reused_count
         if memory_collector is not None:
             capture_memory(memory_collector, "start_phase", phase="group_prepare", physical_group=sequence_index+1, logical_chunks=(sequence_index+1,))
         prompt=prompts[sequence_index]; prompt_hash_value=prompt_hashes[sequence_index]; is_final=sequence_index==chunks-1; effective_reroll_nonce=int(reroll_nonce) if int(reroll_from_chunk)>0 and sequence_index+1>=int(reroll_from_chunk) else 0; seed=derive_chunk_seed(base_seed,sequence_index,effective_reroll_nonce); motion_score=0.0; video_context=None; audio_context=None; context_before=None; context_interop_emitted=False
@@ -776,7 +903,7 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
                 conditioning=prepare_conditioning(base_conditioning,video_context=video_context,audio_context=audio_context,audio_grid_offset=grid_offset,context_frames=context_frames,new_frame_count=shape.total_frames,first_frame_policy=POLICY_REPLACE,preserve_last_frame=True)
                 context_interop_emitted=True
             clip_index=int(previous_state["clip_index"])+1; chunk_plan=make_plan(continuation=True,clip_index=clip_index,total_frames=shape.total_frames,trim_frames=context_frames,width=width,height=height,context_frames=context_frames,state_capacity_frames=largest_context_capacity(shape.net_new_frames),requested_extend_seconds=chunk_seconds,debug=debug)
-        if adaptive_observer_event is not None:
+        if adaptive_observer_event is not None and not reusing_group:
             from ..v3.adaptive_continuity import INITIAL_TRANSPORT
             adaptive_observer_event(
                 adaptive_continuity_observer,
@@ -821,7 +948,8 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
         clone_kwargs={"strict":bool(strict_compatibility),"debug":bool(debug),"chunk_index":clip_index,"context_frames":context_frames if context_interop_emitted else None}
         if layout_validation_profiler is not None: clone_kwargs["validation_profiler"]=layout_validation_profiler
         if packed_row_planner is not None: clone_kwargs["packed_row_planner"]=packed_row_planner
-        chunk_model=clone_model_for_chunk(model,**clone_kwargs)
+        if not reusing_group:
+            chunk_model=clone_model_for_chunk(model,**clone_kwargs)
         if memory_collector is not None:
             capture_memory(memory_collector, "finish_phase", phase="group_prepare", physical_group=sequence_index+1, logical_chunks=(sequence_index+1,))
             capture_memory(memory_collector, "start_phase", phase="refine_context", physical_group=sequence_index+1, logical_chunks=(sequence_index+1,))
@@ -855,6 +983,13 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
             del source_video,_
         if memory_collector is not None:
             capture_memory(memory_collector, "finish_phase", phase="refine_context", physical_group=sequence_index+1, logical_chunks=(sequence_index+1,))
+        if reusing_group:
+            previous_state=entry_to_state(entries[sequence_index])
+            retained_frames+=int(entries[sequence_index]["plan"]["net_frames"])
+            del latent,conditioning,chunk_cache
+            if timeline_video_source is not None:
+                del timeline_video_assets
+            continue
         if memory_collector is not None:
             capture_memory(memory_collector, "capture_group",
                 physical_group=sequence_index+1,
@@ -866,39 +1001,24 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
             )
         if memory_collector is not None:
             capture_memory(memory_collector, "start_phase", phase="sampling", physical_group=sequence_index+1, logical_chunks=(sequence_index+1,))
-        layout_profile_token=(
-            layout_validation_profiler.begin_sampling_group(
-                physical_group=sequence_index+1,
-                logical_chunks=(sequence_index+1,),
-                sampling_steps=max(0,int(sigmas.shape[-1])-1),
-            )
-            if layout_validation_profiler is not None
-            else None
+        sampled,diagnostic_sample_token=sample_physical_group(
+            sample_callable=sample_chunk,
+            model=chunk_model,
+            conditioning=conditioning,
+            latent=latent,
+            sampler=sampler,
+            sigmas=sigmas,
+            seed=seed,
+            enable_preview=bool(enable_preview),
+            physical_group=sequence_index+1,
+            logical_chunks=(sequence_index+1,),
+            terminal_atomic=False,
+            layout_validation_profiler=layout_validation_profiler,
+            packed_row_planner=packed_row_planner,
+            planner_event=planner_event,
+            diagnostic_policy=_diagnostic_continuation_policy,
+            context_frames=context_frames,
         )
-        diagnostic_sample_token=None
-        if _diagnostic_continuation_policy is not None:
-            diagnostic_sample_token=_diagnostic_continuation_policy.before_sampling(
-                physical_group=sequence_index+1,
-                logical_chunks=(sequence_index+1,),
-                context_frames=context_frames,
-                latent=latent,
-                conditioning=conditioning,
-                seed=seed,
-                sigmas=sigmas,
-            )
-        if planner_event is not None:
-            planner_event(
-                packed_row_planner,
-                "begin_group",
-                physical_group=sequence_index+1,
-                logical_chunks=(sequence_index+1,),
-                terminal_atomic=False,
-            )
-        sampled=sample_chunk(model=chunk_model,conditioning=conditioning,latent=latent,sampler=sampler,sigmas=sigmas,seed=seed,enable_preview=bool(enable_preview))
-        if planner_event is not None:
-            planner_event(packed_row_planner,"finish_group")
-        if layout_validation_profiler is not None and layout_profile_token is not None:
-            layout_validation_profiler.finish_sampling_group(layout_profile_token)
         if previous_state is not None and continuation_transport in (MASKED_VIDEO_PREFIX_V1,MASKED_AV_PREFIX_22_V1,MASKED_AV_PREFIX_39_V1):
             if continuation_transport in (MASKED_AV_PREFIX_22_V1,MASKED_AV_PREFIX_39_V1):
                 from ..v3.masked_continuation import restore_masked_av_prefix
@@ -933,7 +1053,7 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
         if context_before is not None and video_context is not None: assert_context_unchanged(video_context,audio_context,context_before)
         entry=make_chunk_entry(latent=sampled,plan=chunk_plan,prompt=prompt,prompt_hash=prompt_hash_value,seed=seed,context_frames=context_frames,motion_score=motion_score,reused=False); previous_state=entry_to_state(entry); entries.append(entry)
         _record_context_diagnostics(tracker=context_diagnostics,reports=sampling_reports,state=previous_state,continuity=continuity,reused=False)
-        if storage_controller is not None: storage_controller.commit_chunk(entry, position=sequence_index)
+        if storage_controller is not None: storage_controller.commit_group((entry,), positions=(sequence_index,))
         if memory_collector is not None:
             capture_memory(memory_collector, "finish_phase", phase="cpu_commit_validation", physical_group=sequence_index+1, logical_chunks=(sequence_index+1,))
         retained_frames+=int(chunk_plan["net_frames"])
@@ -956,18 +1076,9 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
                 physical_group=sequence_index+1,
             )
         new_physical_groups+=1
-        if (
-            max_new_physical_groups is not None
-            and new_physical_groups>=max_new_physical_groups
-        ):
-            break
-    terminal_budget_available=(
-        max_new_physical_groups is None
-        or new_physical_groups<max_new_physical_groups
-    )
-    if terminal_merge_pending and terminal_budget_available:
+    if terminal_reused or terminal_merge_pending:
         pair_start=chunks-2
-        if len(entries)!=pair_start:
+        if len(entries)!=(chunks if terminal_reused else pair_start):
             raise SequenceRuntimeError(f"terminal merged pair expected {pair_start} completed chunks, got {len(entries)}")
         terminal_physical_group=pair_start+1
         terminal_logical_chunks=(pair_start+1,chunks)
@@ -1044,7 +1155,7 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
                 conditioning=prepare_conditioning(base_conditioning,video_context=video_context,audio_context=audio_context,audio_grid_offset=grid_offset,context_frames=TERMINAL_MERGE_CONTEXT_FRAMES,new_frame_count=physical_frames,first_frame_policy=POLICY_REPLACE,preserve_last_frame=True)
                 reason=f"terminal merged 10-second sample with 22-frame context; continuity selection was {selected_context} ({selected_reason})"
             physical_clip_index=int(previous_state["clip_index"])+1
-        if adaptive_observer_event is not None:
+        if adaptive_observer_event is not None and not terminal_reused:
             from ..v3.adaptive_continuity import INITIAL_TRANSPORT
             adaptive_observer_event(
                 adaptive_continuity_observer,
@@ -1090,27 +1201,28 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
             )
         driving_audio_latent=slice_driving_audio_latent(driving_audio_assets,cumulative_retained_before=retained_frames,total_frames=physical_frames,trim_frames=physical_context_frames,fps=FPS)
         conditioning=attach_driving_audio(conditioning,driving_audio_latent)
-        chunk_model=clone_model_for_chunk(
-            model,
-            strict=bool(strict_compatibility),
-            debug=bool(debug),
-            chunk_index=physical_clip_index,
-            context_frames=(
-                physical_context_frames
-                if not initial_pair and not terminal_masked
-                else None
-            ),
-            **(
-                {"validation_profiler": layout_validation_profiler}
-                if layout_validation_profiler is not None
-                else {}
-            ),
-            **(
-                {"packed_row_planner": packed_row_planner}
-                if packed_row_planner is not None
-                else {}
-            ),
-        )
+        if not terminal_reused:
+            chunk_model=clone_model_for_chunk(
+                model,
+                strict=bool(strict_compatibility),
+                debug=bool(debug),
+                chunk_index=physical_clip_index,
+                context_frames=(
+                    physical_context_frames
+                    if not initial_pair and not terminal_masked
+                    else None
+                ),
+                **(
+                    {"validation_profiler": layout_validation_profiler}
+                    if layout_validation_profiler is not None
+                    else {}
+                ),
+                **(
+                    {"packed_row_planner": packed_row_planner}
+                    if packed_row_planner is not None
+                    else {}
+                ),
+            )
         if memory_collector is not None:
             capture_memory(memory_collector, "finish_phase", phase="group_prepare", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
             capture_memory(memory_collector, "start_phase", phase="refine_context", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
@@ -1144,111 +1256,115 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
             del source_video,_
         if memory_collector is not None:
             capture_memory(memory_collector, "finish_phase", phase="refine_context", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
-        if memory_collector is not None:
-            capture_memory(memory_collector, "capture_group",
-                physical_group=terminal_physical_group,
-                logical_chunks=terminal_logical_chunks,
-                stage="before sampling",
-                retained_entries=entries,
-                observed_latent=latent,
-                retained_refine_context=refine_groups,
-            )
-        if memory_collector is not None:
-            capture_memory(memory_collector, "start_phase", phase="sampling", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
-        layout_profile_token=(
-            layout_validation_profiler.begin_sampling_group(
-                physical_group=terminal_physical_group,
-                logical_chunks=terminal_logical_chunks,
-                sampling_steps=max(0,int(sigmas.shape[-1])-1),
-            )
-            if layout_validation_profiler is not None
-            else None
-        )
-        if planner_event is not None:
-            planner_event(
-                packed_row_planner,
-                "begin_group",
+        if not terminal_reused:
+            if memory_collector is not None:
+                capture_memory(memory_collector, "capture_group",
+                    physical_group=terminal_physical_group,
+                    logical_chunks=terminal_logical_chunks,
+                    stage="before sampling",
+                    retained_entries=entries,
+                    observed_latent=latent,
+                    retained_refine_context=refine_groups,
+                )
+            if memory_collector is not None:
+                capture_memory(memory_collector, "start_phase", phase="sampling", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
+            sampled,_=sample_physical_group(
+                sample_callable=sample_chunk,
+                model=chunk_model,
+                conditioning=conditioning,
+                latent=latent,
+                sampler=sampler,
+                sigmas=sigmas,
+                seed=physical_seed,
+                enable_preview=bool(enable_preview),
                 physical_group=terminal_physical_group,
                 logical_chunks=terminal_logical_chunks,
                 terminal_atomic=True,
+                layout_validation_profiler=layout_validation_profiler,
+                packed_row_planner=packed_row_planner,
+                planner_event=planner_event,
             )
-        sampled=sample_chunk(model=chunk_model,conditioning=conditioning,latent=latent,sampler=sampler,sigmas=sigmas,seed=physical_seed,enable_preview=bool(enable_preview))
-        if planner_event is not None:
-            planner_event(packed_row_planner,"finish_group")
-        if layout_validation_profiler is not None and layout_profile_token is not None:
-            layout_validation_profiler.finish_sampling_group(layout_profile_token)
-        if terminal_masked:
-            if continuation_transport==MASKED_AV_PREFIX_22_V1:
-                from ..v3.masked_continuation import restore_masked_av_prefix
-                sampled=restore_masked_av_prefix(
-                    sampled,
-                    latent,
-                    TERMINAL_MERGE_CONTEXT_FRAMES,
+            if terminal_masked:
+                if continuation_transport==MASKED_AV_PREFIX_22_V1:
+                    from ..v3.masked_continuation import restore_masked_av_prefix
+                    sampled=restore_masked_av_prefix(
+                        sampled,
+                        latent,
+                        TERMINAL_MERGE_CONTEXT_FRAMES,
+                    )
+                else:
+                    from ..v3.masked_continuation import restore_masked_video_prefix
+                    sampled=restore_masked_video_prefix(
+                        sampled,
+                        latent,
+                        TERMINAL_MERGE_CONTEXT_FRAMES,
+                    )
+            if memory_collector is not None:
+                capture_memory(memory_collector, "finish_phase", phase="sampling", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
+            if memory_collector is not None:
+                capture_memory(memory_collector, "capture_group",
+                    physical_group=terminal_physical_group,
+                    logical_chunks=terminal_logical_chunks,
+                    stage="after sampling",
+                    retained_entries=entries,
+                    observed_latent=sampled,
+                    retained_refine_context=refine_groups,
                 )
-            else:
-                from ..v3.masked_continuation import restore_masked_video_prefix
-                sampled=restore_masked_video_prefix(
-                    sampled,
-                    latent,
-                    TERMINAL_MERGE_CONTEXT_FRAMES,
-                )
-        if memory_collector is not None:
-            capture_memory(memory_collector, "finish_phase", phase="sampling", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
-        if memory_collector is not None:
-            capture_memory(memory_collector, "capture_group",
-                physical_group=terminal_physical_group,
-                logical_chunks=terminal_logical_chunks,
-                stage="after sampling",
-                retained_entries=entries,
-                observed_latent=sampled,
-                retained_refine_context=refine_groups,
-            )
-        if memory_collector is not None:
-            capture_memory(memory_collector, "start_phase", phase="cpu_commit_validation", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
-        if context_before is not None and video_context is not None:
-            assert_context_unchanged(video_context,audio_context,context_before)
-        sampled_video,sampled_audio=latent_to_cpu(sampled)
-        logical_parts=_split_terminal_merged_latents(sampled_video,sampled_audio,contract)
-        sampling_reports.append(f"terminal physical sample: terminal_pair={pair_start+1}-{chunks}, physical_seed={physical_seed}, physical_frames={physical_frames}, sampling_passes=1, shared_physical_sample=true, terminal_prompt_policy={terminal_prompt_policy}, trim={physical_context_frames}, reason={reason}")
-        for offset,(video_part,audio_part) in enumerate(logical_parts):
-            sequence_index=pair_start+offset
-            total_frames=int(contract["logical_frames"][offset])
-            trim_frames=int(contract["logical_trims"][offset])
-            continuation=bool(trim_frames)
-            clip_index=physical_clip_index+offset
-            context_frames=trim_frames if continuation else 5
-            chunk_plan=make_plan(continuation=continuation,clip_index=clip_index,total_frames=total_frames,trim_frames=trim_frames,width=width,height=height,context_frames=context_frames,state_capacity_frames=largest_context_capacity(total_frames-trim_frames),requested_extend_seconds=chunk_seconds,debug=debug)
-            logical_latent=latent_from_cpu(video_part,audio_part)
-            logical_seed=int(terminal_seed_plan["logical_entry_seeds"][offset])
-            entry=make_chunk_entry(latent=logical_latent,plan=chunk_plan,prompt=prompts[sequence_index],prompt_hash=prompt_hashes[sequence_index],seed=logical_seed,context_frames=trim_frames,motion_score=motion_score,reused=False)
-            entries.append(entry)
-            previous_state=entry_to_state(entry)
-            _record_context_diagnostics(tracker=context_diagnostics,reports=sampling_reports,state=previous_state,continuity=continuity,reused=False)
+            if memory_collector is not None:
+                capture_memory(memory_collector, "start_phase", phase="cpu_commit_validation", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
+            if context_before is not None and video_context is not None:
+                assert_context_unchanged(video_context,audio_context,context_before)
+            sampled_video,sampled_audio=latent_to_cpu(sampled)
+            logical_parts=_split_terminal_merged_latents(sampled_video,sampled_audio,contract)
+            sampling_reports.append(f"terminal physical sample: terminal_pair={pair_start+1}-{chunks}, physical_seed={physical_seed}, physical_frames={physical_frames}, sampling_passes=1, shared_physical_sample=true, terminal_prompt_policy={terminal_prompt_policy}, trim={physical_context_frames}, reason={reason}")
+            terminal_commit_entries=[]
+            terminal_commit_positions=[]
+            for offset,(video_part,audio_part) in enumerate(logical_parts):
+                sequence_index=pair_start+offset
+                total_frames=int(contract["logical_frames"][offset])
+                trim_frames=int(contract["logical_trims"][offset])
+                continuation=bool(trim_frames)
+                clip_index=physical_clip_index+offset
+                context_frames=trim_frames if continuation else 5
+                chunk_plan=make_plan(continuation=continuation,clip_index=clip_index,total_frames=total_frames,trim_frames=trim_frames,width=width,height=height,context_frames=context_frames,state_capacity_frames=largest_context_capacity(total_frames-trim_frames),requested_extend_seconds=chunk_seconds,debug=debug)
+                logical_latent=latent_from_cpu(video_part,audio_part)
+                logical_seed=int(terminal_seed_plan["logical_entry_seeds"][offset])
+                entry=make_chunk_entry(latent=logical_latent,plan=chunk_plan,prompt=prompts[sequence_index],prompt_hash=prompt_hashes[sequence_index],seed=logical_seed,context_frames=trim_frames,motion_score=motion_score,reused=False)
+                entries.append(entry)
+                previous_state=entry_to_state(entry)
+                _record_context_diagnostics(tracker=context_diagnostics,reports=sampling_reports,state=previous_state,continuity=continuity,reused=False)
+                terminal_commit_entries.append(entry)
+                terminal_commit_positions.append(sequence_index)
+                retained_frames+=int(chunk_plan["net_frames"])
+                sampling_reports.append(f"chunk {sequence_index+1}/{chunks}: seed={logical_seed}, frames={total_frames}, trim={trim_frames}, retained_total={retained_frames}, context={trim_frames}, shared_physical_sample=terminal_10s_seed_v2")
+                del logical_latent
             if storage_controller is not None:
-                storage_controller.commit_chunk(entry,position=sequence_index)
-            retained_frames+=int(chunk_plan["net_frames"])
-            sampling_reports.append(f"chunk {sequence_index+1}/{chunks}: seed={logical_seed}, frames={total_frames}, trim={trim_frames}, retained_total={retained_frames}, context={trim_frames}, shared_physical_sample=terminal_10s_seed_v2")
-            del logical_latent
-        if memory_collector is not None:
-            capture_memory(memory_collector, "finish_phase", phase="cpu_commit_validation", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
-        del sampled,sampled_video,sampled_audio,logical_parts,latent,conditioning,chunk_model
-        del video_part,audio_part
-        if memory_collector is not None:
-            capture_memory(memory_collector, "capture_group",
-                physical_group=terminal_physical_group,
-                logical_chunks=terminal_logical_chunks,
-                stage="after CPU commit",
-                retained_entries=entries,
-                retained_refine_context=refine_groups,
-            )
-        mark_review_group=getattr(storage_controller,"mark_review_group",None)
-        if callable(mark_review_group):
-            mark_review_group(
-                start=pair_start+1,
-                end=chunks,
-                physical_group=terminal_physical_group,
-            )
-        new_physical_groups+=1
+                storage_controller.commit_group(
+                    tuple(terminal_commit_entries),
+                    positions=tuple(terminal_commit_positions),
+                )
+            if memory_collector is not None:
+                capture_memory(memory_collector, "finish_phase", phase="cpu_commit_validation", physical_group=terminal_physical_group, logical_chunks=terminal_logical_chunks)
+            del sampled,sampled_video,sampled_audio,logical_parts,latent,conditioning,chunk_model
+            del video_part,audio_part
+            if memory_collector is not None:
+                capture_memory(memory_collector, "capture_group",
+                    physical_group=terminal_physical_group,
+                    logical_chunks=terminal_logical_chunks,
+                    stage="after CPU commit",
+                    retained_entries=entries,
+                    retained_refine_context=refine_groups,
+                )
+            mark_review_group=getattr(storage_controller,"mark_review_group",None)
+            if callable(mark_review_group):
+                mark_review_group(
+                    start=pair_start+1,
+                    end=chunks,
+                    physical_group=terminal_physical_group,
+                )
+            new_physical_groups+=1
+        else:
+            del latent,conditioning
     if memory_collector is not None:
         capture_memory(memory_collector, "start_phase", phase="finalization")
     if layout_validation_profiler is not None:
@@ -1354,8 +1470,54 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
 # V3.0.1 hardening integration: Detailed Report only; generation semantics unchanged.
 from ..hardening import run_sequence_with_hardening as _run_sequence_with_hardening
 
-_run_sequence_v300 = run_sequence
 
+def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,sigmas:torch.Tensor,first_frame:torch.Tensor|None,last_frame:torch.Tensor|None,prompt_plan:dict[str,Any],width:int,height:int,continuity:str,base_seed:int,audio_continuity:bool,exact_total_duration:bool,diagnostics_mode:str,reroll_from_chunk:int,reroll_nonce:int,strict_compatibility:bool,debug:bool,seam_correction:str=SEAM_CORRECTION_OFF,enable_preview:bool=True,session:dict[str,Any]|None=None,initial_state:dict[str,Any]|None=None,latent_only:bool=False,reference_assets=None,reference_audio_source=None,reference_audio_vae=None,driving_audio_source=None,driving_audio_vae=None,reference_video_source=None,timeline_video_source=None,guide_source=None,capture_refine_context:bool=False,memory_attribution:bool=False,prompt_conditioning_cache:bool=False,reference_encode_cache:bool=False,continuation_transport:str=REFERENCE_CONTEXT_V1,max_new_physical_groups:int|None=None,_memory_attribution_collector:Any=None,_diagnostic_continuation_policy:Any=None):
+    """Signature-compatible adapter into the R4 internal runtime."""
 
-def run_sequence(*args, **kwargs):
-    return _run_sequence_with_hardening(_run_sequence_v300, args, kwargs)
+    return _run_sequence_with_hardening(
+        _run_runtime_internal,
+        (),
+        {
+            "model":model,
+            "clip":clip,
+            "video_vae":video_vae,
+            "audio_vae":audio_vae,
+            "sampler":sampler,
+            "sigmas":sigmas,
+            "first_frame":first_frame,
+            "last_frame":last_frame,
+            "prompt_plan":prompt_plan,
+            "width":width,
+            "height":height,
+            "continuity":continuity,
+            "base_seed":base_seed,
+            "audio_continuity":audio_continuity,
+            "exact_total_duration":exact_total_duration,
+            "diagnostics_mode":diagnostics_mode,
+            "reroll_from_chunk":reroll_from_chunk,
+            "reroll_nonce":reroll_nonce,
+            "strict_compatibility":strict_compatibility,
+            "debug":debug,
+            "seam_correction":seam_correction,
+            "enable_preview":enable_preview,
+            "session":session,
+            "initial_state":initial_state,
+            "latent_only":latent_only,
+            "reference_assets":reference_assets,
+            "reference_audio_source":reference_audio_source,
+            "reference_audio_vae":reference_audio_vae,
+            "driving_audio_source":driving_audio_source,
+            "driving_audio_vae":driving_audio_vae,
+            "reference_video_source":reference_video_source,
+            "timeline_video_source":timeline_video_source,
+            "guide_source":guide_source,
+            "capture_refine_context":capture_refine_context,
+            "memory_attribution":memory_attribution,
+            "prompt_conditioning_cache":prompt_conditioning_cache,
+            "reference_encode_cache":reference_encode_cache,
+            "continuation_transport":continuation_transport,
+            "max_new_physical_groups":max_new_physical_groups,
+            "_memory_attribution_collector":_memory_attribution_collector,
+            "_diagnostic_continuation_policy":_diagnostic_continuation_policy,
+        },
+    )

@@ -260,12 +260,14 @@ def test_f0_f7_frontend_review_lifecycle(review_queue_results):
     ):
         assert review_queue_results[case]["pass"]
 
-def test_frontend_uses_scoped_acceptance_adapter_without_app_queue_override():
+def test_api_queue_adapter_is_the_single_v38_review_intent_owner():
     source = PROJECT_ID_JS.read_text(encoding="utf-8")
     assert "actionWidget.afterQueued = function" in source
-    assert "prepareReviewQueueIntent(node, apiNode.inputs);" in source
+    assert "const inputs = buildReviewQueueInputs(node, normalizedInputs);" in source
+    assert "prepareReviewQueueIntent" not in source
     assert "normalizeReviewActionOnLoad(node);" in source
     assert "app.queuePrompt =" not in source
+    assert "api.queuePrompt = async function" in source
     assert "api.__h3ContinuumReviewQueueAdapter" in source
 
 

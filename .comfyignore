@@ -31,10 +31,10 @@ docs/*
 !docs/V38_OPEN_INTEGRATION_CONTRACT.md
 !docs/V38_RELEASE_AND_MIGRATION.md
 
-# One user-supplied Spectrum graph, in JSON and ZIP forms. External custom-node
+# One V3.8X user-supplied Spectrum graph, in JSON and ZIP forms. External custom-node
 # dependencies are documented, not bundled. Historical examples stay in Git.
 examples/*
 !examples/workflows/
 examples/workflows/*
-!examples/workflows/MiniMax_H3_Continuum_V38.json
-!examples/workflows/MiniMax_H3_Continuum_V38.zip
+!examples/workflows/MiniMax_H3_Continuum_V38x.json
+!examples/workflows/MiniMax_H3_Continuum_V38x.zip

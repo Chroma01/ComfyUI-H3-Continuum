@@ -6,6 +6,6 @@ def test_completed_review_lifecycle_with_real_frontend(review_queue_results):
         "same completed revision reuse exits setup without new Sampling",
         "three review queues advance without any executed events",
         "settings edited during execution remain out of date after readback",
-        "same setup request is not mutated by legacy preparation then API preparation",
+        "queue adapter owns setup preparation without mutating the caller payload",
     ):
         assert review_queue_results[case]["pass"]

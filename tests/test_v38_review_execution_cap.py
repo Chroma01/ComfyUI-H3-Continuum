@@ -23,6 +23,7 @@ from ComfyUI_H3_Continuum_Join.v3.driving_nodes import (
 from ComfyUI_H3_Continuum_Join.v3.nodes import (
     H3ContinuumSamplerProduction,
     H3ContinuumSamplerV3,
+    _apply_review_decode_scope,
 )
 from ComfyUI_H3_Continuum_Join.v3.plan import prepare_physical_decode_entries
 
@@ -502,8 +503,8 @@ class _CommitRecorder:
         self.prepare_kwargs = kwargs
         return None
 
-    def commit_chunk(self, entry, *, position):
-        self.timeline.append(("commit", position))
+    def commit_group(self, entries, *, positions):
+        self.timeline.append(("commit_group", tuple(positions)))
 
     def mark_review_group(self, *, start, end, physical_group):
         self.review_groups.append((start, end, physical_group))
@@ -562,8 +563,8 @@ def test_normal_group_stops_only_after_commit(monkeypatch):
     monkeypatch.setattr(run_storage, "get_active_run_storage", lambda: storage)
     entries, _, _, _ = _run_sequence(runtime, chunks=3, limit=1)
     assert len(entries) == 1
-    assert [event[0] for event in timeline] == ["sample", "commit"]
-    assert timeline[-1] == ("commit", 0)
+    assert [event[0] for event in timeline] == ["sample", "commit_group"]
+    assert timeline[-1] == ("commit_group", (0,))
     assert "max_new_physical_groups" not in storage.prepare_kwargs
 
 
@@ -589,10 +590,54 @@ def test_terminal_group_counts_once_after_both_logical_commits(monkeypatch):
         last_frame=last,
     )
     assert len(entries) == 2
-    assert [event[0] for event in timeline] == ["sample", "commit", "commit"]
-    assert timeline[-2:] == [("commit", 0), ("commit", 1)]
+    assert [event[0] for event in timeline] == ["sample", "commit_group"]
+    assert timeline[-1] == ("commit_group", (0, 1))
     assert "1 new physical group(s) completed; 2/2 logical chunks" in report
     assert "max_new_physical_groups" not in storage.prepare_kwargs
+
+
+def test_terminal_retry_scope_keeps_the_physical_pair_together(monkeypatch):
+    first = torch.zeros(1, 64, 96, 3)
+    last = torch.ones(1, 64, 96, 3)
+    runtime = _install_fake_runtime(
+        monkeypatch,
+        first_frame=first,
+        last_frame=last,
+    )
+    outputs = _run_v3_node(
+        runtime,
+        chunks=3,
+        first_frame=first,
+        last_frame=last,
+    )
+    storage = SimpleNamespace(
+        review_generation_mode="Review Each Chunk",
+        review_execution=SimpleNamespace(
+            finish_remaining=False,
+            next_review_unit_start=2,
+            next_review_unit_end=3,
+            partial_review=False,
+            smart_regenerate=True,
+        ),
+    )
+
+    scoped = _apply_review_decode_scope(
+        outputs,
+        storage=storage,
+        capture_refine_context=False,
+        configured_chunks=3,
+        chunk_seconds=5.0,
+        first_frame=first,
+        last_frame=last,
+        timeline_video_source=None,
+    )
+
+    assert len(scoped[0]) == len(scoped[1]) == 1
+    assert scoped[2]["logical_chunk_count"] == 2
+    assert scoped[2]["physical_decode_group_count"] == 1
+    assert scoped[2]["decode_groups"][0]["logical_chunk_indices"] == [2, 3]
+    assert len(scoped[3]["session"]["chunks"]) == 3
+    assert scoped[3]["report"].endswith("Decode preview: Chunks 2-3")
 
 
 def test_partial_refine_context_is_explicitly_incomplete(monkeypatch):

@@ -7,16 +7,16 @@ from zipfile import ZipFile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW_PATH = ROOT / "examples" / "workflows" / "MiniMax_H3_Continuum_V38.json"
+WORKFLOW_PATH = ROOT / "examples" / "workflows" / "MiniMax_H3_Continuum_V38x.json"
 
 # User-approved final distribution. Do not sanitize or reserialize this graph.
-WORKFLOW_SHA256 = "e490c87e4995930f95c8fffc4c678111d7897e74003e1962b9b4a247ba43f4ac"
-ZIP_SHA256 = "83d28cc0cd549066962dc21ceae05d2b189fe22391b556887eab2cc1800e1e80"
+WORKFLOW_SHA256 = "26bbca92b5f7cac4cbde89290b3f801b7a895df76a07493ca6f65c18d5b1154a"
+ZIP_SHA256 = "df4e0e355020d2e731932cff86a4b00932b4f193ec7ed513be0db994ec0e71bb"
+ZIP_WORKFLOW_NAME = "MiniMax_H3_Continuum_V38x.json"
 EXTERNAL_PACKAGES = {
     "comfyui-spectrum-minimax-h3",
     "rgthree-comfy",
     "comfyui-kjnodes",
-    "comfyui-easy-use",
 }
 
 
@@ -53,8 +53,8 @@ def _graph(workflow: dict) -> tuple[dict[int, dict], dict[int, list]]:
 
 def test_v38_public_workflow_declares_external_dependencies_and_is_reloadable():
     workflow = _workflow()
-    assert len(workflow["nodes"]) == 32
-    assert len(workflow["links"]) == 38
+    assert len(workflow["nodes"]) == 30
+    assert len(workflow["links"]) == 36
     packages = {
         node.get("properties", {}).get("cnr_id") for node in workflow["nodes"]
     } - {None, "", "comfy-core"}
@@ -62,7 +62,7 @@ def test_v38_public_workflow_declares_external_dependencies_and_is_reloadable():
     node_types = {node["type"] for node in workflow["nodes"]}
     assert {
         "SpectrumApplyMiniMaxH3", "Power Lora Loader (rgthree)",
-        "Fast Groups Bypasser (rgthree)", "easy cleanGpuUsed",
+        "Fast Groups Bypasser (rgthree)",
         "MiniMaxH3MemoryEfficientSageAttentionPatch",
     } <= node_types
     assert not any("hires" in name.lower() for name in node_types)
@@ -78,9 +78,9 @@ def test_v38_public_workflow_and_zip_preserve_supplied_bytes():
     assert hashlib.sha256(payload).hexdigest() == WORKFLOW_SHA256
     assert hashlib.sha256(archive_path.read_bytes()).hexdigest() == ZIP_SHA256
     with ZipFile(archive_path) as archive:
-        assert archive.namelist() == [WORKFLOW_PATH.name]
+        assert archive.namelist() == [ZIP_WORKFLOW_NAME]
         assert archive.testzip() is None
-        assert archive.read(WORKFLOW_PATH.name) == payload
+        assert archive.read(ZIP_WORKFLOW_NAME) == payload
 
 
 def test_v38_public_workflow_preserves_sampler_widget_positions():
@@ -128,11 +128,11 @@ def test_v38_public_workflow_preserves_sampler_widget_positions():
     assert sampler["widgets_values_named"]["aspect"] == "Auto from First Image"
     assert sampler["widgets_values_named"]["preset"] == "Draft — 0.30 MP"
     assert sampler["widgets_values_named"]["size_source"] == "First Image"
-    assert sampler["widgets_values_named"]["width"] == 640
-    assert sampler["widgets_values_named"]["height"] == 640
-    assert sampler["widgets_values_named"]["chunks"] == 2
-    assert sampler["widgets_values_named"]["chunk_seconds"] == 5
-    assert sampler["widgets_values_named"]["control_after_generate"] == "fixed"
+    assert sampler["widgets_values_named"]["width"] == 448
+    assert sampler["widgets_values_named"]["height"] == 672
+    assert sampler["widgets_values_named"]["chunks"] == 1
+    assert sampler["widgets_values_named"]["chunk_seconds"] == 10
+    assert sampler["widgets_values_named"]["control_after_generate"] == "randomize"
     assert sampler["widgets_values_named"]["continuation_backend"] == "Standard"
 
 
@@ -167,18 +167,18 @@ def test_v38_public_workflow_keeps_required_and_optional_connections():
     assert source_types["sampler"] == "KSamplerSelect"
     assert source_types["sigmas"] == "BasicScheduler"
     assert source_types["sequence_prompt"] == "PrimitiveStringMultiline"
-    assert source_types["first_frame"] == "easy cleanGpuUsed"
+    assert source_types["first_frame"] == "H3EasyLoadImage"
     assert source_modes["first_frame"] == 0
     assert source_modes["last_frame"] == 4
-    assert source_modes["reference_image_1"] == 0
-    assert source_modes["reference_image_2"] == 0
-    assert source_modes["reference_image_3"] == 0
+    assert source_modes["reference_image_1"] == 4
+    assert source_modes["reference_image_2"] == 4
+    assert source_modes["reference_image_3"] == 4
     assert source_modes["driving_audio"] == 4
     assert source_modes["reference_video_1"] == 4
     assert source_types["audio_references"] == "H3ContinuumReferenceAudios"
 
 
-def test_v38_public_workflow_preserves_spectrum_default_and_model_chain():
+def test_v38_public_workflow_preserves_accelerator_defaults_and_model_chain():
     workflow = _workflow()
     nodes, links = _graph(workflow)
 
@@ -189,7 +189,7 @@ def test_v38_public_workflow_preserves_spectrum_default_and_model_chain():
     sampler = _one_node(workflow, "H3ContinuumSamplerV38")
     spectrum = source(sampler, "model")
     assert spectrum["type"] == "SpectrumApplyMiniMaxH3"
-    assert spectrum["widgets_values"][0] is True
+    assert spectrum["widgets_values"][0] is False
     lora = source(spectrum, "model")
     assert lora["type"] == "Power Lora Loader (rgthree)"
     loras = [item for item in lora["widgets_values"] if isinstance(item, dict) and "lora" in item]
@@ -208,11 +208,9 @@ def test_v38_public_workflow_keeps_decode_finalize_create_save_chain():
     workflow = _workflow()
     nodes, links = _graph(workflow)
     save = _one_node(workflow, "SaveVideo")
-    cleanup = nodes[links[int(save["inputs"][0]["link"])][1]]
-    assert cleanup["type"] == "easy cleanGpuUsed"
-    create_link = links[int(cleanup["inputs"][0]["link"])]
-    assert nodes[int(create_link[1])]["type"] == "CreateVideo"
+    create_link = links[int(save["inputs"][0]["link"])]
     create = nodes[int(create_link[1])]
+    assert create["type"] == "CreateVideo"
     assert all(item["link"] is not None for item in create["inputs"][:2])
     finalize = _one_node(workflow, "H3ContinuumAssembleSeamV35")
     assert [links[item["link"]][1] for item in create["inputs"][:2]] == [finalize["id"]] * 2

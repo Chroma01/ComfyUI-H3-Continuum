@@ -475,18 +475,18 @@ def test_cache_flag_is_not_part_of_run_storage_or_public_workflow_identity():
         encoding="utf-8"
     )
     assert "reference_encode_cache" not in (
-        ROOT / "examples" / "workflows" / "MiniMax_H3_Continuum_V38.json"
+        ROOT / "examples" / "workflows" / "MiniMax_H3_Continuum_V38x.json"
     ).read_text(encoding="utf-8")
 
 
-def test_full_reuse_skips_cache_and_partial_regenerate_enters_cached_encode_stage():
+def test_encode_stage_is_required_for_new_groups_or_refine_context_reconstruction():
     source = (ROOT / "v2" / "sequence.py").read_text(encoding="utf-8")
-    partial_regenerate_guard = source.index("if len(preserved)<chunks:")
+    planner = source.index("execution_plan=build_execution_plan(")
+    partial_regenerate_guard = source.index("if len(preserved)<chunks or capture_refine_context:")
     image = source.index("encode_reference_latents_cached", partial_regenerate_guard)
     audio = source.index("encode_reference_audio_input", partial_regenerate_guard)
     video = source.index("encode_reference_video_cached", partial_regenerate_guard)
-    entries = source.index("entries=preserved[:]", partial_regenerate_guard)
 
-    assert partial_regenerate_guard < image < entries
-    assert partial_regenerate_guard < audio < entries
-    assert partial_regenerate_guard < video < entries
+    assert planner < partial_regenerate_guard < image
+    assert planner < partial_regenerate_guard < audio
+    assert planner < partial_regenerate_guard < video

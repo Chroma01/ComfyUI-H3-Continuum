@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.8.1 — V3.8X release candidate (2026-09-15)
+
+- Promote the accepted R0–R6 Runtime Redesign and final local GPU Functional Gate to the V3.8X (`3.8.1`) release candidate.
+- Rename the current supplied Spectrum workflow to `MiniMax_H3_Continuum_V38x.json` and its matching ZIP. The JSON and ZIP remain byte-for-byte paired; the graph is unchanged.
+- Preserve old V3.8.0 installation through the existing `v3.8.0` Git tag. Do not mix its workflow with V3.8X; use the matching tag/package for an older saved workflow.
+- No new public node, socket, widget-order, Sampling, Review, or Run Storage contract is introduced by this release label.
+
+## Unreleased — V3.8.x release hygiene (2026-09-14)
+
+- Updated the canonical V3.8 workflow to remove both `easy cleanGpuUsed` nodes. First Image now connects directly to the Sampler, and Core Create Video connects directly to Core Save Video; ComfyUI-Easy-Use is no longer a workflow dependency.
+- Fixed the shipped legacy `v3.reference_video` module to import the shared temporal helper from the package root.
+- Hardened the Windows installer: validate and copy only the Registry Manifest payload, and move previous installations to a backup directory outside `custom_nodes`.
+- No Sampling, Review, or Run Storage behavior is changed by these release-hygiene repairs.
+
 ## 3.8.0 — Review UI hotfix on main (2026-09-08)
 
 - Withdraw stale Continue/Retry/Finish actions after local or connected generation inputs change. A stale queued Retry falls back to normal backend compatibility/reuse checks instead of targeting an incompatible saved review.
@@ -14,7 +28,7 @@
 - Established the seven-node V3.8 public surface: Sampler V3.8, Finalize, Load Image, Load Audio, Load Video, Second Pass, and the modular Reference Audios helper. Unreleased Easy facade prototypes remain in source but are not registered.
 - Added `H3 Continuum Sampler V3.8` with shared `Draft` 0.30 MP, `Balanced` 0.60 MP, `Native 768`, and `Custom MP` resolution presets.
 - Added `Review Each Chunk`, `Continue / Next`, `Regenerate Current`, and `Finish Remaining` controls backed by Run Storage review branches and canonical-head recovery.
-- Publish one user-supplied V3.8 Spectrum workflow unchanged as JSON and ZIP. It requires Spectrum, rgthree, KJNodes, and ComfyUI-Easy-Use; the same graph can be switched to a task-matched LightX2V Turbo LoRA.
+- Publish one user-supplied V3.8 Spectrum workflow as matching JSON and ZIP. It requires Spectrum, rgthree, and KJNodes; the same graph can be switched to a task-matched LightX2V Turbo LoRA.
 - Added Continuum Image, Audio, and Video loaders with explicit native bypass behavior for optional workflow inputs.
 - Added `H3 Continuum Reference Audios`, which bundles up to three ordered Core-native standalone audio references behind one appended V3.8 Sampler socket while preserving the legacy single-reference path.
 - Replaced the Main `Landscape / Portrait / Square` choice with a two-path `Size Source`: preserve the connected First Image aspect at the selected preset, or enter an exact aligned Manual Width and Height.

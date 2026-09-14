@@ -223,13 +223,21 @@ def _attach_second_pass_contract(
     logical_entries: list[dict[str, Any]],
     physical_entries: list[dict[str, Any]],
     chunk_seconds: float,
+    logical_chunk_indices: list[int] | None = None,
 ) -> None:
     """Attach additive V3.5 metadata without changing V3.4 generation semantics."""
+    chunk_indices = (
+        list(range(1, len(logical_entries) + 1))
+        if logical_chunk_indices is None
+        else [int(value) for value in logical_chunk_indices]
+    )
+    if len(chunk_indices) != len(logical_entries):
+        raise ValueError("logical chunk identity count does not match entries")
     decode_groups = plan.get("decode_groups")
     if not isinstance(decode_groups, list):
         decode_groups = [
             {
-                "logical_chunk_indices": [index + 1],
+                "logical_chunk_indices": [chunk_indices[index]],
                 "terminal_merged": False,
                 "total_frames": plan["chunks"][index]["total_frames"],
                 "trim_frames": plan["chunks"][index]["trim_frames"],
@@ -237,6 +245,10 @@ def _attach_second_pass_contract(
             for index in range(len(physical_entries))
         ]
 
+    prompt_by_chunk = {
+        chunk_indices[index]: str(entry.get("prompt", ""))
+        for index, entry in enumerate(logical_entries)
+    }
     groups: list[dict[str, Any]] = []
     for group_id, (entry, decode_group) in enumerate(
         zip(physical_entries, decode_groups, strict=True)
@@ -244,7 +256,7 @@ def _attach_second_pass_contract(
         video = entry["video"]
         audio = entry["audio"]
         logical_chunks = [int(value) for value in decode_group["logical_chunk_indices"]]
-        prompts = [str(logical_entries[index - 1].get("prompt", "")) for index in logical_chunks]
+        prompts = [prompt_by_chunk[index] for index in logical_chunks]
         if len(prompts) == 1:
             physical_prompt = prompts[0]
             prompt_policy = "single"
@@ -289,6 +301,7 @@ def prepare_physical_decode_entries(
     chunk_seconds: float,
     preserve_final_frame: bool,
     terminal_merged: bool,
+    terminal_initial_pair: bool | None = None,
 ):
     """Return external-VAE decode units while preserving logical plan metadata."""
 
@@ -298,12 +311,16 @@ def prepare_physical_decode_entries(
         chunk_seconds=float(chunk_seconds),
         preserve_final_frame=bool(preserve_final_frame),
     )
+    logical_chunk_indices = [
+        int(chunk["chunk_index"]) for chunk in plan["chunks"]
+    ]
     if not terminal_merged:
         _attach_second_pass_contract(
             plan,
             logical_entries=logical_entries,
             physical_entries=logical_entries,
             chunk_seconds=float(chunk_seconds),
+            logical_chunk_indices=logical_chunk_indices,
         )
         return logical_entries, plan
     if len(logical_entries) < 2:
@@ -311,7 +328,11 @@ def prepare_physical_decode_entries(
 
     from ..v2.sequence import _terminal_pair_contract
 
-    initial_pair = len(logical_entries) == 2
+    initial_pair = (
+        len(logical_entries) == 2
+        if terminal_initial_pair is None
+        else bool(terminal_initial_pair)
+    )
     contract = _terminal_pair_contract(
         initial_pair=initial_pair,
         chunk_seconds=float(chunk_seconds),
@@ -382,6 +403,7 @@ def prepare_physical_decode_entries(
         logical_entries=logical_entries,
         physical_entries=decode_entries,
         chunk_seconds=float(chunk_seconds),
+        logical_chunk_indices=logical_chunk_indices,
     )
     validate_assembly_plan(plan)
     return decode_entries, plan

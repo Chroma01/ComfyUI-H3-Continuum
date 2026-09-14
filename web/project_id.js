@@ -2956,12 +2956,6 @@ function buildReviewQueueInputs(node, apiInputs) {
     return result;
 }
 
-function prepareReviewQueueIntent(node, apiInputs) {
-    if (node.comfyClass !== V38_NODE_CLASS || !apiInputs) return false;
-    Object.assign(apiInputs, buildReviewQueueInputs(node, apiInputs));
-    return true;
-}
-
 function configureReviewControls(node) {
     if (node.comfyClass !== V38_NODE_CLASS) {
         return;
@@ -3174,9 +3168,9 @@ app.registerExtension({
                     || node.comfyClass === V38_NODE_CLASS
                 ) {
                     node.__h3ContinuumResolutionUxRefresh?.();
-                    requireFixedSeedForReview(node);
-                    normalizeRunStorageState(node, apiNode.inputs);
-                    prepareReviewQueueIntent(node, apiNode.inputs);
+                    if (node.comfyClass !== V38_NODE_CLASS) {
+                        normalizeRunStorageState(node, apiNode.inputs);
+                    }
                     apiNode.inputs.diagnostics = settingValue(SETTINGS.detailedReport, false)
                         ? "Detailed Report"
                         : "Basic";

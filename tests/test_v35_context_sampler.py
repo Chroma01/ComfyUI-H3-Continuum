@@ -404,7 +404,7 @@ def test_masked_av_preserves_image_and_audio_refs_in_terminal_groups(monkeypatch
         assert [ref["kind"] for ref in refs] == ["image", "audio"]
 
 
-def test_reused_session_returns_incomplete_context_without_stopping(monkeypatch):
+def test_reused_session_reconstructs_complete_context_without_stopping(monkeypatch):
     first_outputs = _capture_sequence(monkeypatch, terminal=False)
     reused_outputs = _capture_sequence(
         monkeypatch,
@@ -412,10 +412,10 @@ def test_reused_session_returns_incomplete_context_without_stopping(monkeypatch)
         session=first_outputs[2],
     )
     context = reused_outputs[4]
-    assert context["complete"] is False
-    assert context["groups"] == ()
+    assert context["complete"] is True
+    assert [group["logical_chunks"] for group in context["groups"]] == [(1,), (2,)]
     assert len(reused_outputs[0]) == 2
-    assert any("Run Storage" in note for note in context["notes"])
+    assert context["notes"] == first_outputs[4]["notes"]
 
 
 def test_v35_full_memory_events_follow_physical_terminal_group_order(monkeypatch):

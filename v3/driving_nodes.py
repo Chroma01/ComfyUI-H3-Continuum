@@ -53,6 +53,7 @@ from .memory_action_policy import (
     make_memory_action_policy,
     resolve_memory_action_policy,
 )
+from .node_facade import execute_v38_runtime_request, make_runtime_request
 from .nodes import CATEGORY as CONTINUUM_CATEGORY, H3ContinuumSamplerProduction
 from .resolution import (
     H3_ASPECT_AUTO,
@@ -732,75 +733,35 @@ class H3ContinuumSamplerV38(H3ContinuumSamplerV37):
             custom_mp=custom_mp,
             first_frame=kwargs.get("first_frame"),
         )
-        outputs = super().run(
-            width=resolution.width,
-            height=resolution.height,
-            generation_mode=generation_mode,
-            review_action=review_action,
-            take_group=take_group,
-            take_revision_id=take_revision_id,
-            take_action=take_action,
-            reference_encode_cache=True,
-            **kwargs,
-        )
-        # Preserve non-runtime test doubles and any future non-standard facade
-        # result rather than turning diagnostics into an execution requirement.
-        if not isinstance(outputs, tuple) or len(outputs) < 4:
-            return outputs
-        if size_source != H3_SIZE_SOURCE_LEGACY:
-            resolution_lines = [
-                (
-                    f"Resolution: {resolution.width} x {resolution.height} "
-                    f"({resolution.actual_mp:.2f} MP); source={resolution.aspect_source}."
-                )
-            ]
-            resolution_lines.extend(resolution.warnings)
-            status = str(outputs[3]).rstrip() + "\n" + "\n".join(resolution_lines)
-            outputs = (*outputs[:3], status, *outputs[4:])
         diagnostics_mode = str(kwargs.get("diagnostics", "Basic"))
         normalized_diagnostics_mode = normalize_diagnostics_mode(diagnostics_mode)
-        if normalized_diagnostics_mode == DIAGNOSTICS_OFF:
-            return outputs
-        try:
-            diagnostics = build_v38_diagnostics(
-                video_latents=outputs[0],
-                audio_latents=outputs[1],
-                assembly_plan=outputs[2],
-                output_width=resolution.width,
-                output_height=resolution.height,
-                chunk_seconds=float(kwargs["chunk_seconds"]),
-                reference_images=(
-                    kwargs.get("reference_image_1"),
-                    kwargs.get("reference_image_2"),
-                    kwargs.get("reference_image_3"),
-                ),
-                reference_size=str(kwargs.get("reference_size", "Match Output")),
-                video_guide=kwargs.get("reference_video_1"),
-                video_guide_size=str(
-                    kwargs.get(
-                        "video_reference_size",
-                        REFERENCE_VIDEO_SIZE_EFFICIENT,
-                    )
-                ),
-                still_guide_active=kwargs.get("guide") is not None,
-            )
-            status = append_v38_status(
-                outputs[3],
-                diagnostics,
-                mode=diagnostics_mode,
-            )
-        except Exception as exc:
-            # Generation already succeeded. Reliability reporting must never
-            # discard or replace a valid Production result.
-            status = str(outputs[3])
-            message = (
-                "V3.8 Reliability\n"
-                "Reliability diagnostics unavailable; generation result was preserved."
-            )
-            if normalized_diagnostics_mode == DIAGNOSTICS_FULL:
-                message += f" ({type(exc).__name__}: {exc})"
-            status = status.rstrip() + "\n" + message
-        return (*outputs[:3], status, *outputs[4:])
+        request = make_runtime_request(
+            runtime_kwargs=kwargs,
+            fixed_runtime_kwargs={
+                "width": resolution.width,
+                "height": resolution.height,
+                "generation_mode": generation_mode,
+                "review_action": review_action,
+                "take_group": take_group,
+                "take_revision_id": take_revision_id,
+                "take_action": take_action,
+                "reference_encode_cache": True,
+            },
+            resolution=resolution,
+            size_source=size_source,
+            diagnostics_mode=normalized_diagnostics_mode,
+            diagnostics_inputs=kwargs,
+        )
+        return execute_v38_runtime_request(
+            request,
+            runtime_adapter=super(H3ContinuumSamplerV38, self).run,
+            legacy_size_source=H3_SIZE_SOURCE_LEGACY,
+            diagnostics_off=DIAGNOSTICS_OFF,
+            diagnostics_full=DIAGNOSTICS_FULL,
+            reference_video_size_default=REFERENCE_VIDEO_SIZE_EFFICIENT,
+            build_diagnostics=build_v38_diagnostics,
+            append_status=append_v38_status,
+        )
 
 
 class H3ContinuumMemoryActionPolicyExperimental:

@@ -52,7 +52,7 @@ function environment() {
     .replace(/import \{ app \} from "\.\.\/\.\.\/scripts\/app.js";/,'')
     .replace(/import \{ api \} from "\.\.\/\.\.\/scripts\/api.js";/,'')
     .replace(/import \{ normalizeReferenceAudioLabels \} from "\.\/reference_audio_ui.js";/,'function normalizeReferenceAudioLabels() {}');
-  vm.runInNewContext(src+`\nglobalThis.testFns={configureNode,loadTakeHistory,prepareReviewQueueIntent,takeCatalog,selectTakeOffset,selectTakeAction,reviewStatus,reviewSettingsChanged,synchronizeReviewQueue};`,sandbox);
+  vm.runInNewContext(src+`\nglobalThis.testFns={configureNode,loadTakeHistory,takeCatalog,selectTakeOffset,selectTakeAction,reviewStatus,reviewSettingsChanged,synchronizeReviewQueue};`,sandbox);
   app.extension.setup();
   const f=sandbox.testFns;
   function makeNode(id=312,run='fixture'){
@@ -292,12 +292,14 @@ await test('removing one sampler does not discard another accepted sampler',asyn
  e.setSaved(project(1,3,'two-r1','two'));await e.emit('execution_success',{prompt_id:q.prompt_id});
  assert(e.visible(b,'Use it and continue'));
 });
-await test('same setup request is not mutated by legacy preparation then API preparation',async e=>{
+await test('queue adapter owns setup preparation without mutating the caller payload',async e=>{
  const n=e.makeNode();await e.load(n,project(3,3));e.w(n,'chunks').value=5;e.w(n,'Run').callback('Review Each Chunk');
- const inputs=await e.inputs(n);e.f.prepareReviewQueueIntent(n,inputs);const once=JSON.stringify(inputs);
- e.f.prepareReviewQueueIntent(n,inputs);assert.equal(JSON.stringify(inputs),once);
+ const inputs=await e.inputs(n);const before=JSON.stringify(inputs);
  await e.api.queuePrompt(0,{output:{'312':{class_type:n.comfyClass,inputs}},workflow:{}});
- assert.equal(JSON.stringify(e.submissions.at(-1).data.output['312'].inputs),once);
+ assert.equal(JSON.stringify(inputs),before);
+ const sent=e.submissions.at(-1).data.output['312'].inputs;
+ assert.equal(sent.reroll_from_chunk,'Auto');assert.equal(sent.review_action,'Continue / Next');
+ assert.equal(sent.take_action,'Automatic');
 });
 
 

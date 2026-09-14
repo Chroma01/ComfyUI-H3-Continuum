@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextvars
+import copy
 import hashlib
 import json
 import marshal
@@ -13,8 +14,10 @@ import time
 import socket
 import uuid
 from datetime import datetime, timezone
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Mapping
 
 import torch
 from safetensors import safe_open
@@ -48,7 +51,9 @@ from .v3.review_control import (
     make_review_pause_metadata,
     resolve_review_execution,
     resolve_take_execution,
+    validate_review_prefix_metadata,
 )
+from .v3.planning_types import PrefixFacts
 
 
 RUN_STORAGE_SCHEMA_VERSION = 3
@@ -79,6 +84,62 @@ _ADDRESS = re.compile(r"0x[0-9a-fA-F]+")
 
 class RunStorageError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedPrefix:
+    """One immutable Run Storage prefix after manifest/raw/group validation."""
+
+    entries: tuple[dict[str, Any], ...]
+    records: tuple[dict[str, Any], ...]
+    manifest: Mapping[str, Any] | None
+    revision_id: str | None
+    status: str | None
+    review_unit: ReviewUnit | None
+    effective_nonce: int
+    branch_regenerate_from: int
+    physical_group_boundaries: tuple[tuple[int, int], ...]
+    configured_chunks: int
+
+    def to_planning_facts(self) -> PrefixFacts:
+        return PrefixFacts(
+            accepted_chunks=len(self.entries),
+            configured_chunks=int(self.configured_chunks),
+            revision_id=self.revision_id,
+            status=self.status,
+            review_unit=self.review_unit,
+            effective_nonce=int(self.effective_nonce),
+            branch_regenerate_from=int(self.branch_regenerate_from),
+            physical_group_boundaries=self.physical_group_boundaries,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class EmptyValidatedPrefix:
+    """The absence of a Run Storage prefix, not of other continuation sources."""
+
+    configured_chunks: int
+    entries: tuple = ()
+    records: tuple = ()
+    manifest: None = None
+    revision_id: None = None
+    status: None = None
+    review_unit: None = None
+    effective_nonce: int = 0
+    branch_regenerate_from: int = 0
+    physical_group_boundaries: tuple = ()
+
+    def to_planning_facts(self) -> PrefixFacts:
+        return PrefixFacts(
+            accepted_chunks=0,
+            configured_chunks=int(self.configured_chunks),
+            revision_id=None,
+            status=None,
+            review_unit=None,
+            effective_nonce=0,
+            branch_regenerate_from=0,
+            physical_group_boundaries=(),
+        )
 
 
 def _now() -> str:
@@ -1175,6 +1236,11 @@ class RunStorageController:
         self.review_manual_regenerate_from: int = 0
         self.review_execution = None
         self.review_head: dict[str, Any] | None = None
+        self.validated_prefix: ValidatedPrefix | EmptyValidatedPrefix | None = None
+        self.review_runtime_metrics = {
+            "review_decision_created": 0,
+            "review_reconcile": 0,
+        }
         self.inherited_review_unit: dict[str, int] | None = None
         self.pending_review_pause_metadata: dict[str, Any] | None = None
         self.take_action = TAKE_ACTION_AUTOMATIC
@@ -1779,9 +1845,23 @@ class RunStorageController:
         }
         self._write_manifest()
         records = []
-        for position, entry in enumerate(imported["entries"]):
-            self.commit_chunk(entry, position=position)
-            records.append(dict(self.manifest["chunks"][-1]))
+        imported_entries = list(imported["entries"])
+        groups = physical_groups(
+            chunks=int((self.contract or {})["chunk_count"]),
+            terminal_merge_enabled=_terminal_merge_enabled(self.contract or {}),
+        )
+        for group in groups:
+            if group.end > len(imported_entries):
+                break
+            positions = tuple(range(group.start - 1, group.end))
+            self.commit_group(
+                tuple(imported_entries[position] for position in positions),
+                positions=positions,
+            )
+            records.extend(
+                dict(record)
+                for record in self.manifest["chunks"][-len(positions):]
+            )
         self.generated_count = 0  # Copies are reused work, never new Sampling.
         self.notes.append(f"Imported {len(records)} verified prefix chunks into the new plan; originals preserved")
         return records
@@ -1886,6 +1966,7 @@ class RunStorageController:
             "records": records,
             "entries": entries,
             "chain": chain,
+            "manifest": manifests.get(str(selected["storage_revision_id"])),
         }
 
     def _validated_review_head(
@@ -1986,15 +2067,11 @@ class RunStorageController:
         )
         terminal_pair_start = chunks - 1 if terminal_merge_enabled else None
         try:
-            resolve_review_execution(
-                generation_mode=GENERATION_MODE_REVIEW,
-                review_action=REVIEW_ACTION_CONTINUE,
+            normalized_review_unit = validate_review_prefix_metadata(
                 configured_chunks=chunks,
                 validated_prefix_count=prefix,
                 terminal_merge_enabled=terminal_merge_enabled,
                 terminal_pair_start=terminal_pair_start,
-                manual_regenerate_from=0,
-                run_storage_mode=RUN_STORAGE_SAVE_AUTO_RESUME,
                 latest_review_unit=review_unit,
                 latest_revision_status=status,
                 latest_effective_nonce=effective_nonce,
@@ -2019,6 +2096,9 @@ class RunStorageController:
             "effective_reroll_nonce": effective_nonce,
             "updated_utc": updated_utc,
             "manifest": manifest,
+            "entries": entries,
+            "records": accepted,
+            "normalized_review_unit": normalized_review_unit,
         }
 
     def find_latest_review_head(
@@ -2089,17 +2169,82 @@ class RunStorageController:
             self.notes.append(f"review head {revision_id} incompatible: {detail}")
         return None
 
-    def _resolve_review_contract(
+    def _freeze_validated_prefix(
+        self,
+        candidate: dict[str, Any] | None,
+        *,
+        contract: dict[str, Any],
+    ) -> ValidatedPrefix | EmptyValidatedPrefix:
+        """Freeze the one repository result that may drive this Queue."""
+
+        configured_chunks = int(contract["chunk_count"])
+        if candidate is None:
+            return EmptyValidatedPrefix(configured_chunks=configured_chunks)
+        entries = tuple(dict(entry) for entry in candidate.get("entries") or ())
+        records = tuple(dict(record) for record in candidate.get("records") or ())
+        if len(entries) != len(records):
+            raise RunStorageError("validated prefix entry/record counts differ")
+        if int(candidate.get("validated_prefix_count", -1)) != len(entries):
+            raise RunStorageError("validated prefix count does not match loaded raw entries")
+        status = str(candidate.get("status", "")) or None
+        terminal_merge_enabled = _terminal_merge_enabled(contract)
+        review_unit = validate_review_prefix_metadata(
+            configured_chunks=configured_chunks,
+            validated_prefix_count=len(entries),
+            terminal_merge_enabled=terminal_merge_enabled,
+            terminal_pair_start=(
+                configured_chunks - 1 if terminal_merge_enabled else None
+            ),
+            latest_review_unit=candidate.get("review_unit"),
+            latest_revision_status=status,
+            latest_effective_nonce=int(candidate.get("effective_reroll_nonce", 0)),
+            latest_branch_regenerate_from=int(
+                candidate.get("branch_regenerate_from", 0)
+            ),
+        )
+        boundaries = tuple(
+            (group.start, group.end)
+            for group in physical_groups(
+                chunks=configured_chunks,
+                terminal_merge_enabled=terminal_merge_enabled,
+            )
+            if group.end <= len(entries)
+        )
+        if boundaries and boundaries[-1][1] != len(entries):
+            raise RunStorageError("validated prefix ends inside a physical group")
+        if entries and not boundaries:
+            raise RunStorageError("validated prefix has no complete physical group")
+        source_manifest = candidate.get("manifest")
+        frozen_manifest = (
+            None
+            if source_manifest is None
+            else MappingProxyType(copy.deepcopy(dict(source_manifest)))
+        )
+        revision_id = str(candidate.get("revision_id", "")) or None
+        return ValidatedPrefix(
+            entries=entries,
+            records=records,
+            manifest=frozen_manifest,
+            revision_id=revision_id,
+            status=status,
+            review_unit=review_unit,
+            effective_nonce=int(candidate.get("effective_reroll_nonce", 0)),
+            branch_regenerate_from=int(candidate.get("branch_regenerate_from", 0)),
+            physical_group_boundaries=boundaries,
+            configured_chunks=configured_chunks,
+        )
+
+    def _load_validated_review_prefix(
         self,
         contract: dict[str, Any],
         *,
-        requested_nonce: int,
         resume_safe: bool,
-    ) -> tuple[dict[str, Any], int, str]:
-        """Resolve persisted review state through the Phase B pure policy."""
+    ) -> ValidatedPrefix | EmptyValidatedPrefix:
+        """Select, fully validate, load, and freeze one branch-neutral prefix."""
 
         if self.review_generation_mode is None or self.review_action is None:
             raise RunStorageError("review execution intent is incomplete")
+        candidate = None
         if self.take_action != TAKE_ACTION_AUTOMATIC:
             if self.review_generation_mode != GENERATION_MODE_REVIEW:
                 raise RunStorageError("Take selection requires Review Each Chunk")
@@ -2107,30 +2252,89 @@ class RunStorageController:
                 raise RunStorageError(
                     "Take selection cannot be combined with manual Regenerate From"
                 )
-            selected = self._validated_take_selection(contract)
-            self.selected_take_chain = list(selected["chain"])
-            self.selected_take_records = list(selected["records"])
-            self.selected_take_revision = dict(selected)
-            self.review_head = dict(selected)
-            self.inherited_review_unit = dict(selected["review_unit"])
+            candidate = self._validated_take_selection(contract)
+            self.selected_take_chain = list(candidate["chain"])
+            self.selected_take_records = list(candidate["records"])
+            self.selected_take_revision = dict(candidate)
+        else:
+            smart_only = self.review_action == REVIEW_ACTION_REGENERATE_CURRENT
+            candidate = self.find_latest_review_head(
+                contract,
+                smart_regenerate_only=smart_only,
+            )
+            if candidate is None and not smart_only and resume_safe:
+                self._plan_import = self._find_plan_import(
+                    contract,
+                    stop_before=self.review_manual_regenerate_from,
+                )
+                candidate = self._plan_import
+            if candidate is None and smart_only:
+                details = "\n".join(self.notes[-6:]) or (
+                    "No compatible saved review head was found."
+                )
+                raise ReviewControlError(
+                    "Regenerate Current requires an existing reviewed unit. "
+                    "The saved review could not be matched to this execution.\n"
+                    + details
+                )
+        self.review_head = candidate
+        self.inherited_review_unit = (
+            None
+            if candidate is None or candidate.get("review_unit") is None
+            else dict(candidate["review_unit"])
+        )
+        frozen = self._freeze_validated_prefix(candidate, contract=contract)
+        self.validated_prefix = frozen
+        return frozen
+
+    def _record_review_decision_created(self) -> None:
+        created = int(self.review_runtime_metrics["review_decision_created"])
+        if created != 0:
+            raise RunStorageError("Review Decision was already created for this Queue")
+        self.review_runtime_metrics["review_decision_created"] = 1
+
+    def _resolve_review_contract(
+        self,
+        contract: dict[str, Any],
+        *,
+        requested_nonce: int,
+        resume_safe: bool,
+        validated_prefix: ValidatedPrefix | EmptyValidatedPrefix | None = None,
+    ) -> tuple[dict[str, Any], int, str]:
+        """Create the single Review Decision from an immutable validated prefix."""
+
+        if self.review_generation_mode is None or self.review_action is None:
+            raise RunStorageError("review execution intent is incomplete")
+        if validated_prefix is None:
+            validated_prefix = self._load_validated_review_prefix(
+                contract,
+                resume_safe=resume_safe,
+            )
+        if self.validated_prefix is None:
+            self.validated_prefix = validated_prefix
+        elif self.validated_prefix is not validated_prefix:
+            raise RunStorageError(
+                "Review Decision cannot replace the fixed ValidatedPrefix"
+            )
+        facts = validated_prefix.to_planning_facts()
+        if self.take_action != TAKE_ACTION_AUTOMATIC:
             next_nonce = self._highest_lineage_nonce(
                 str(contract["nonce_lineage_sha256"])
             ) + 1
+            self._record_review_decision_created()
             execution = resolve_take_execution(
                 take_action=self.take_action,
                 configured_chunks=int(contract["chunk_count"]),
-                selected_prefix_count=int(selected["validated_prefix_count"]),
+                selected_prefix_count=facts.accepted_chunks,
                 terminal_merge_enabled=_terminal_merge_enabled(contract),
                 terminal_pair_start=(
                     int(contract["chunk_count"]) - 1
                     if _terminal_merge_enabled(contract)
                     else None
                 ),
-                selected_review_unit=selected["review_unit"],
-                selected_effective_nonce=int(selected["effective_reroll_nonce"]),
-                selected_branch_regenerate_from=int(
-                    selected["branch_regenerate_from"]
-                ),
+                selected_review_unit=facts.review_unit,
+                selected_effective_nonce=facts.effective_nonce,
+                selected_branch_regenerate_from=facts.branch_regenerate_from,
                 next_effective_nonce=next_nonce,
             )
             boundary = int(execution.effective_regenerate_from)
@@ -2143,66 +2347,40 @@ class RunStorageController:
             )
             self.review_execution = execution
             self.pending_branch_cut = {
-                "selected_revision_id": str(selected["revision_id"]),
-                "after_physical_group": int(selected["review_unit"]["physical_group"]),
+                "selected_revision_id": str(facts.revision_id),
+                "after_physical_group": int(facts.review_unit.physical_group),
             }
             self.storage_revision_id_override = _storage_revision_identity(
                 contract_sha256=revision_identity(resolved)[1],
                 take_action=self.take_action,
-                selected_revision_id=str(selected["revision_id"]),
+                selected_revision_id=str(facts.revision_id),
                 effective_nonce=effective_nonce,
                 branch_boundary=boundary,
             )
             return resolved, effective_nonce, (
                 "select_take" if self.take_action == TAKE_ACTION_USE else "branch_from_take"
             )
-        smart_only = self.review_action == REVIEW_ACTION_REGENERATE_CURRENT
-        head = self.find_latest_review_head(
-            contract,
-            smart_regenerate_only=smart_only,
-        )
-        if head is None and not smart_only and resume_safe:
-            self._plan_import = self._find_plan_import(
-                contract, stop_before=self.review_manual_regenerate_from,
-            )
-            head = self._plan_import
-        self.review_head = head
-        self.inherited_review_unit = (
-            None if head is None or head.get("review_unit") is None
-            else dict(head["review_unit"])
-        )
-        if head is None and smart_only:
-            details = "\n".join(self.notes[-6:]) or "No compatible saved review head was found."
-            raise ReviewControlError(
-                "Regenerate Current requires an existing reviewed unit. "
-                "The saved review could not be matched to this execution.\n" + details
-            )
         semantics = (contract.get("global") or {}).get("execution_semantics") or {}
         terminal_merge_enabled = (
             semantics.get("flf_execution") == "terminal_merged_10s_seed_v2"
         )
         configured_chunks = int(contract["chunk_count"])
+        self._record_review_decision_created()
         execution = resolve_review_execution(
             generation_mode=self.review_generation_mode,
             review_action=self.review_action,
             configured_chunks=configured_chunks,
-            validated_prefix_count=(
-                0 if head is None else int(head["validated_prefix_count"])
-            ),
+            validated_prefix_count=facts.accepted_chunks,
             terminal_merge_enabled=terminal_merge_enabled,
             terminal_pair_start=(
                 configured_chunks - 1 if terminal_merge_enabled else None
             ),
             manual_regenerate_from=self.review_manual_regenerate_from,
             run_storage_mode=RUN_STORAGE_SAVE_AUTO_RESUME,
-            latest_review_unit=None if head is None else head["review_unit"],
-            latest_revision_status=None if head is None else head["status"],
-            latest_effective_nonce=(
-                0 if head is None else int(head["effective_reroll_nonce"])
-            ),
-            latest_branch_regenerate_from=(
-                0 if head is None else int(head["branch_regenerate_from"])
-            ),
+            latest_review_unit=facts.review_unit,
+            latest_revision_status=facts.status,
+            latest_effective_nonce=facts.effective_nonce,
+            latest_branch_regenerate_from=facts.branch_regenerate_from,
         )
         boundary = int(execution.effective_regenerate_from)
         if execution.requested_effective_nonce is None:
@@ -2230,70 +2408,6 @@ class RunStorageController:
         )
         self.review_execution = execution
         return resolved, effective_nonce, decision
-
-
-    def _reconcile_review_execution_with_reused_prefix(self, prefix_count: int) -> None:
-        """Make ordinary Review continuation follow the prefix actually reused.
-
-        Run Storage candidate selection is the final authority for which saved
-        prefix survived integrity/contract validation. A stale or missed review
-        head must never make the Review controller expect Chunk 1 while the
-        sampler has already restored Chunk 1 and is about to generate Chunk 2.
-        Explicit regeneration and Take actions keep their resolved boundaries.
-        """
-
-        execution = self.review_execution
-        if (
-            execution is None
-            or self.review_generation_mode != GENERATION_MODE_REVIEW
-            or self.review_action != REVIEW_ACTION_CONTINUE
-            or self.take_action != TAKE_ACTION_AUTOMATIC
-            or self.review_manual_regenerate_from
-        ):
-            return
-        contract = self.contract or {}
-        chunks = int(contract.get("chunk_count", 0))
-        prefix = int(prefix_count)
-        if chunks <= 0 or prefix < 0 or prefix > chunks:
-            raise RunStorageError("reused review prefix is outside the configured chunk range")
-        status = (
-            None
-            if prefix == 0
-            else REVISION_STATUS_COMPLETE
-            if prefix == chunks
-            else REVISION_STATUS_REVIEW_READY
-        )
-        terminal_merge_enabled = _terminal_merge_enabled(contract)
-        resolved = resolve_review_execution(
-            generation_mode=GENERATION_MODE_REVIEW,
-            review_action=REVIEW_ACTION_CONTINUE,
-            configured_chunks=chunks,
-            validated_prefix_count=prefix,
-            terminal_merge_enabled=terminal_merge_enabled,
-            terminal_pair_start=(chunks - 1 if terminal_merge_enabled else None),
-            manual_regenerate_from=0,
-            run_storage_mode=RUN_STORAGE_SAVE_AUTO_RESUME,
-            latest_review_unit=None,
-            latest_revision_status=status,
-            latest_effective_nonce=int(self.effective_reroll_nonce),
-            latest_branch_regenerate_from=int(contract.get("reroll_from_chunk", 0)),
-        )
-        old_expected = (
-            execution.next_review_unit_start,
-            execution.next_review_unit_end,
-            execution.next_review_physical_group,
-        )
-        new_expected = (
-            resolved.next_review_unit_start,
-            resolved.next_review_unit_end,
-            resolved.next_review_physical_group,
-        )
-        if old_expected != new_expected or execution.projected_prefix_count != resolved.projected_prefix_count:
-            self.notes.append(
-                "Review continuation reconciled to validated saved prefix "
-                f"{prefix}/{chunks}: expected {old_expected} -> {new_expected}."
-            )
-        self.review_execution = resolved
 
     def _resolve_effective_nonce(
         self, contract: dict[str, Any], *, requested_nonce: int, resume_safe: bool,
@@ -2364,6 +2478,11 @@ class RunStorageController:
                 or guide_contract is not None
             ),
             require_reference_audio_vae=reference_audio_contract is not None,
+            reference_audio_route=(
+                "audio_references"
+                if "reference_audio_bundle_contract_version" in (reference_audio_contract or {})
+                else "reference_audio_vae"
+            ),
             require_audio_vae=driving_audio_contract is not None,
         )
         contract, safe, reasons = build_sampling_contract(
@@ -2392,10 +2511,15 @@ class RunStorageController:
         )
         self.contract = contract
         if self.review_generation_mode is not None or self.review_action is not None:
+            validated_prefix = self._load_validated_review_prefix(
+                contract,
+                resume_safe=safe,
+            )
             contract, effective_nonce, nonce_decision = self._resolve_review_contract(
                 contract,
                 requested_nonce=int(reroll_nonce),
                 resume_safe=safe,
+                validated_prefix=validated_prefix,
             )
         else:
             if safe:
@@ -2453,14 +2577,29 @@ class RunStorageController:
         hashes = list(contract["chunk_contract_hashes"])
         best_entries: list[dict[str, Any]] = []
         best_records: list[dict[str, Any]] = []
-        if exact is not None:
+        review_queue = self.review_generation_mode is not None or self.review_action is not None
+        if exact is not None and not review_queue:
             self._plan_import = None
-        if self._plan_import is not None:
+        if review_queue:
+            if self.validated_prefix is None:
+                raise RunStorageError("Review Decision has no fixed ValidatedPrefix")
+            best_entries = list(self.validated_prefix.entries)
+            best_records = list(self.validated_prefix.records)
+            if self._plan_import is not None:
+                # Imported raw tensors become records owned by the new plan only
+                # after the initial manifest has been created.
+                best_records = []
+            execution = self.review_execution
+            if execution is None:
+                raise RunStorageError("Review Decision was not created")
+            if bool(execution.smart_regenerate) or self.review_manual_regenerate_from:
+                reusable = max(0, int(execution.effective_regenerate_from) - 1)
+                best_entries = best_entries[:reusable]
+                if self._plan_import is None:
+                    best_records = best_records[:reusable]
+        elif self._plan_import is not None:
             best_entries = list(self._plan_import["entries"])
             best_records = []  # Populated with new-plan-owned copies after manifest creation.
-        elif self.selected_take_revision is not None:
-            best_entries = list(self.selected_take_revision["entries"])
-            best_records = list(self.selected_take_records)
         else:
             candidates = [exact] if exact is not None and safe else []
             if safe and exact is None and self.revisions_root.exists():
@@ -2496,7 +2635,6 @@ class RunStorageController:
                 if len(entries) > len(best_entries):
                     best_entries, best_records = entries, records
 
-        self._reconcile_review_execution_with_reused_prefix(len(best_entries))
         self.reused_count = len(best_entries)
         now = _now()
         self.manifest = {
@@ -2610,57 +2748,148 @@ class RunStorageController:
         )
 
     def commit_chunk(self, entry: dict[str, Any], *, position: int) -> None:
+        """Compatibility entry point for one-logical-chunk physical groups."""
+
+        self.commit_group((entry,), positions=(position,))
+
+    def commit_group(
+        self,
+        entries: tuple[dict[str, Any], ...] | list[dict[str, Any]],
+        *,
+        positions: tuple[int, ...] | list[int],
+    ) -> None:
+        """Durably publish one complete physical group with one manifest switch."""
+
         if self.manifest is None or self.revision_root is None:
             return
-        validated = validate_chunk_entry(entry)
-        if isinstance(position, bool) or not isinstance(position, int):
-            raise RunStorageError("Run Storage chunk position must be an integer")
-        expected = int((self.contract or {}).get("chunk_count", 0))
-        if position < 0 or position >= expected:
+        entry_values = tuple(entries)
+        position_values = tuple(positions)
+        if not entry_values or len(entry_values) != len(position_values):
             raise RunStorageError(
-                f"Run Storage chunk position {position} is outside 0..{expected - 1}"
+                "Run Storage physical group entries and positions must be non-empty and equal"
             )
-        existing_records = list(self.manifest.get("chunks") or [])
-        if len(existing_records) < position:
+        if any(
+            isinstance(position, bool) or not isinstance(position, int)
+            for position in position_values
+        ):
+            raise RunStorageError("Run Storage chunk positions must be integers")
+        expected = int((self.contract or {}).get("chunk_count", 0))
+        if any(position < 0 or position >= expected for position in position_values):
             raise RunStorageError(
-                f"Run Storage cannot commit chunk {position + 1} before chunk {position}"
+                "Run Storage physical group position is outside "
+                f"0..{expected - 1}: {position_values}"
+            )
+        groups = physical_groups(
+            chunks=expected,
+            terminal_merge_enabled=_terminal_merge_enabled(self.contract or {}),
+        )
+        matched_group = next(
+            (
+                group
+                for group in groups
+                if position_values == tuple(range(group.start - 1, group.end))
+            ),
+            None,
+        )
+        if matched_group is None:
+            raise RunStorageError(
+                "Run Storage physical group is incomplete or crosses a group boundary: "
+                f"{position_values}"
+            )
+        validated_entries = tuple(
+            validate_chunk_entry(entry) for entry in entry_values
+        )
+        existing_records = list(self.manifest.get("chunks") or [])
+        first_position = position_values[0]
+        if len(existing_records) < first_position:
+            raise RunStorageError(
+                "Run Storage cannot commit physical group starting at chunk "
+                f"{first_position + 1} before chunk {first_position}"
             )
         chunks_root = self.revision_root / "chunks"
         chunks_root.mkdir(parents=True, exist_ok=True)
-        filename = f"chunk_{position + 1:04d}.safetensors"
-        target = chunks_root / filename
-        temporary = chunks_root / f".{filename}.{uuid.uuid4().hex}.tmp"
-        tensors = {
-            "video": validated["video"].detach().to("cpu").contiguous(),
-            "audio": validated["audio"].detach().to("cpu").contiguous(),
-        }
-        try:
-            save_file(tensors, str(temporary), metadata={
-                "h3_continuum_run_storage": str(RUN_STORAGE_SCHEMA_VERSION),
-                "revision_id": self.revision_id,
-                "chunk_number": str(position + 1),
+        revision_id = str(self.revision_id or "")
+        if not revision_id or not re.fullmatch(r"[A-Za-z0-9._-]+", revision_id):
+            raise RunStorageError("Run Storage revision id is invalid for raw storage")
+        transaction_id = uuid.uuid4().hex
+        new_records: list[dict[str, Any]] = []
+        for validated, position in zip(
+            validated_entries, position_values, strict=True
+        ):
+            filename = (
+                f"rev-{revision_id}-txn-{transaction_id}-"
+                f"chunk-{position + 1:04d}.safetensors"
+            )
+            target = chunks_root / filename
+            temporary = chunks_root / f".{filename}.{uuid.uuid4().hex}.tmp"
+            if target.exists():
+                raise RunStorageError(
+                    f"immutable Run Storage raw already exists: {filename}"
+                )
+            tensors = {
+                "video": validated["video"].detach().to("cpu").contiguous(),
+                "audio": validated["audio"].detach().to("cpu").contiguous(),
+            }
+            try:
+                save_file(tensors, str(temporary), metadata={
+                    "h3_continuum_run_storage": str(RUN_STORAGE_SCHEMA_VERSION),
+                    "revision_id": revision_id,
+                    "chunk_number": str(position + 1),
+                })
+                _fsync_file(temporary)
+                os.replace(temporary, target)
+            finally:
+                if temporary.exists():
+                    temporary.unlink()
+            file_size = target.stat().st_size
+            file_sha256 = _file_sha256(target)
+            with safe_open(str(target), framework="pt", device="cpu") as handle:
+                if set(handle.keys()) != {"audio", "video"}:
+                    raise RunStorageError(
+                        f"persisted physical group tensors are invalid: {filename}"
+                    )
+                metadata = handle.metadata() or {}
+                if (
+                    metadata.get("h3_continuum_run_storage")
+                    != str(RUN_STORAGE_SCHEMA_VERSION)
+                    or metadata.get("revision_id") != revision_id
+                    or metadata.get("chunk_number") != str(position + 1)
+                ):
+                    raise RunStorageError(
+                        f"persisted physical group metadata is invalid: {filename}"
+                    )
+            if (
+                target.stat().st_size != file_size
+                or _file_sha256(target) != file_sha256
+            ):
+                raise RunStorageError(
+                    f"persisted physical group SHA-256 verification failed: {filename}"
+                )
+            storage_entry = dict(validated)
+            storage_entry["sequence_index"] = position
+            new_records.append({
+                "sequence_index": position,
+                "storage_revision_id": revision_id,
+                "filename": filename,
+                "file_size": file_size,
+                "file_sha256": file_sha256,
+                "entry": _entry_metadata(storage_entry),
             })
-            _fsync_file(temporary)
-            os.replace(temporary, target)
-            _fsync_dir(chunks_root)
-        finally:
-            if temporary.exists():
-                temporary.unlink()
-        storage_entry = dict(validated)
-        storage_entry["sequence_index"] = position
-        record = {
-            "sequence_index": position,
-            "storage_revision_id": self.revision_id,
-            "filename": filename,
-            "file_size": target.stat().st_size,
-            "file_sha256": _file_sha256(target),
-            "entry": _entry_metadata(storage_entry),
-        }
-        records = existing_records[:position]
-        records.append(record)
-        self.manifest.update(chunks=records, updated_utc=_now(), status="in_progress")
+        _fsync_dir(chunks_root)
+        records = existing_records[:first_position]
+        records.extend(new_records)
+        candidate_manifest = dict(self.manifest)
+        candidate_manifest.update(
+            chunks=records,
+            updated_utc=_now(),
+            status="in_progress",
+        )
+        # Assign only after every raw in the physical group is complete and
+        # verified. __exit__ may then recover this complete candidate after a
+        # catchable manifest-write exception, preserving the R0 contract.
+        self.manifest = candidate_manifest
         self._write_manifest()
-        self.generated_count += 1
+        self.generated_count += len(new_records)
 
     def summary(self, *, detailed: bool = False) -> str:
         total = int((self.contract or {}).get("chunk_count", 0))
@@ -2751,17 +2980,13 @@ class RunStorageController:
                 else REVISION_STATUS_REVIEW_READY
             )
             try:
-                resolve_review_execution(
-                    generation_mode=GENERATION_MODE_REVIEW,
-                    review_action=REVIEW_ACTION_CONTINUE,
+                validate_review_prefix_metadata(
                     configured_chunks=expected,
                     validated_prefix_count=completed,
                     terminal_merge_enabled=terminal_merge_enabled,
                     terminal_pair_start=(
                         expected - 1 if terminal_merge_enabled else None
                     ),
-                    manual_regenerate_from=0,
-                    run_storage_mode=RUN_STORAGE_SAVE_AUTO_RESUME,
                     latest_review_unit=canonical_pause["review_unit"],
                     latest_revision_status=candidate_status,
                     latest_effective_nonce=int(self.effective_reroll_nonce),

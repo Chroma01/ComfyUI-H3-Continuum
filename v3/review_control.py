@@ -397,6 +397,51 @@ def _branch_contract(
     return nonce, branch_start
 
 
+def validate_review_prefix_metadata(
+    *,
+    configured_chunks: int,
+    validated_prefix_count: int,
+    terminal_merge_enabled: bool,
+    terminal_pair_start: int | None,
+    latest_review_unit: ReviewUnit | Mapping[str, Any] | None,
+    latest_revision_status: str | None,
+    latest_effective_nonce: int,
+    latest_branch_regenerate_from: Any = 0,
+) -> ReviewUnit | None:
+    """Validate persisted Review metadata without creating an execution decision.
+
+    Repository reads and finalization use this boundary after raw prefix
+    validation.  It deliberately returns no ``ReviewExecution`` so those paths
+    cannot become a second policy owner.
+    """
+
+    chunks, prefix, pair_start = _review_geometry(
+        configured_chunks=configured_chunks,
+        validated_prefix_count=validated_prefix_count,
+        terminal_merge_enabled=terminal_merge_enabled,
+        terminal_pair_start=terminal_pair_start,
+    )
+    status = _revision_status(
+        latest_revision_status,
+        prefix=prefix,
+        chunks=chunks,
+    )
+    unit = _validated_review_unit(
+        latest_review_unit,
+        configured_chunks=chunks,
+        validated_prefix_count=prefix,
+        terminal_pair_start=pair_start,
+    )
+    _branch_contract(
+        latest_effective_nonce=latest_effective_nonce,
+        latest_branch_regenerate_from=latest_branch_regenerate_from,
+        validated_prefix_count=prefix,
+        configured_chunks=chunks,
+        latest_revision_status=status,
+    )
+    return unit
+
+
 def _nonce_decision(
     *,
     manual_regenerate_from: int,

@@ -1,4 +1,6 @@
-# ComfyUI-H3-Continuum 3.8.0
+# ComfyUI-H3-Continuum 3.8.1 — V3.8X
+
+> これは現在の**V3.8X／パッケージ3.8.1向けガイド**です。ここでは公開7ノードと同梱V3.8X Workflowだけを案内します。旧V3.8.0は[`v3.8.0`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0)から引き続き導入できます。旧保存Workflowは、この説明と混在させず、対応するtagで開いてください。
 
 MiniMax H3を複数チャンクで連続生成し、直前チャンク末尾の**映像latent / 音声latentを直接**次チャンクへ継承するComfyUIカスタムノードです。チャンク間でVideo/Audio VAEのDecode→Encodeは行いません。
 
@@ -20,7 +22,16 @@ git pull --ff-only origin main
 
 ComfyUIを再起動してください。Managerから導入した場合はManagerのUpdateを使い、同じノードを重複配置しないでください。
 
-V3.8 Workflow：[JSON](examples/workflows/MiniMax_H3_Continuum_V38.json)／[同じJSONを含むZIP](examples/workflows/MiniMax_H3_Continuum_V38.zip)。Spectrumを初期設定とする1本です。[LightX2V Turbo](https://github.com/ModelTC/Minimax-H3-Turbo)にも切り替えられますが、完全なgraphを開くにはSpectrum・rgthree・KJNodes・ComfyUI-Easy-Useが必要です。外部ノードは別途導入してください。
+旧V3.8.0を別フォルダへ導入する場合：
+
+```bash
+cd ComfyUI/custom_nodes
+git clone --branch v3.8.0 --single-branch https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum.git ComfyUI-H3-Continuum-v3.8.0
+```
+
+Continuumのcheckoutは同時に1つだけ有効にしてください。ComfyUI Managerの**Update**は`main`を更新するため、過去tagの選択には使いません。
+
+V3.8X Workflow：[JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json)／[同じJSONを含むZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip)。Spectrum対応の1本で、保存状態ではSpectrumとTurbo LoRAはどちらもOFFです。[LightX2V Turbo](https://github.com/ModelTC/Minimax-H3-Turbo)にも切り替えられます。完全なgraphを開くにはSpectrum・rgthree・KJNodesが必要です。ComfyUI-Easy-Useは不要です。
 
 ## プロンプト・スキルのダウンロード
 
@@ -52,7 +63,7 @@ Main Sampler内の`Show Advanced Settings`／`Hide Advanced Settings`で詳細�
 
 `H3 Continuum Reference Audios`は、最大3本の単独Reference Audioを1本の`Audio References (Optional)` socketへまとめます。入力は間を空けずに接続し、Promptでは接続順どおりに`<Audio 1>`、`<Audio 2>`、`<Audio 3>`を使用します。共通のCore Audio VAEで各Audioを個別encodeします。生成後の最終Audioを置換せず、Driving Audio契約も変更しません。既存Workflowは従来の単数`Reference Audio (Optional)`をそのまま使用できますが、単数経路とbundle経路は同時接続しないでください。
 
-> **V3.8 support boundary:** V3.8からexportするのは上記7ノードだけです。Finalizeの`H3ContinuumAssembleSeamV35`、Second Passの`H3ContinuumSecondPassV35`など、公開ノードの一部は旧IDを維持していますが、すべての旧Workflowに互換性があるという意味ではありません。現在の7ノード以外のIDを含む保存Workflowはunknown nodeになる場合があります。その場合は対応するhistorical Release/tagを使用してください。詳細は[V3.8 Release／Migration Policy](docs/V38_RELEASE_AND_MIGRATION.md)を参照してください。
+> **V3.8の対応範囲:** V3.8からexportするのは上記7ノードだけです。Finalizeの`H3ContinuumAssembleSeamV35`、Second Passの`H3ContinuumSecondPassV35`など、公開ノードの一部は旧IDを維持していますが、すべての旧Workflowに互換性があるという意味ではありません。現在の7ノード以外のIDを含む保存Workflowはunknown nodeになる場合があります。その場合は対応するhistorical Release/tagを使用してください。詳細は[V3.8 Release／Migration Policy](docs/V38_RELEASE_AND_MIGRATION.md)を参照してください。
 
 複雑な16GB GPU受入Gateでは約`15.5～15.6 GiB`を使用しました。GPU、driver、backend、model精度、解像度、接続ノードで変動するため、すべての16GB GPUでの動作保証ではありません。
 
@@ -75,6 +86,8 @@ MainのWidth／Heightは`Manual`のときだけ表示・編集できます。`Fi
 旧V3.8の`Auto / Landscape / Portrait / Square`はWorkflow／API互換用として内部で受け付けます。FrontendはAutoをFirst Imageへ、3つの固定Aspectを同じ解決結果のManual Width／Heightへ移行します。
 
 ### 10秒を5秒ずつ確認しながら作る
+
+ComfyUI上端の実行ボタンは、frontendにより`Queue`、`Run`、または`実行する`と表示されます。この手順内の`Queue`は、その実行ボタンを指します。
 
 ここでは、画面に表示される名前だけを使って手順を説明します。
 
@@ -148,9 +161,9 @@ Takeを選択してもcanonical結果は変わりません。**Use This Take**�
 canonicalにし、**Continue From Here**で選択したTakeまでを保持して後続groupだけを
 再生成します。どちらの操作も自動Queueは行いません。
 
-## 歴史的な実装・受入記録（V3.8標準Workflowではありません）
+## アーカイブされた実装・受入記録（V3.8現行ガイドではありません）
 
-以下の節は旧リリースと互換性作業の記録です。上記のV3.8標準経路を変更するものではありません。
+以下は一時的にsource historyとして残る旧リリース記録です。V3.8の標準経路・公開範囲・推奨配線を示すものではありません。旧WorkflowにはMigration Policyと対応するhistorical Release/tagを使用してください。
 
 ### V3.7 高解像度Refinement基盤
 
@@ -230,7 +243,7 @@ Prompt/CLIPの数値はconditioning区間だけで、総生成時間ではあり
 
 RTX 5060 Ti 16 GB／RAM 64 GBの検証環境で測定したSage-only Production baselineは、576×576 T2VA 1×5秒が168.069秒、640×640 FL2VA Long Terminal Merge 3×5秒が379.765秒です。環境・設定固有の測定値であり、すべての環境に対する速度保証ではありません。Samplingが最大コストで、Continuum Assemble + Seamは1%未満でした。
 
-**V3.8.0が現在のRelease Candidateです。** V3.8が内部利用する旧module/classはsourceへ維持します。exportするのは現在の公開7ノードだけで、その一部は旧IDを維持しています。それ以外のIDを必要とする旧保存Workflowは、対応するhistorical Release/tagを使用してください。Still Image Guideは引き続きExperimentalです。
+**V3.8.0はhistorical release baselineです。現在のRelease CandidateはV3.8X／package 3.8.1です。** V3.8Xが内部利用する旧module/classはsourceへ維持します。exportするのは現在の公開7ノードだけで、その一部は旧IDを維持しています。それ以外のIDを必要とする旧保存Workflowは、対応するhistorical Release/tagを使用してください。Still Image Guideは引き続きExperimentalです。
 
 ## V3.5.1 Reference Audio／互換性更新
 
@@ -277,7 +290,7 @@ AV LATENTの組、Noise、SIGMAS、Audio Lock、sampling、audio passthroughは�
 
 ![V3.5.1 LBH＋Conditioning Bridge外部sampling接続図](docs/images/v351-lbh-conditioning-bridge-flow.svg)
 
-完全な接続例: [V3.5.1 LBH＋Conditioning Bridgeワークフロー](examples/workflows/MiniMax_H3_Continuum_V351_LBH_Conditioning_Bridge.json)
+退役したV3.5.1 LBH＋Conditioning Bridgeの接続例は、対応するhistorical Release/tagでのみ参照できます。これはV3.8 Workflowではありません。
 
 接続例ではCore標準名の`BasicGuider`、`BasicScheduler`、`SamplerCustomAdvanced`を変更していません。公開サンプルではCoreノードを独自タイトルへ変更せず、Continuumノードや外部カスタムノードと直感的に区別できる状態を維持します。LBH latent upscaler、AV LATENTの結合／分離、load／save、任意accelerationは外部ノードなので、各ComfyUI環境に合わせて導入または置換してください。
 
@@ -351,10 +364,10 @@ Hi-Res Fixを接続しなければV3.4 Sampling経路は変わりません。強
 
 ## 公開テンプレートワークフロー
 
-- [V3.8 Workflow JSON](examples/workflows/MiniMax_H3_Continuum_V38.json) — Spectrum初期設定の現行graph 1本
-- [V3.8 Workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38.zip) — 同じJSONのみを格納。カスタムノードのインストーラーではありません
+- [V3.8X Workflow JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) — Spectrum OFF初期設定の現行graph 1本
+- [V3.8X Workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip) — 同じJSONのみを格納。カスタムノードのインストーラーではありません
 
-Registry配布予定の対象もこのJSONとZIPです。依存なしのテンプレートではなく、Spectrum・rgthree・KJNodes・ComfyUI-Easy-Useが必要です。Turboへ切り替えてもgraph内の外部ノードは残ります。SpectrumをOFFにし、用途に合うLightX2V Turbo LoRAを1本だけONにしてsampler／Stepsを合わせます。初期状態はSpectrum ON、Turbo LoRA OFF、res_multistep／simple／20 Stepsです。
+Registry配布予定の対象もこのJSONとZIPです。依存なしのテンプレートではなく、Spectrum・rgthree・KJNodesが必要です。ComfyUI-Easy-Useは不要です。Turboへ切り替えてもgraph内の外部ノードは残ります。SpectrumをOFFにし、用途に合うLightX2V Turbo LoRAを1本だけONにしてsampler／Stepsを合わせます。保存状態はSpectrum OFF、Turbo LoRA OFF、res_multistep／simple／20 Stepsです。
 
 配布元のprompt、画像・音声名、ノード表示名、設定は変更していません。手元にあるファイルを選び、不要な入力をOFFにし、promptを入力してください。モデルやメディアは同梱しません。`Save 3x5s Video`などの保存済み表示名は生成時間を決めません。実際の長さはSamplerのChunksとSeconds per Chunkで決まります。
 
@@ -484,13 +497,11 @@ ZIPを展開して、`ComfyUI-H3-Continuum`フォルダーを`ComfyUI/custom_nod
 
 ## 検査
 
-現在のV3.8 Public Surface suiteは、正確な7 ID export、Spectrum graph 1本とZIP内JSONの同一性、外部依存、Registry除外、既存V3.8 widget/socket順を維持したAUDIO-R1 socket末尾追加、`Show Advanced Settings`／`Hide Advanced Settings`による表示切替と旧`H3 Continuum View` propertyからの移行を確認します。Registry配布対象のハッシュは`REGISTRY_MANIFEST.sha256`、source側の対象ファイルは`MANIFEST.sha256`で管理します。Gitの改行変換は無効にして配布バイト列を維持します。旧実装はmodule-local testで維持しますが、それによってV3.8の公開ノードが増えることはありません。
+現在のV3.8 Public Surface suiteは、正確な7 ID export、Spectrum graph 1本とZIP内JSONの同一性、外部依存、Registry除外、既存V3.8 widget/socket順、`Show Advanced Settings`／`Hide Advanced Settings`による表示切替を確認します。Registry配布対象のハッシュは`REGISTRY_MANIFEST.sha256`、source側の整合性は`MANIFEST.sha256`で管理します。
 
-**配布名の最終整理前のCPU総検証（2026-09-07）：1,154/1,154 PASS。** failure、error、skip、記録されたCUDA初期化要求はいずれも0件でした。ComfyUI Core 0.34.5の隔離CPU検査で7ノード登録とnative PackedLayoutを確認し、旧Core-onlyテンプレートと提供されたSpectrum graphのgraph／schemaも確認しました。CUDAは未初期化のままです。最終配布ではSpectrum graphを変更せず汎用のV38ファイル名に統一します。これはCPU上のソフトウェア契約の検証であり、新たなGPU画質PASSや、起動中の実行環境へ最新版が反映されたことを示すものではありません。
+**最新のローカルRC証拠：** Full CPU suiteは**1,261 passed / 1 skipped / 0 failed**です。最終GPU Functional Gateでは`3 × 5秒`のReview Each Chunkを実行し、Q1～Q3はphysical groupを1つずつ生成、Q4は`3 reused / 0 generated`で3 groupすべてを再利用しました。Q3とQ4の復号後RGBおよびPCM SHA-256は一致しています。これは実行、prefix再利用、AV再構築の確認であり、画像・音声の総合的な主観品質評価ではありません。
 
-**過去のV3.6受入記録：** PIG-0～PIG-5を完了し、backend別Run Storage、実cache Save／Resume／Regenerate From、Terminal Mergeのatomic再利用、Reference Image／Audio保持、保護prefix bit-exact、GPU Workflow、Audio Seam数値検証、実聴Audio PASSを含みます。当時の自動検証は`527 passed`であり、現在のV3.8 CPUテスト件数ではありません。package checklistと過去の受入記録は`PACKAGE_VALIDATION.txt`にあります。source/runtime登録、PackedLayout、Fixed 3×5 Prompt Plan、JavaScript UI harness、Prompt/CLIP cache一致、Video Guide bit-exact A/B、V3.5 Second Pass／Hi-Res、V3.5.3配布整合性の回帰も維持します。
-
-Main Hi-Res Fixの3×5秒2xは、RTX 5060 Ti 16 GiBで37T groupの1152×1152 Second Pass完了後、Terminal Mergeの77T group最初の推論時にCUDA OOMとなり未受入です。Reference/Hybrid固有の1×5秒Second Passは受入済みですが、長尺Reference/Hybridは未確認です。Disk-backedが保証する低メモリ範囲はContinuum Assemblyであり、Core Decodeや下流ノードが別の全量copyを作る可能性は残ります。
+検証結果はテストしたローカルsourceと環境に限られます。導入済み環境が最新版であること、すべてのmodel／wrapperが任意のGPUに収まること、別のpromptでも同じ画質になることを保証するものではありません。
 
 ```text
 python -m compileall -q .

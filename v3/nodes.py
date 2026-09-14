@@ -24,6 +24,13 @@ from ..v2.nodes import (
 )
 from .assembly import H3ContinuumAssembleSeamExperimental, H3ContinuumAssembleV3
 from .plan import make_assembly_plan
+from .execution_planner import (
+    PROJECTION_CURRENT_REVIEW_UNIT,
+    PROJECTION_FULL_ACCEPTED_PREFIX,
+    resolve_projection_decision as _resolve_projection_decision,
+)
+from .planning_types import ProjectionDecision
+from .review_control import REVISION_STATUS_REVIEW_READY
 from ..timeline_video import TIMELINE_VIDEO_SIZE_OPTIONS
 
 
@@ -67,6 +74,51 @@ _PARTIAL_REVIEW_SECOND_PASS_WARNING = (
 )
 
 
+def resolve_projection_decision(
+    *,
+    review_execution,
+    effective_result_status: str,
+    session,
+    physical_group_facts: tuple[tuple[int, ...], ...],
+) -> ProjectionDecision:
+    """Compatibility adapter for the R1 pure resolver API."""
+
+    entries = session.get("chunks") if isinstance(session, dict) else None
+    return _resolve_projection_decision(
+        review_execution=review_execution,
+        effective_result_status=effective_result_status,
+        accepted_chunks=(len(entries) if isinstance(entries, list) else 0),
+        physical_group_facts=physical_group_facts,
+    )
+
+
+def _physical_group_facts(assembly_plan) -> tuple[tuple[int, ...], ...]:
+    """Extract immutable logical membership facts from an existing assembly plan."""
+
+    if not isinstance(assembly_plan, dict):
+        return ()
+    groups = assembly_plan.get("decode_groups") or assembly_plan.get("chunks")
+    if not isinstance(groups, list):
+        return ()
+    facts = []
+    for group in groups:
+        if not isinstance(group, dict):
+            return ()
+        indices = group.get("logical_chunk_indices")
+        if indices is None:
+            indices = [group.get("chunk_index")]
+        if not isinstance(indices, list) or not indices:
+            return ()
+        try:
+            normalized = tuple(int(index) for index in indices)
+        except (TypeError, ValueError):
+            return ()
+        if any(index < 1 for index in normalized):
+            return ()
+        facts.append(normalized)
+    return tuple(facts)
+
+
 def _partial_review_warning(storage, *, capture_refine_context: bool) -> str:
     execution = getattr(storage, "review_execution", None)
     if (
@@ -76,6 +128,107 @@ def _partial_review_warning(storage, *, capture_refine_context: bool) -> str:
     ):
         return _PARTIAL_REVIEW_SECOND_PASS_WARNING
     return ""
+
+
+def _review_decode_chunk_range(storage, *, capture_refine_context: bool):
+    # Refine context is a separate, preserved output; capturing it does not
+    # require external VAE nodes to decode the entire accepted prefix.
+    if getattr(storage, "review_generation_mode", None) != "Review Each Chunk":
+        return None
+    execution = getattr(storage, "review_execution", None)
+    if execution is None or bool(getattr(execution, "finish_remaining", False)):
+        return None
+    start = getattr(execution, "next_review_unit_start", None)
+    end = getattr(execution, "next_review_unit_end", None)
+    if start is None or end is None:
+        return None
+    if not (
+        bool(getattr(execution, "partial_review", False))
+        or bool(getattr(execution, "smart_regenerate", False))
+    ):
+        return None
+    return int(start), int(end)
+
+
+def _apply_review_decode_scope(
+    outputs,
+    *,
+    storage,
+    capture_refine_context: bool,
+    configured_chunks: int,
+    chunk_seconds: float,
+    first_frame,
+    last_frame,
+    timeline_video_source,
+):
+    _, _, assembly_plan, result, *tail = outputs
+    session = result.get("session") if isinstance(result, dict) else None
+    entries = session.get("chunks") if isinstance(session, dict) else None
+    if not isinstance(entries, list):
+        return outputs
+    execution_plan = getattr(storage, "execution_plan", None)
+    decision = getattr(execution_plan, "projection", None)
+    if not isinstance(decision, ProjectionDecision):
+        # Compatibility for isolated callers that replace the sequence runtime
+        # and therefore cannot carry its Queue-local plan.  The same pure
+        # resolver remains the only Projection owner.
+        effective_status = (
+            REVISION_STATUS_REVIEW_READY
+            if getattr(storage, "review_generation_mode", None)
+            == "Review Each Chunk"
+            else "complete"
+        )
+        decision = resolve_projection_decision(
+            review_execution=getattr(storage, "review_execution", None),
+            effective_result_status=effective_status,
+            session=session,
+            physical_group_facts=_physical_group_facts(assembly_plan),
+        )
+    if decision.kind != PROJECTION_CURRENT_REVIEW_UNIT:
+        return outputs
+    start = int(decision.start_chunk)
+    end = int(decision.end_chunk)
+
+    selected_entries = entries[start - 1 : end]
+    sequence_complete = len(entries) == int(configured_chunks)
+    from ..v2.sequence import _terminal_flf_merge_enabled
+    from .plan import prepare_physical_decode_entries
+
+    terminal_merged = sequence_complete and _terminal_flf_merge_enabled(
+        multi_chunk_flf=(
+            first_frame is not None
+            and last_frame is not None
+            and int(configured_chunks) > 1
+        ),
+        chunks=int(configured_chunks),
+        chunk_seconds=float(chunk_seconds),
+        prompt_hashes=[str(entry["prompt_hash"]) for entry in entries],
+        timeline_video_source=timeline_video_source,
+    )
+    selected_terminal_merged = terminal_merged and (
+        end == int(configured_chunks)
+        and start <= int(configured_chunks) - 1
+    )
+    decode_entries, scoped_plan = prepare_physical_decode_entries(
+        selected_entries,
+        chunk_seconds=float(chunk_seconds),
+        preserve_final_frame=(
+            sequence_complete
+            and end == int(configured_chunks)
+            and last_frame is not None
+        ),
+        terminal_merged=selected_terminal_merged,
+        terminal_initial_pair=(start == 1),
+    )
+    scoped_video = [{"samples": entry["video"]} for entry in decode_entries]
+    scoped_audio = [{"samples": entry["audio"]} for entry in decode_entries]
+    scoped_result = dict(result)
+    scoped_result["report"] = str(scoped_result.get("report", "")).rstrip() + (
+        f"\nDecode preview: Chunk {start}"
+        if start == end
+        else f"\nDecode preview: Chunks {start}-{end}"
+    )
+    return (scoped_video, scoped_audio, scoped_plan, scoped_result, *tail)
 
 
 def _format_review_status(storage, *, detailed: bool = False) -> str:
@@ -1005,6 +1158,16 @@ class H3ContinuumSamplerProduction(H3ContinuumSamplerV3):
                     take_action=str(take_action),
                 )
             execute_outputs = execute()
+            execute_outputs = _apply_review_decode_scope(
+                execute_outputs,
+                storage=storage,
+                capture_refine_context=bool(capture_refine_context),
+                configured_chunks=int(chunks),
+                chunk_seconds=float(chunk_seconds),
+                first_frame=first_frame,
+                last_frame=last_frame,
+                timeline_video_source=timeline_video_source,
+            )
             if bool(capture_refine_context):
                 video_latents, audio_latents, assembly_plan, result, refine_context = execute_outputs
             else:

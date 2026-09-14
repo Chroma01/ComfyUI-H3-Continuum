@@ -1,10 +1,10 @@
-# ComfyUI-H3-Continuum 3.8.0
+# ComfyUI-H3-Continuum 3.8.1 — V3.8X
 
-**Download workflow: [JSON](examples/workflows/MiniMax_H3_Continuum_V38.json) | [ZIP](examples/workflows/MiniMax_H3_Continuum_V38.zip)** — [Latest release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/latest)
+> This is the current **V3.8X / package 3.8.1 guide**. It documents the supported seven-node surface and the supplied V3.8X workflow. The older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0); do not combine its workflow or instructions with this guide.
 
-✅ V3.8 hotfix applied on `main` — September 8, 2026: Review Each Chunk continuation, stale `Regenerate From` state, completed-sequence extension, and Render History queue handling have been repaired. Update with `git pull --ff-only origin main` (or ComfyUI Manager **Update**), restart ComfyUI, and hard-refresh the browser if the old UI remains. Existing saved Takes are preserved. Issue #13 remains a separate open long-continuation quality issue and is not part of this hotfix.
+**Download V3.8X workflow: [JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) | [ZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip)** — [Latest release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/latest)
 
-<img width="1536" height="1024" alt="exec-55ad0463-8655-409c-b9a6-49d1315cdd78" src="https://github.com/user-attachments/assets/063bb16b-5c25-44f8-9304-031995502b26" />
+✅ V3.8X on `main` includes the September 8, 2026 Review hotfix: Review Each Chunk continuation, stale `Regenerate From` state, completed-sequence extension, and Render History queue handling are repaired. Update with `git pull --ff-only origin main` (or ComfyUI Manager **Update**), restart ComfyUI, and hard-refresh the browser if the old UI remains. Existing saved Takes are preserved. Issue #13 remains a separate open long-continuation quality issue and is not part of this hotfix.
 
 
 H3 Continuum is a Production Sampler for generating, reviewing, partially regenerating, and resuming long-form MiniMax H3 video without restarting the entire work. V3.8 has two product layers: **Main / Production** and **Advanced**.
@@ -27,7 +27,16 @@ git pull --ff-only origin main
 
 Restart ComfyUI after cloning or pulling. If ComfyUI Manager installed the node, use its **Update** action instead of mixing Manager updates with a second Git checkout.
 
-Download the current V3.8 workflow: [JSON](examples/workflows/MiniMax_H3_Continuum_V38.json) or [ZIP containing the same JSON](examples/workflows/MiniMax_H3_Continuum_V38.zip). This is one Spectrum-default graph, also usable with [LightX2V Turbo](https://github.com/ModelTC/Minimax-H3-Turbo). Install its external Spectrum, rgthree, KJNodes, and ComfyUI-Easy-Use nodes before opening it; switching Spectrum off does not remove those node dependencies. See [Spectrum and Turbo setup](#turbo-lora-and-spectrum-in-supplied-workflows) below.
+To install the historical V3.8.0 package into a separate checkout instead:
+
+```bash
+cd ComfyUI/custom_nodes
+git clone --branch v3.8.0 --single-branch https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum.git ComfyUI-H3-Continuum-v3.8.0
+```
+
+Use only one Continuum checkout at a time. ComfyUI Manager **Update** tracks `main`; it does not select historical tags.
+
+Download the current V3.8X workflow: [JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) or [ZIP containing the same JSON](examples/workflows/MiniMax_H3_Continuum_V38x.zip). This is one Spectrum-capable graph, also usable with [LightX2V Turbo](https://github.com/ModelTC/Minimax-H3-Turbo); both Spectrum and all Turbo LoRA entries are saved disabled. Install its external Spectrum, rgthree, and KJNodes nodes before opening it. ComfyUI-Easy-Use is not required. See [Spectrum and Turbo setup](#turbo-lora-and-spectrum-in-supplied-workflows) below.
 
 ## Prompt and skill downloads
 
@@ -39,7 +48,7 @@ These are optional prompt-authoring resources, not ComfyUI custom nodes. Extract
 
 ## You can ask an AI to read this manual
 
-This README is intentionally detailed. You do not have to memorize it. Give its GitHub URL to a web-enabled AI and describe what you want to make, your GPU/VRAM, whether you have a First Image or audio, and whether you want to review every chunk. Ask it to answer with the **exact V3.8 labels** used below.
+This README is intentionally detailed. You do not have to memorize it. Give its GitHub URL or this file to a web-enabled AI, describe your target video, GPU/VRAM, available First Image/audio, and whether you want to review every chunk. Ask it to use the **exact V3.8 labels** below.
 
 Example request:
 
@@ -50,11 +59,7 @@ Continuum inputs and controls to use, what must stay fixed between Queue runs,
 and what output length I should expect after each action. Do not use older V3.7 UI.
 ```
 
-- [ChatGPT Free](https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq) currently includes web search and file uploads, subject to separate limits. If a repository URL is not read correctly, paste this README or upload it as a file.
-- [Gemini on desktop](https://support.google.com/gemini/answer/16176929) has an explicit **Add file → More Uploads → Import code** path for one GitHub repository, up to 5,000 files and 100 MB. Pasting a GitHub URL into an ordinary prompt is not the same as importing the repository.
-- [Grok Free](https://x.ai/pricing) currently includes limited real-time web search and connectors. A GitHub-specific full-repository importer is not guaranteed, so paste/upload this README if the URL alone is not enough.
-
-Plans, limits, and web-access behavior can change. Do not send private workflows, local paths, tokens, or credentials to a public AI service. The README and the UI remain the source of truth; an AI summary can still be wrong.
+AI products, plans, and repository-reading behavior change frequently. If a URL is not read correctly, paste or upload this README instead. Do not send private workflows, local paths, tokens, or credentials to a public AI service. The README and the UI remain the source of truth; an AI summary can still be wrong.
 
 ## V3.8 supported surface
 
@@ -276,7 +281,7 @@ The four MiniMax H3 Turbo files shown in the example come from the LightX2V Mini
 
 The number in a Turbo filename is its distilled NFE target. Use the matching upstream recommendation unless a provided workflow explicitly documents a tested exception. In particular, using a 4-step LoRA with `Steps = 6` is a workflow-specific experiment, not the LightX2V default. `Euler`/`simple`, the actual Steps value, and the selected LoRA must be recorded together when comparing results.
 
-`Power Lora Loader (rgthree)`, KJNodes SageAttention, ComfyUI-Easy-Use, and Spectrum are external components. Continuum does not install, enable, or tune them. The [V3.8 workflow](examples/workflows/MiniMax_H3_Continuum_V38.json) is the single supplied graph, distributed unchanged as JSON and ZIP. Its saved default is Spectrum enabled, no Turbo LoRA enabled, `res_multistep`, `simple`, and `Steps = 20`. All four custom-node packages are required to open the complete graph, including when switching it to Turbo.
+`Power Lora Loader (rgthree)`, KJNodes SageAttention, and Spectrum are external components. Continuum does not install, enable, or tune them. The [V3.8X workflow](examples/workflows/MiniMax_H3_Continuum_V38x.json) is the single supplied graph, distributed unchanged as JSON and ZIP. Its saved default has Spectrum disabled, no Turbo LoRA enabled, `res_multistep`, `simple`, and `Steps = 20`. These three custom-node packages are required to open the complete graph, including when switching it to Turbo. ComfyUI-Easy-Use is not required.
 
 The supplied prompt, media selections, and node titles have deliberately been preserved. Choose files available on your computer, disable unused optional inputs, and enter your own prompt before generating. Models, LoRAs, images, and audio are not included. A custom title such as `Save 3x5s Video` is only a saved label: actual duration follows the Sampler's `Chunks` and `Seconds per Chunk`, not that title.
 
@@ -318,7 +323,7 @@ Choose the task you need:
 
 `Chunks` is the **total number of chunks you want**, not the number to add on the next Queue. `Seconds per Chunk` is the duration of each chunk. `Total Length` is the planned final duration; it is not a progress counter.
 
-For example, `Chunks = 6` and `Seconds per Chunk = 5` means a 30-second target. With `Run = Review Each Chunk`, the first Queue normally creates only Chunk 1: a 5-second video. Continuing produces a 10-second video, then 15 seconds, and so on, until the target is complete. Each saved output contains the completed sequence so far, not just the newest 5 seconds.
+For example, `Chunks = 6` and `Seconds per Chunk = 5` means a 30-second target. With `Run = Review Each Chunk`, the first Queue normally creates only Chunk 1: a 5-second video. Continuing generates the next review unit. During review, the preview/save output is the **current review unit** (normally 5 seconds), not an accumulating preview. After the run reaches `complete`, or after `Use it and finish the rest` generates the remaining chunks, Finalize outputs the assembled completed sequence.
 
 The screenshots show **two chunks as a small example**. The same controls apply to three, four, five, six, or another supported total.
 
@@ -547,9 +552,9 @@ Driving Audio can be used with Review and Smart Regenerate. The Continuum Image,
 
 > **Second Pass limitation:** Finish the reviewed sequence before running Second Pass. Second Pass / `refine_context` is not supported on a partial Review sequence.
 
-## Historical implementation notes (pre-V3.8; not the standard workflow)
+## Archived implementation notes (pre-V3.8; not the current guide)
 
-The version-labelled sections below document earlier releases and compatibility work. Their node-registration and saved-workflow guarantees apply to those historical packages, not to V3.8. They do not change the current seven-node surface or the V3.8 standard path described above. Open historical workflows with their matching Release/tag.
+The version-labelled sections below are retained temporarily as source history only. They do not describe the V3.8 standard workflow, public surface, or recommended wiring. For an older workflow, use the migration policy and its matching historical Release/tag.
 
 ### V3.7 High-Resolution Refinement Foundation
 
@@ -645,7 +650,7 @@ Prompt/CLIP figures measure only the conditioning subphase, not total generation
 
 The measured Sage-only production baselines on the tested RTX 5060 Ti 16 GB / 64 GB system were 168.069 seconds for 1×5-second 576×576 T2VA and 379.765 seconds for 3×5-second 640×640 FL2VA Long Terminal Merge. These are configuration-specific baselines, not universal speed guarantees. Sampling remained the dominant cost; Continuum Assemble + Seam stayed below 1%.
 
-> **V3.8.0 is the current release candidate.** Historical implementation modules remain in source because V3.8 reuses them internally. Only the seven current public nodes are exported, including the earlier IDs retained for those nodes. Use the matching historical Release/tag for workflows requiring other IDs. Still Image Guide remains Experimental.
+> **V3.8.0 is the historical release baseline.** The current release candidate is V3.8X / package 3.8.1. Historical implementation modules remain in source because V3.8X reuses them internally. Only the seven current public nodes are exported, including the earlier IDs retained for those nodes. Use the matching historical Release/tag for workflows requiring other IDs. Still Image Guide remains Experimental.
 
 ## V3.5.1 Reference Audio & Compatibility Update
 
@@ -694,7 +699,7 @@ The external workflow owns AV LATENT pairing, noise, SIGMAS, Audio Lock, samplin
 
 ![V3.5.1 LBH and Conditioning Bridge external sampling flow](docs/images/v351-lbh-conditioning-bridge-flow.svg)
 
-Download the complete connection example: [V3.5.1 LBH + Conditioning Bridge workflow](examples/workflows/MiniMax_H3_Continuum_V351_LBH_Conditioning_Bridge.json).
+The retired V3.5.1 LBH + Conditioning Bridge example is available only from its matching historical Release/tag; it is not a V3.8 workflow.
 
 The example keeps the standard Core titles `BasicGuider`, `BasicScheduler`, and `SamplerCustomAdvanced`. Public examples do not rename Core nodes, so they remain immediately distinguishable from Continuum and third-party nodes. The workflow also uses external nodes for LBH latent upscaling, AV LATENT concatenation/separation, loading/saving, and optional acceleration; install or replace those nodes according to your ComfyUI environment.
 
@@ -828,10 +833,10 @@ This is a usability and reliability decision, not a claim that the experimental 
 
 ## Example workflow
 
-- [V3.8 workflow JSON](examples/workflows/MiniMax_H3_Continuum_V38.json) — Spectrum enabled by default; switch the same graph to LightX2V Turbo as described above
-- [V3.8 workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38.zip) — contains exactly the same JSON, not another variant or a custom-node installer
+- [V3.8X workflow JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) — Spectrum disabled by default; switch the same graph to LightX2V Turbo as described above
+- [V3.8X workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip) — contains exactly the same JSON, not another variant or a custom-node installer
 
-The declared Registry payload includes this one graph in both formats; it is **not dependency-free**. Spectrum, rgthree, KJNodes, and ComfyUI-Easy-Use must be installed separately. Historical workflow files remain in GitHub source but are excluded from the Registry payload. For an older saved workflow, use its matching historical Release/tag as described in the [migration policy](docs/V38_RELEASE_AND_MIGRATION.md). Registry packaging validation/publication is separate from this GitHub source update.
+The declared Registry payload includes this one graph in both formats; it is **not dependency-free**. Spectrum, rgthree, and KJNodes must be installed separately; ComfyUI-Easy-Use is not required. Historical workflow files remain in GitHub source but are excluded from the Registry payload. For an older saved workflow, use its matching historical Release/tag as described in the [migration policy](docs/V38_RELEASE_AND_MIGRATION.md). Registry packaging validation/publication is separate from this GitHub source update.
 
 ## V3.4 feature details
 
@@ -937,7 +942,7 @@ git pull --ff-only origin main
 
 Restart ComfyUI after the update. If the node was installed with ComfyUI Manager, use its **Update** action instead of running `git pull` manually. Do not mix Manager updates and a separate Git checkout for the same installation.
 
-After the backend restart, search for `H3 Continuum Sampler V3.8`. The complete V3.8 search surface contains the seven nodes listed above. If they are missing, check the startup console for the `H3 Continuum 3.8.0 loaded` message and any `ComfyUI-H3-Continuum` import error.
+After the backend restart, search for `H3 Continuum Sampler V3.8`. The complete V3.8X search surface contains the seven nodes listed above. If they are missing, check the startup console for the `H3 Continuum 3.8.1 loaded` message and any `ComfyUI-H3-Continuum` import error.
 
 Search for H3 Continuum or Continuum in ComfyUI Manager, or install manually:
 
@@ -1247,37 +1252,11 @@ Use a 24 fps source for `Video Guide Frames`. `Load Video (Upload)` may accept f
 
 ## Current validation status
 
-The current V3.8 public-surface suite verifies the exact seven-ID export, the single supplied Spectrum graph and its identical ZIP payload, declared external dependencies, Registry exclusions, preserved legacy V3.8 widget/socket order with the AUDIO-R1 socket appended, and presentation-only `Show Advanced Settings` / `Hide Advanced Settings` behavior, including migration of the former `H3 Continuum View` property. Registry payload hashes are recorded in `REGISTRY_MANIFEST.sha256`; source-only files are also covered by `MANIFEST.sha256`. Git preserves exact bytes to avoid platform-dependent hash changes. Historical implementation paths remain covered by module-local regression tests without exporting additional V3.8 nodes.
+The V3.8 public-surface suite checks the exact seven-node export, the supplied Spectrum graph and matching ZIP payload, declared external dependencies, Registry exclusions, preserved V3.8 widget/socket order, and presentation-only `Show Advanced Settings` / `Hide Advanced Settings` behavior. Registry payload hashes are recorded in `REGISTRY_MANIFEST.sha256`; source integrity is recorded in `MANIFEST.sha256`.
 
-**CPU launch audit — 2026-09-07, before the final distribution rename:** the full guarded suite passed **1,154/1,154 tests**, with no failures, errors, skips, or recorded CUDA initialization requests. Isolated ComfyUI Core 0.34.5 CPU checks passed seven-node registration and native PackedLayout; both the former Core-only template and the supplied Spectrum graph passed graph/schema checks. CUDA remained uninitialized. The final distribution uses the unchanged Spectrum graph under the generic V38 filename. These are CPU/software-contract results, not a new GPU-quality acceptance or proof that a running installed backend has loaded the latest source.
+**Latest local RC evidence:** the full CPU suite passed **1,261 passed / 1 skipped / 0 failed**. The final dedicated GPU Functional Gate passed a `3 × 5 second` Review Each Chunk run: Q1–Q3 generated one physical group at a time, and Q4 reused all three groups with `3 reused / 0 generated`. Q3 and Q4 had identical decoded RGB and PCM SHA-256 values. This confirms functional execution, prefix reuse, and AV reconstruction; it is not a full subjective image- or audio-quality rating.
 
-**Historical V3.6 acceptance:** the V3.6 release gate included PIG-0 through PIG-5 Production Integration acceptance: backend-scoped Run Storage, real-cache Save/Resume/Regenerate From, atomic Terminal Merge reuse, Reference Image/Audio retention, bit-exact protected prefixes, GPU workflow output, numeric Audio Seam analysis, and subjective Audio PASS. Its automated validation result was `527 passed`; this is a historical count, not the current V3.8 CPU total. The package checklist and historical acceptance records are in `PACKAGE_VALIDATION.txt`. Regression coverage also includes source/runtime registration, native PackedLayout, Fixed 3x5 prompt planning, JavaScript UI harnesses, Prompt/CLIP cache equality, Video Guide bit-exact A/B, V3.5 Second Pass/Hi-Res, and V3.5.3 distribution-integrity checks.
-
-V3.4 compatibility paths have been exercised locally with:
-
-- 1, 2, and 3 chunks
-- standard and Turbo paths
-- Spectrum enabled and disabled
-- I2VA, Reference, and selected FL2VA configurations
-- Hybrid FLF + Reference with the B2049 hybrid variant
-- Core-equivalent `2 x 5s` FL2VA Terminal Merge
-- `3 x 5s` FL2VA with the final two logical chunks merged into one 260-frame physical sample and decode group
-- Driving Audio with short, exact-length, and longer sources
-- Video Guide Frames with source audio routed separately to Driving Audio
-- 0.4 MP and 0.6 MP reference sizing
-- Run Storage reuse and selected-chunk regeneration
-- Core VAE Decode and final assembly
-
-Additional V3.5 acceptance includes:
-
-- Advanced Second Pass Bridge for 1x5 T2VA, 3x5 T2VA, and 3x5 FL2VA Long Terminal Merge
-- first-pass audio LATENT object passthrough through Second Pass
-- RAM / Disk-backed bit-exact assembly, cache/requeue, Preview, Save, VHS, interrupt, stale cleanup, and a 9.49 GiB mapped IMAGE stress
-- Auto backend selection in both the real 1.65 GiB Long Terminal Merge case and the 9.49 GiB stress case
-- Experimental integrated Main Hi-Res Fix for FL2VA 1x5, 576x576 to 1152x1152
-- Hybrid FL2VA + Reference 1x5 through both the integrated 576-to-1152 Main Hi-Res Fix and the direct 576x576 Advanced Second Pass node
-
-No OOM was observed in the cited recent local V3.4 checks, including two-chunk 800 x 800 runs. This is not a universal memory guarantee. Model precision, LoRAs, source resolution, optional nodes, GPU, and RAM affect memory use.
+Validation results apply to the tested local source and environment. They do not guarantee that an installed copy is current, that all models/wrappers fit every GPU, or that a different prompt will have the same visual quality.
 
 ## Limits
 
