@@ -1,6 +1,6 @@
-# ComfyUI-H3-Continuum 3.8.1 — V3.8X
+# ComfyUI-H3-Continuum 3.8.2 — V3.8X
 
-> これは現在の**V3.8X／パッケージ3.8.1向けガイド**です。ここでは公開7ノードと同梱V3.8X Workflowだけを案内します。旧V3.8.0は[`v3.8.0`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0)から引き続き導入できます。旧保存Workflowは、この説明と混在させず、対応するtagで開いてください。
+> これは現在の**V3.8X／パッケージ3.8.2向けガイド**です。ここでは公開7ノードと同梱V3.8X Workflowだけを案内します。固定済みV3.8.1は[`v3.8.1`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.1)、旧V3.8.0は[`v3.8.0`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0)から引き続き導入できます。異なるrelease tagのWorkflowや説明は混在させないでください。
 
 MiniMax H3を複数チャンクで連続生成し、直前チャンク末尾の**映像latent / 音声latentを直接**次チャンクへ継承するComfyUIカスタムノードです。チャンク間でVideo/Audio VAEのDecode→Encodeは行いません。
 
@@ -243,7 +243,7 @@ Prompt/CLIPの数値はconditioning区間だけで、総生成時間ではあり
 
 RTX 5060 Ti 16 GB／RAM 64 GBの検証環境で測定したSage-only Production baselineは、576×576 T2VA 1×5秒が168.069秒、640×640 FL2VA Long Terminal Merge 3×5秒が379.765秒です。環境・設定固有の測定値であり、すべての環境に対する速度保証ではありません。Samplingが最大コストで、Continuum Assemble + Seamは1%未満でした。
 
-**V3.8.0はhistorical release baselineです。現在のRelease CandidateはV3.8X／package 3.8.1です。** V3.8Xが内部利用する旧module/classはsourceへ維持します。exportするのは現在の公開7ノードだけで、その一部は旧IDを維持しています。それ以外のIDを必要とする旧保存Workflowは、対応するhistorical Release/tagを使用してください。Still Image Guideは引き続きExperimentalです。
+**V3.8.0はhistorical release baselineです。現在のpackageはV3.8X／3.8.2で、固定済みV3.8.1は対応するtagから引き続き利用できます。** V3.8Xが内部利用する旧module/classはsourceへ維持します。exportするのは現在の公開7ノードだけで、その一部は旧IDを維持しています。それ以外のIDを必要とする旧保存Workflowは、対応するhistorical Release/tagを使用してください。Still Image Guideは引き続きExperimentalです。
 
 ## V3.5.1 Reference Audio／互換性更新
 

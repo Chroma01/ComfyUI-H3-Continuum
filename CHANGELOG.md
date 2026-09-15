@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.8.2 — Publication metadata and package-integrity sync (2026-09-15)
+
+- Synchronize the current README and package validation record with both source and Registry manifests after the post-3.8.1 documentation update.
+- Preserve the accepted V3.8X R0–R6 runtime, seven-node public surface, supplied workflow bytes, Sampling, Review, and Run Storage contracts unchanged.
+- Keep the immutable V3.8.1 and historical V3.8.0 releases available through their matching tags.
+
 ## 3.8.1 — V3.8X release candidate (2026-09-15)
 
 - Promote the accepted R0–R6 Runtime Redesign and final local GPU Functional Gate to the V3.8X (`3.8.1`) release candidate.

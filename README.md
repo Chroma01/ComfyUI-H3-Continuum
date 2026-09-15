@@ -1,10 +1,10 @@
-# ComfyUI-H3-Continuum 3.8.1 — V3.8X
+# ComfyUI-H3-Continuum 3.8.2 — V3.8X
 
 <img width="1536" height="1024" alt="exec-7cbb1899-cece-4794-b94f-c287dc62b2a9" src="https://github.com/user-attachments/assets/bfc4fa85-bd45-48df-87c5-e45fa6d065b1" />
 
 
 
-> This is the current **V3.8X / package 3.8.1 guide**. It documents the supported seven-node surface and the supplied V3.8X workflow. The older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0); do not combine its workflow or instructions with this guide.
+> This is the current **V3.8X / package 3.8.2 guide**. It documents the supported seven-node surface and the supplied V3.8X workflow. The immutable V3.8.1 release remains available from tag [`v3.8.1`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.1), and the older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0). Do not combine workflows or instructions from different release tags.
 
 **Download V3.8X workflow: [JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) | [ZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip)** — [Latest release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/latest)
 
@@ -654,7 +654,7 @@ Prompt/CLIP figures measure only the conditioning subphase, not total generation
 
 The measured Sage-only production baselines on the tested RTX 5060 Ti 16 GB / 64 GB system were 168.069 seconds for 1×5-second 576×576 T2VA and 379.765 seconds for 3×5-second 640×640 FL2VA Long Terminal Merge. These are configuration-specific baselines, not universal speed guarantees. Sampling remained the dominant cost; Continuum Assemble + Seam stayed below 1%.
 
-> **V3.8.0 is the historical release baseline.** The current release candidate is V3.8X / package 3.8.1. Historical implementation modules remain in source because V3.8X reuses them internally. Only the seven current public nodes are exported, including the earlier IDs retained for those nodes. Use the matching historical Release/tag for workflows requiring other IDs. Still Image Guide remains Experimental.
+> **V3.8.0 is the historical release baseline.** The current package is V3.8X / 3.8.2; the immutable V3.8.1 release remains available from its matching tag. Historical implementation modules remain in source because V3.8X reuses them internally. Only the seven current public nodes are exported, including the earlier IDs retained for those nodes. Use the matching historical Release/tag for workflows requiring other IDs. Still Image Guide remains Experimental.
 
 ## V3.5.1 Reference Audio & Compatibility Update
 
@@ -946,7 +946,7 @@ git pull --ff-only origin main
 
 Restart ComfyUI after the update. If the node was installed with ComfyUI Manager, use its **Update** action instead of running `git pull` manually. Do not mix Manager updates and a separate Git checkout for the same installation.
 
-After the backend restart, search for `H3 Continuum Sampler V3.8`. The complete V3.8X search surface contains the seven nodes listed above. If they are missing, check the startup console for the `H3 Continuum 3.8.1 loaded` message and any `ComfyUI-H3-Continuum` import error.
+After the backend restart, search for `H3 Continuum Sampler V3.8`. The complete V3.8X search surface contains the seven nodes listed above. If they are missing, check the startup console for the `H3 Continuum 3.8.2 loaded` message and any `ComfyUI-H3-Continuum` import error.
 
 Search for H3 Continuum or Continuum in ComfyUI Manager, or install manually:
 
