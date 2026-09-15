@@ -5,6 +5,7 @@
 - Synchronize the current README and package validation record with both source and Registry manifests after the post-3.8.1 documentation update.
 - Preserve the accepted V3.8X R0–R6 runtime, seven-node public surface, supplied workflow bytes, Sampling, Review, and Run Storage contracts unchanged.
 - Keep the immutable V3.8.1 and historical V3.8.0 releases available through their matching tags.
+- Validate an external ComfyUI-Spectrum-MiniMax-H3 v0.2.27 Sage + Spectrum 3 x 5-second run. The previous `aimdo memory compile error` did not occur; decoded video/audio integrity and chunk-boundary checks passed. Spectrum's own v0.2.25+ AimDo malloc-graph workaround provides this compatibility; Continuum does not vendor or modify Spectrum.
 
 ## 3.8.1 — V3.8X release candidate (2026-09-15)
 
