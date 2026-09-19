@@ -2,8 +2,34 @@ import { app } from "../../scripts/app.js";
 
 const NODE_CLASS = "H3DecodeCacheHelper";
 const MAX_TOKEN = 2147483647;
-const BUTTON_NAME = "キャッシュをクリア";
-const TOOLTIP = "次回QueueでこのHelperのキャッシュを破棄します。次回は通常Decodeとなります。普段は操作不要です。";
+
+function isJapanese() {
+    let locale = "";
+    try {
+        locale = String(app?.ui?.settings?.getSettingValue?.("Comfy.Locale") || "");
+    } catch {}
+    if (!locale) {
+        locale = String(
+            globalThis.document?.documentElement?.lang
+            || globalThis.navigator?.language
+            || "en",
+        );
+    }
+    return /^ja(?:-|$)/i.test(locale);
+}
+
+function labels() {
+    if (isJapanese()) {
+        return {
+            button: "キャッシュをクリア",
+            tooltip: "次回QueueでこのHelperのキャッシュを破棄します。次回は通常Decodeとなります。普段は操作不要です。",
+        };
+    }
+    return {
+        button: "Clear cache",
+        tooltip: "Clear this Helper's cache on the next Queue. The next run uses normal Decode. Usually no action is needed.",
+    };
+}
 
 // Keep the backend widget in its original position. Only its presentation is
 // hidden; Core still serializes and sends reset_token as an INT.
@@ -30,9 +56,10 @@ export function configureDecodeCacheHelper(node) {
     const token = node.widgets?.find((widget) => widget.name === "reset_token");
     if (!token || typeof node.addWidget !== "function") return;
     if (!node.__h3DecodeCacheClearButton) {
+        const text = labels();
         // Create the control before hiding the numeric widget, so a failed
         // control installation leaves the traditional input available.
-        const button = node.addWidget("button", BUTTON_NAME, null, () => {
+        const button = node.addWidget("button", text.button, null, () => {
             const current = node.widgets?.find((widget) => widget.name === "reset_token");
             if (!current) return;
             const value = Number(current.value);
@@ -44,7 +71,7 @@ export function configureDecodeCacheHelper(node) {
         button.serialize = false;
         button.options ||= {};
         button.options.serialize = false;
-        button.tooltip = TOOLTIP;
+        button.tooltip = text.tooltip;
         node.__h3DecodeCacheClearButton = button;
 
         // Some frontend versions assign widgets_values by index even for

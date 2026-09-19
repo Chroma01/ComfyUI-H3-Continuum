@@ -3,7 +3,11 @@ import fs from "node:fs";
 
 const source = fs.readFileSync(new URL("../web/decode_cache_helper.js", import.meta.url), "utf8");
 let extension;
-globalThis.__h3TestApp = { registerExtension(value) { extension = value; }, graph: { _nodes: [] } };
+globalThis.__h3TestApp = {
+    registerExtension(value) { extension = value; },
+    graph: { _nodes: [] },
+    ui: { settings: { getSettingValue: () => "en" } },
+};
 const module = await import(`data:text/javascript;base64,${Buffer.from(source.replace(
     'import { app } from "../../scripts/app.js";', 'const app = globalThis.__h3TestApp;',
 )).toString("base64")}`);
@@ -34,10 +38,10 @@ assert.equal(token.hidden, true);
 assert.equal(token.options.hidden, true);
 assert.equal(token.options.serialize, undefined);
 assert.equal(button.type, "button");
-assert.equal(button.name, "キャッシュをクリア");
+assert.equal(button.name, "Clear cache");
 assert.equal(button.options.serialize, false);
 assert.equal(button.serialize, false);
-assert.match(button.tooltip, /次回Queue/);
+assert.match(button.tooltip, /next Queue/);
 assert.deepEqual(node.serialize().widgets_values, ["Auto", 256, 8, 0]);
 extension.loadedGraphNode(node);
 globalThis.__h3TestApp.graph._nodes = [node];
@@ -77,4 +81,11 @@ assert.equal(other.widgets.length, 4);
 assert.equal(other.widgets[3].hidden, undefined);
 // Without JS the native reset_token input remains untouched.
 assert.equal(createNode().widgets[3].type, "number");
+
+// ComfyUI's explicit locale setting takes precedence over browser language.
+globalThis.__h3TestApp.ui = { settings: { getSettingValue: () => "ja" } };
+const japaneseNode = createNode();
+extension.nodeCreated(japaneseNode);
+assert.equal(japaneseNode.widgets[4].name, "キャッシュをクリア");
+assert.match(japaneseNode.widgets[4].tooltip, /次回Queue/);
 console.log("Decode Cache Helper frontend lifecycle / serialization / clone / standard workflows: PASS");
