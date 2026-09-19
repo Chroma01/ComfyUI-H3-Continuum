@@ -1,7 +1,7 @@
 # ComfyUI-H3-Continuum 3.8.3 — V3.8X2
 
 > **V3.8X2** is the product and workflow label for package `3.8.3`. It keeps the V3.8 production sampler and adds optional Reference Images 4–9 plus the built-in Decode Cache Helper. The older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0).
-> <img width="1536" height="1024" alt="exec-9cfa73b4-c1d3-4416-8950-fa661b946638_2" src="https://github.com/user-attachments/assets/8df15764-6db6-4d4c-9eb5-0d2c7b0668f0" />
+ <img width="1536" height="1024" alt="exec-9cfa73b4-c1d3-4416-8950-fa661b946638_2" src="https://github.com/user-attachments/assets/8df15764-6db6-4d4c-9eb5-0d2c7b0668f0" />
 
 
 ## Official V3.8X2 workflows
