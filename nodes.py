@@ -448,17 +448,24 @@ from .v3.hires_fix_nodes import (
 NODE_CLASS_MAPPINGS.update(V35_HIRES_FIX_NODE_CLASS_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(V35_HIRES_FIX_NODE_DISPLAY_NAME_MAPPINGS)
 
+from .decode_cache.nodes import H3DecodeCacheHelper
+
+NODE_CLASS_MAPPINGS["H3DecodeCacheHelper"] = H3DecodeCacheHelper
+NODE_DISPLAY_NAME_MAPPINGS["H3DecodeCacheHelper"] = "Decode Cache Helper"
+
 # V3.8 exports only its audited launch surface. The imports and merged mappings
 # above intentionally stay in place because the V3.8 implementation still
 # inherits and reuses historical modules internally.
 _PUBLIC_NODE_DISPLAY_NAMES = {
     "H3ContinuumSamplerV38": "H3 Continuum Sampler V3.8",
     "H3ContinuumReferenceAudios": "H3 Continuum Reference Audios",
+    "H3ContinuumReferenceImages": "H3 Continuum Reference Images",
     "H3ContinuumAssembleSeamV35": "H3 Continuum Finalize",
     "H3EasyLoadImage": "H3 Continuum Load Image",
     "H3EasyLoadAudio": "H3 Continuum Load Audio",
     "H3ContinuumLoadVideo": "H3 Continuum Load Video",
     "H3ContinuumSecondPassV35": "H3 Continuum Second Pass",
+    "H3DecodeCacheHelper": "Decode Cache Helper",
 }
 NODE_CLASS_MAPPINGS = {
     node_id: NODE_CLASS_MAPPINGS[node_id]

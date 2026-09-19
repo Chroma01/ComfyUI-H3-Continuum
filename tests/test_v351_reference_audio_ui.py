@@ -56,8 +56,8 @@ assert.deepEqual(
         "Video Guide Frames",
         "Driving Audio",
         "Driving Audio VAE",
-        "Reference Audio (Optional)",
-        "Reference Audio VAE (Optional)",
+        "Reference Audio (Legacy)",
+        "Reference Audio VAE (Legacy)",
     ],
 );
 assert.equal(node.inputs[3].name, "reference_audio_1");

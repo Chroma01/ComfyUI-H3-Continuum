@@ -7,7 +7,11 @@ from typing import Any
 
 import torch
 
-from ..constants import CONTINUITY_FRAMES, V2_CONTINUITY_AUTO
+from ..constants import (
+    CONTINUITY_FRAMES,
+    V2_CONTINUITY_AUTO,
+    normalize_continuity_mode,
+)
 from ..state import validate_state
 
 # Conservative defaults. Borderline values intentionally fall back to 22 frames.
@@ -30,6 +34,7 @@ def latent_motion_score(state: dict[str, Any]) -> float:
 
 
 def choose_context_frames(mode: str, state: dict[str, Any]) -> tuple[int, float, str]:
+    mode = normalize_continuity_mode(mode)
     state = validate_state(state)
     capacity = int(state["capacity_frames"])
     score = latent_motion_score(state)

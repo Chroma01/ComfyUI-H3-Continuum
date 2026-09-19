@@ -1,12 +1,51 @@
-# ComfyUI-H3-Continuum 3.8.2 — V3.8X
+# ComfyUI-H3-Continuum 3.8.3 — V3.8X2
 
-<img width="1536" height="1024" alt="exec-7cbb1899-cece-4794-b94f-c287dc62b2a9" src="https://github.com/user-attachments/assets/bfc4fa85-bd45-48df-87c5-e45fa6d065b1" />
+> **V3.8X2** is the product and workflow label for package `3.8.3`. It keeps the V3.8 production sampler and adds optional Reference Images 4–9 plus the built-in Decode Cache Helper. The older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0).
 
+## Official V3.8X2 workflows
 
+- **Standard name:** [JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.json) | [ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip)
+- **Helper-explicit name:** [JSON](examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json) | [ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip)
 
-> This is the current **V3.8X / package 3.8.2 guide**. It documents the supported seven-node surface and the supplied V3.8X workflow. The immutable V3.8.1 release remains available from tag [`v3.8.1`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.1), and the older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0). Do not combine workflows or instructions from different release tags.
+The two names contain the **same official graph**; they are distribution aliases, not different configurations. Both include the built-in Decode Cache Helper with its saved `Auto / RAM 256MB / Disk 8GB / reset_token 0` settings and the nine-reference helper connection. Each ZIP contains only the correspondingly named JSON. Older V3.8X workflows remain available for existing projects.
 
-**Download V3.8X workflow: [JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) | [ZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip)** — [Latest release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/latest)
+## Nine Reference Images: memory warning
+
+Reference Images 1–3 connect directly to the Sampler. Optional images 4–9 connect through `H3 Continuum Reference Images` and then to `Reference Images (Optional)`. Using all nine is a high-resource configuration, not the normal minimum requirement.
+
+The acceptance run completed on an **RTX 5060 Ti 16 GB / 64 GB system** only after the nine source references were kept near **0.30 MP each**. With `512 × 608` output, `3 × 5 seconds`, Spectrum Off, LoRA Off, Sage Attention, and Balanced 22-frame continuity, Sampling used about **15.0–15.5 GiB of 16,311 MiB VRAM**. There was little 16 GB headroom.
+
+When using many references, especially all nine, resize copies of the source images to about 0.30 MP before loading or connecting them. The Sampler still performs its normal conditioning resize, but smaller source files reduce input and preprocessing pressure. Larger references, larger output sizes, extra wrappers, or concurrent GPU work may require a higher-spec GPU and more system RAM. Nine references are optional and are not guaranteed to improve quality over three.
+
+## Built-in Decode Cache Helper
+
+### Important: this is not an unconditional new-generation speedup
+
+**Manual cache clear:** normally no action is needed. Press the Helper's "キャッシュをクリア" (Clear cache) button to discard that Helper's cache on the next Queue and run native Decode again. It does not delete immediately or queue automatically. The internal `reset_token` remains serialized for workflow/API compatibility and increments once per click (wrapping to 0 at the INT limit). Creating, loading, or cloning a node does not change it. Without JavaScript, or in API workflows, change `reset_token` through the traditional numeric input.
+
+**The Helper saves time only when unchanged latents are decoded again. It does not accelerate Sampling.** A first MISS runs native Decode and stores the result; hashing and storage can make that run slower. Generating different latents with a new random seed each time normally produces MISS, so this feature should not be expected to speed up that usage.
+
+Concrete reuse scenarios:
+
+- **Continue by adding chunks:** when existing chunk latents are retained and decoded again for output, cached existing chunks can HIT; newly generated chunks initially MISS.
+- **Fix / partial regeneration:** unchanged chunk latents can HIT when submitted again; regenerated chunks whose latent contents changed MISS.
+- **Complete / Resume output:** decoding retained latents again without resampling can benefit. Merely playing an existing video file is not a cache use case.
+- **Retry from Decode onward, or change Finalize/output settings:** reuse applies when the same latents and decode-related metadata reach the Helper and Decode runs again.
+- **Regenerate with a fixed seed:** reuse requires identical resulting latent contents. The same seed alone does not guarantee HIT.
+
+The action names themselves do not enable reuse. **Each Video/Audio entry must match in latent contents, shape, dtype, decode-related metadata, and VAE identity, and its cache entry must still exist in that Helper.** If ComfyUI reuses an existing output without executing Decode, there is no additional Decode saving attributable to this Helper. Connect the Helper and select `Auto` or `RAM`. In its report, `hit` means reuse, `miss` means native Decode, and `off` / `bypass` mean no cache reuse.
+
+Cache reuse is process-local and does not survive Python restarts. Eviction and VAE identity changes can also cause MISS. Changing mode, RAM/Disk budgets, or `reset_token` clears this implementation's Helper cache. Keeping `reset_token = 0` does not reset it on every Queue.
+
+V3.8X2 ships `H3DecodeCacheHelper` inside this Continuum package. It remains a separate public node under `MiniMax H3/Continuum/Helpers`; no second custom-node addon is needed. The nine public node IDs are the seven V3.8X IDs plus Reference Images and this helper. Sampler, Finalize, Assembly Plan, Core Decode, and saved Sampler widget/socket contracts are unchanged.
+
+Connect Sampler `video_latents` and `audio_latents` plus their native Video/Audio VAE inputs to the Helper, then connect Helper `images` and `audio` to Finalize. Keep the Sampler `assembly_plan` directly connected to Finalize. The [official V3.8X2 workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json) preserves its saved graph and settings. It contains no Core VAE Decode nodes, so returning to Core direct Decode requires adding those two Core nodes and reconnecting Finalize, or loading a prior Core-direct V3.8X workflow. Do not simply remove the Helper and expect automatic rewiring.
+
+`Auto` caches full physical Video decodes on private process-local disk and small Audio decodes in bounded RAM. `Off` delegates native Decode and clears the Helper cache. Cache failure falls back to native Decode; native Decode, OOM and queue interruption are not retried. Files are not reused across Python restarts. Keep only one provider of the `H3DecodeCacheHelper` node ID: the previous standalone addon must be disabled or removed during the migration, after a verified built-in installation.
+
+At 736×416 (0.306MP), 3×5 seconds, Euler/simple 6 steps, Turbo FL2V v1.2, a warm backend and three Video HITs, one measured configuration produced a **mechanistic estimate of about 47 seconds / 24.5% less Full Run Total**. One direct A/B pair observed 50.887 seconds / 26.46%, and two Complete/Resume re-decode pairs averaged 46.309 seconds / 79.826% less Total. These are narrow observations, not repeated universal averages or an unconditional 20%+ speed promise. The first MISS can be slower, new Sampling is not accelerated, and a changed latent or VAE identity produces a MISS.
+
+**Historical V3.8X workflow: [JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) | [ZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip)** — [Published releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases)
 
 ✅ V3.8X on `main` includes the September 8, 2026 Review hotfix: Review Each Chunk continuation, stale `Regenerate From` state, completed-sequence extension, and Render History queue handling are repaired. Update with `git pull --ff-only origin main` (or ComfyUI Manager **Update**), restart ComfyUI, and hard-refresh the browser if the old UI remains. Existing saved Takes are preserved. Issue #13 remains a separate open long-continuation quality issue and is not part of this hotfix.
 
@@ -40,7 +79,7 @@ git clone --branch v3.8.0 --single-branch https://github.com/ukr8b3g-cmyk/ComfyU
 
 Use only one Continuum checkout at a time. ComfyUI Manager **Update** tracks `main`; it does not select historical tags.
 
-Download the current V3.8X workflow: [JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) or [ZIP containing the same JSON](examples/workflows/MiniMax_H3_Continuum_V38x.zip). This is one Spectrum-capable graph, also usable with [LightX2V Turbo](https://github.com/ModelTC/Minimax-H3-Turbo); both Spectrum and all Turbo LoRA entries are saved disabled. Install its external Spectrum, rgthree, and KJNodes nodes before opening it. ComfyUI-Easy-Use is not required. See [Spectrum and Turbo setup](#turbo-lora-and-spectrum-in-supplied-workflows) below.
+Download the current V3.8X2 workflow: [JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.json) or [ZIP containing the same JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.zip). This is one Spectrum-capable graph, also usable with [LightX2V Turbo](https://github.com/ModelTC/Minimax-H3-Turbo); both Spectrum and all Turbo LoRA entries are saved disabled. Install its external Spectrum, rgthree, and KJNodes nodes before opening it. ComfyUI-Easy-Use is not required. See [Spectrum and Turbo setup](#turbo-lora-and-spectrum-in-supplied-workflows) below.
 
 ## Prompt and skill downloads
 
@@ -67,7 +106,7 @@ AI products, plans, and repository-reading behavior change frequently. If a URL 
 
 ## V3.8 supported surface
 
-V3.8 exports exactly seven searchable nodes:
+This local package exposes nine searchable nodes: the original seven V3.8 nodes plus Decode Cache Helper and Reference Images.
 
 - **H3 Continuum Sampler V3.8** — the Main sampler
 - **H3 Continuum Finalize** — decoded Video/Audio assembly with optional seam handling
@@ -76,20 +115,22 @@ V3.8 exports exactly seven searchable nodes:
 - **H3 Continuum Load Video**
 - **H3 Continuum Second Pass** — the Advanced bridge for external latent processing or upscaling
 - **H3 Continuum Reference Audios** — an ordered Reference Audio 1/2/3 bundle helper
+- **H3 Continuum Reference Images** — optional additional Reference Images 4–9
+- **Decode Cache Helper** — the existing optional decoded-result cache
 
 The current frontend uses `Show Advanced Settings` / `Hide Advanced Settings` to change presentation without changing generation values. Saved drafts that still contain the former frontend-only `H3 Continuum View` property are migrated to the matching collapsed/expanded view and the legacy property is removed. If the frontend extension is unavailable, the complete Python-defined interface remains visible and executable.
 
-The supported flow is:
+The official V3.8X2 workflow uses the Helper path:
 
 ```text
 H3 Continuum Sampler V3.8
-  -> Core Video/Audio Decode
+  -> Decode Cache Helper
   -> H3 Continuum Finalize
   -> Create Video
   -> Save Video
 ```
 
-Core Decode, Save, and upscaling remain external. Hi-Res Fix is not part of the V3.8 standard workflow; use Second Pass as the bridge when an external latent processor or upscaler is needed. External processors may change only Video LATENT spatial geometry while preserving physical groups, B/C/T, finite values, first-pass Audio, and the original Assembly Plan. Finalize accepts public `IMAGE`/`AUDIO` outputs and does not require a specific decoder class. SageAttention, Sol-Attn, and Spectrum remain external MODEL wrappers. See the [V3.8 Open Integration Contract](docs/V38_OPEN_INTEGRATION_CONTRACT.md).
+The Helper delegates cache MISS entries to native Core Video/Audio Decode. A manually wired direct Core Decode path remains supported, but it has no decoded-result cache. Save and upscaling remain external. Hi-Res Fix is not part of the V3.8X2 standard workflow; use Second Pass as the bridge when an external latent processor or upscaler is needed. External processors may change only Video LATENT spatial geometry while preserving physical groups, B/C/T, finite values, first-pass Audio, and the original Assembly Plan. Finalize accepts public `IMAGE`/`AUDIO` outputs and does not require a specific decoder class. SageAttention, Sol-Attn, and Spectrum remain external MODEL wrappers. See the [V3.8 Open Integration Contract](docs/V38_OPEN_INTEGRATION_CONTRACT.md).
 
 ## Complete V3.8 UI reference
 
@@ -115,11 +156,12 @@ The Sampler returns six outputs: a list of `video_latents`, a list of `audio_lat
 | `first_frame` | First Image for I2VA or FL2VA | Can also supply the output aspect ratio when `Size Source = First Image` |
 | `last_frame` | Optional final-image constraint for FL2VA | Can trigger a Long Terminal Merge; the final pair may become one atomic review unit |
 | `reference_image_1`–`reference_image_3` | Ordered appearance, identity, subject, or scene references | They never become the implicit size source |
+| `Reference Images (Optional)` | Additional images 4–9 bundled by `H3 Continuum Reference Images` | Empty inputs are skipped; encoding remains in the Sampler |
 | `Video Guide Frames` | A video loader's IMAGE frame batch, applied as a persistent guide | It does not carry the source video's audio; frames are interpreted at 24 fps |
 | `Driving Audio` + `Driving Audio VAE` | Original audio timeline used as native guide conditioning | The selected source audio becomes final audio; generated audio and Audio Seam are bypassed |
 | `Reference Audio (Optional)` + `Reference Audio VAE (Optional)` | Legacy single conditioning-only audio reference | Generated audio remains final audio |
 | `Audio References (Optional)` | Ordered bundle from `H3 Continuum Reference Audios` | Do not connect this together with the legacy single Reference Audio path |
-| `Still Image Guide (Optional)` | Compatibility socket inherited from the V3.7 guide contract | Experimental; not part of the seven-node V3.8 standard workflow |
+| `Still Image Guide (Optional)` | Compatibility socket inherited from the V3.7 guide contract | Experimental; not part of the V3.8X2 official workflow |
 
 #### First Image, Last Image, and Reference Images
 
@@ -127,11 +169,13 @@ The Sampler returns six outputs: a list of `video_latents`, a list of `audio_lat
 
 - **First Image** establishes the opening image and is the normal visual starting point for I2VA/FL2VA. It is also the only media input that can drive `Size Source = First Image`.
 - **Last Image** constrains the sequence ending. Leave it `OFF` for T2VA and ordinary I2VA. With a connected Last Image, extending or regenerating the sequence may rebuild the terminal pair.
-- **Reference Images 1–3** guide identity or appearance throughout generation. Their prompt order follows their connected order; they do not replace First Image or Last Image.
+- **Reference Images 1–9** guide identity or appearance throughout generation. Inputs 1–3 remain on the Sampler; optional inputs 4–9 are on `H3 Continuum Reference Images`, connected to the Sampler's `Reference Images (Optional)` socket. The helper only bundles images: resizing, hashing, and VAE encoding remain in the existing Sampler path. Empty slots are skipped; Picture numbers follow active slot order after any First/Last Image. Existing three-loader templates still work unchanged.
+
+Saved workflows with the earlier direct image 4/5 inputs migrate those links into a bundle after graph loading. Migration preserves the original source links and only removes a legacy input after its new link is verified. If a source is unavailable or its destination is occupied, the legacy link is retained with a warning. Old API prompts remain accepted; supplying both legacy and bundle images for the same slot is an explicit input conflict.
 
 ![Three optional Reference Image loaders](docs/images/v38-manual/reference-images-three-bypass.png)
 
-Every `H3 Continuum Load Image` has `Enable Image`. `ON` loads through ComfyUI Core. `OFF` uses native node bypass and makes that optional path behave as unconnected without deleting the node or cable. This is why one reusable workflow can expose First, Last, and three Reference Image slots without forcing every slot to be active.
+Every `H3 Continuum Load Image` has `Enable Image`. `ON` loads through ComfyUI Core. `OFF` uses native node bypass and makes that optional path behave as unconnected without deleting the node or cable. First, Last, and up to nine Reference Image inputs can therefore be connected without forcing every input to be active. An empty image bundle returns no reference and does not change the zero-to-three-image sampling/reuse contract.
 
 | Public loader | Controls | Outputs |
 |---|---|---|
@@ -285,7 +329,7 @@ The four MiniMax H3 Turbo files shown in the example come from the LightX2V Mini
 
 The number in a Turbo filename is its distilled NFE target. Use the matching upstream recommendation unless a provided workflow explicitly documents a tested exception. In particular, using a 4-step LoRA with `Steps = 6` is a workflow-specific experiment, not the LightX2V default. `Euler`/`simple`, the actual Steps value, and the selected LoRA must be recorded together when comparing results.
 
-`Power Lora Loader (rgthree)`, KJNodes SageAttention, and Spectrum are external components. Continuum does not install, enable, or tune them. The [V3.8X workflow](examples/workflows/MiniMax_H3_Continuum_V38x.json) is the single supplied graph, distributed unchanged as JSON and ZIP. Its saved default has Spectrum disabled, no Turbo LoRA enabled, `res_multistep`, `simple`, and `Steps = 20`. These three custom-node packages are required to open the complete graph, including when switching it to Turbo. ComfyUI-Easy-Use is not required.
+`Power Lora Loader (rgthree)`, KJNodes SageAttention, and Spectrum are external components. Continuum does not install, enable, or tune them. The [V3.8X2 workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json) is the supplied graph, distributed under two official filename aliases as matching JSON and ZIP pairs. Its saved default has Spectrum disabled and no Turbo LoRA enabled. These three custom-node packages are required to open the complete graph, including when switching it to Turbo. ComfyUI-Easy-Use is not required.
 
 The supplied prompt, media selections, and node titles have deliberately been preserved. Choose files available on your computer, disable unused optional inputs, and enter your own prompt before generating. Models, LoRAs, images, and audio are not included. A custom title such as `Save 3x5s Video` is only a saved label: actual duration follows the Sampler's `Chunks` and `Seconds per Chunk`, not that title.
 
@@ -297,7 +341,7 @@ The same graph can be used as the quick Turbo path: disable Spectrum, enable exa
 
 An experimental prefix-amplitude renormalization produced a strong improvement in one `6 × 5 s` run, but a later frozen `4 × 8 s` A/B/C gate did not reproduce the target drift and therefore applied gains of `1.0`; Standard and the experimental arm were bit-exact. The older Compatibility route did not justify replacing Standard and raised a separate boundary-audio concern. The accurate release statement is therefore: **the issue is not proven fixed, the current Standard path is unchanged, and experimental mitigation stays Default Off**. Report the first and worst affected chunk, workflow JSON, prompt, seed, model/LoRA, Steps/SIGMAS, size, Continuity, and Audio Continuity when reproducing it.
 
-> **V3.8 support boundary:** V3.8 exports only the seven public nodes listed above. Some retain earlier IDs, including Finalize (`H3ContinuumAssembleSeamV35`) and Second Pass (`H3ContinuumSecondPassV35`); this does not make all older workflows compatible. A saved workflow that uses an ID outside the current seven-node surface can load as an unknown node. Use the matching historical GitHub Release/tag for that workflow instead of restoring its unsupported IDs in V3.8. See [V3.8 Release and Migration Policy](docs/V38_RELEASE_AND_MIGRATION.md).
+> **Support boundary:** The original V3.8 launch surface had seven nodes; this local package also exports Reference Images and Decode Cache Helper. Some retain earlier IDs, including Finalize (`H3ContinuumAssembleSeamV35`) and Second Pass (`H3ContinuumSecondPassV35`); this does not make all older workflows compatible. Use the matching historical Release/tag for unsupported node IDs. See [V3.8 Release and Migration Policy](docs/V38_RELEASE_AND_MIGRATION.md).
 
 The accepted 16GB GPU gates reached about `15.5-15.6 GiB` in the most complex cases. Actual use varies by GPU, driver, backend, model precision, resolution, and connected nodes; this is not a universal 16GB guarantee.
 
@@ -654,7 +698,7 @@ Prompt/CLIP figures measure only the conditioning subphase, not total generation
 
 The measured Sage-only production baselines on the tested RTX 5060 Ti 16 GB / 64 GB system were 168.069 seconds for 1×5-second 576×576 T2VA and 379.765 seconds for 3×5-second 640×640 FL2VA Long Terminal Merge. These are configuration-specific baselines, not universal speed guarantees. Sampling remained the dominant cost; Continuum Assemble + Seam stayed below 1%.
 
-> **V3.8.0 is the historical release baseline.** The current package is V3.8X / 3.8.2; the immutable V3.8.1 release remains available from its matching tag. Historical implementation modules remain in source because V3.8X reuses them internally. Only the seven current public nodes are exported, including the earlier IDs retained for those nodes. Use the matching historical Release/tag for workflows requiring other IDs. Still Image Guide remains Experimental.
+> **V3.8.0 is the historical release baseline.** The current publication target is V3.8X2 / package 3.8.3. Historical implementation modules remain in source because V3.8X2 reuses them internally. Only the nine current public nodes are exported, including the earlier IDs retained for those nodes. Use the matching historical Release/tag for workflows requiring other IDs. Still Image Guide remains Experimental.
 
 ## V3.5.1 Reference Audio & Compatibility Update
 
@@ -808,7 +852,7 @@ For the failed 3 x 5s case, First Pass and the 37T Second Pass group completed. 
 
 ## V3.4 compatibility baseline
 
-The historical V3.5 package retained V3.4 nodes for saved workflows; it did not replace their Node IDs, public sockets, Sampling, Conditioning, Terminal Merge, Assembly, Seam, or Run Storage behavior. Those historical workflows remain available through the corresponding Release/tag. V3.8 does not export IDs outside its current seven public nodes, even when their implementation modules remain in source.
+The historical V3.5 package retained V3.4 nodes for saved workflows; it did not replace their Node IDs, public sockets, Sampling, Conditioning, Terminal Merge, Assembly, Seam, or Run Storage behavior. Those historical workflows remain available through the corresponding Release/tag. V3.8X2 does not export IDs outside its current nine public nodes, even when their implementation modules remain in source.
 
 ![H3 Continuum V3.4 workflow overview](docs/images/v34-workflow-overview.png)
 
@@ -837,8 +881,9 @@ This is a usability and reliability decision, not a claim that the experimental 
 
 ## Example workflow
 
-- [V3.8X workflow JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) — Spectrum disabled by default; switch the same graph to LightX2V Turbo as described above
-- [V3.8X workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip) — contains exactly the same JSON, not another variant or a custom-node installer
+- [V3.8X2 workflow JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.json) — current official graph; Spectrum is disabled by default
+- [V3.8X2 workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip) — contains exactly the correspondingly named JSON, not another variant or a custom-node installer
+- [V3.8X2 Helper-explicit JSON](examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json) and [ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip) — the same graph under an explicit distribution name
 
 The declared Registry payload includes this one graph in both formats; it is **not dependency-free**. Spectrum, rgthree, and KJNodes must be installed separately; ComfyUI-Easy-Use is not required. Historical workflow files remain in GitHub source but are excluded from the Registry payload. For an older saved workflow, use its matching historical Release/tag as described in the [migration policy](docs/V38_RELEASE_AND_MIGRATION.md). Registry packaging validation/publication is separate from this GitHub source update.
 
@@ -946,7 +991,7 @@ git pull --ff-only origin main
 
 Restart ComfyUI after the update. If the node was installed with ComfyUI Manager, use its **Update** action instead of running `git pull` manually. Do not mix Manager updates and a separate Git checkout for the same installation.
 
-After the backend restart, search for `H3 Continuum Sampler V3.8`. The complete V3.8X search surface contains the seven nodes listed above. If they are missing, check the startup console for the `H3 Continuum 3.8.2 loaded` message and any `ComfyUI-H3-Continuum` import error.
+After the backend restart, search for `H3 Continuum Sampler V3.8`. The complete V3.8X2 search surface contains the nine nodes listed above. If they are missing, check the startup console for the `H3 Continuum 3.8.3 loaded` message and any `ComfyUI-H3-Continuum` import error.
 
 Search for H3 Continuum or Continuum in ComfyUI Manager, or install manually:
 
@@ -1256,9 +1301,17 @@ Use a 24 fps source for `Video Guide Frames`. `Load Video (Upload)` may accept f
 
 ## Current validation status
 
-The V3.8 public-surface suite checks the exact seven-node export, the supplied Spectrum graph and matching ZIP payload, declared external dependencies, Registry exclusions, preserved V3.8 widget/socket order, and presentation-only `Show Advanced Settings` / `Hide Advanced Settings` behavior. Registry payload hashes are recorded in `REGISTRY_MANIFEST.sha256`; source integrity is recorded in `MANIFEST.sha256`.
+The V3.8X2 public-surface suite checks the exact nine-node export, both official workflow names and matching ZIP payloads, declared external dependencies, Registry exclusions, preserved V3.8 widget/socket order, and presentation-only `Show Advanced Settings` / `Hide Advanced Settings` behavior. Registry payload hashes are recorded in `REGISTRY_MANIFEST.sha256`; source integrity is recorded in `MANIFEST.sha256`.
 
-**Latest local RC evidence:** the full CPU suite passed **1,261 passed / 1 skipped / 0 failed**. The final dedicated GPU Functional Gate passed a `3 × 5 second` Review Each Chunk run: Q1–Q3 generated one physical group at a time, and Q4 reused all three groups with `3 reused / 0 generated`. Q3 and Q4 had identical decoded RGB and PCM SHA-256 values. This confirms functional execution, prefix reuse, and AV reconstruction; it is not a full subjective image- or audio-quality rating.
+**Latest V3.8X2 preparation evidence:** the full CPU suite passed **1,367 passed / 1 skipped / 0 failed**. The prior dedicated GPU Functional Gate passed a `3 × 5 second` Review Each Chunk run: Q1–Q3 generated one physical group at a time, and Q4 reused all three groups with `3 reused / 0 generated`. Q3 and Q4 had identical decoded RGB and PCM SHA-256 values. The separate nine-reference Gate is recorded below. These checks confirm functional execution, prefix reuse, AV reconstruction, and the tested nine-reference path; they are not a full subjective image- or audio-quality rating.
+
+### Nine-reference input gate (0.3 MP reference images)
+
+On the tested NVIDIA GeForce RTX 5060 Ti 16 GB / 64 GB RAM system, a `3 × 5 second` Full Run completed with Reference Images 1–9, `512 × 608` output, Spectrum Off, LoRA Off, Sage Attention, Balanced 22-frame continuity, and test reference images sized to about `0.30 MP` each. Sampling used approximately `15.0–15.5 GiB` of the available `16,311 MiB` VRAM, so this is a high-resource configuration with little headroom on a 16 GB GPU.
+
+Use the nine-reference bundle when the extra appearance or pose evidence is needed and the system has enough VRAM headroom. This single-seed gate confirms execution and basic visual continuity; it does not establish that nine references are universally higher quality than three, nor guarantee operation with higher-resolution references, larger output sizes, different models, or other concurrent GPU workloads.
+
+For nine-reference use on a 16 GB GPU, pre-resize copies of the source images to around 0.30 MP before loading them. Internal conditioning resize remains active, but it should not be treated as a substitute for controlling the memory pressure of nine large source images.
 
 Validation results apply to the tested local source and environment. They do not guarantee that an installed copy is current, that all models/wrappers fit every GPU, or that a different prompt will have the same visual quality.
 

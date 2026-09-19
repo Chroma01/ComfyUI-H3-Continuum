@@ -58,6 +58,34 @@ DEFAULT_STATE_CAPACITY_FRAMES = 39
 V2_CONTINUITY_AUTO = "Auto — conservative"
 V2_CONTINUITY_OPTIONS = (V2_CONTINUITY_AUTO,) + CONTINUITY_OPTIONS
 
+# Older saved workflows and frontend help text used ASCII hyphens in these
+# labels.  Keep the public labels canonical while accepting those persisted
+# aliases when a saved Run Storage session is resumed.
+_CONTINUITY_ALIASES = {
+    "Auto - conservative": V2_CONTINUITY_AUTO,
+    "Balanced - 22 frames": CONTINUITY_OPTIONS[0],
+    "Fast - 5 frames": CONTINUITY_OPTIONS[1],
+    "Strong - 39 frames (Experimental)": CONTINUITY_OPTIONS[2],
+}
+
+
+def normalize_continuity_mode(value: str) -> str:
+    """Return the canonical continuity label for current and legacy saves."""
+
+    raw = str(value).strip()
+    return _CONTINUITY_ALIASES.get(raw, raw)
+
+
+def continuity_storage_mode(value: str) -> str:
+    """Return the stable ASCII label used in persisted contracts.
+
+    Persisted V3.8 runs used ASCII hyphens. Keeping that storage spelling
+    makes old manifests compatible while the runtime continues to accept and
+    expose the public em-dash labels.
+    """
+
+    return normalize_continuity_mode(value).replace("—", "-")
+
 PROMPT_MODE_FIXED = "Fixed — one prompt"
 PROMPT_MODE_LIST = "List — split with ---"
 PROMPT_MODE_TIMELINE = "Timeline — [0-5s] sections"

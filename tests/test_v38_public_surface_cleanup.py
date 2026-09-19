@@ -23,10 +23,12 @@ PUBLIC_DISPLAY_NAMES = {
     "H3EasyLoadAudio": "H3 Continuum Load Audio",
     "H3ContinuumLoadVideo": "H3 Continuum Load Video",
     "H3ContinuumSecondPassV35": "H3 Continuum Second Pass",
+    "H3ContinuumReferenceImages": "H3 Continuum Reference Images",
+    "H3DecodeCacheHelper": "Decode Cache Helper",
 }
 
 
-def test_public_export_is_exactly_the_seven_node_v38_allowlist():
+def test_public_export_is_exactly_the_v38x2_nine_node_allowlist():
     assert set(root_nodes.NODE_CLASS_MAPPINGS) == set(PUBLIC_DISPLAY_NAMES)
     assert root_nodes.NODE_DISPLAY_NAME_MAPPINGS == PUBLIC_DISPLAY_NAMES
 
@@ -106,10 +108,11 @@ def test_v38_schema_and_serialized_widget_order_are_unchanged():
         "reference_audio_vae",
         "guide",
         "audio_references",
+        "image_references",
     ]
 
 
-def test_registry_package_keeps_one_workflow_and_excludes_development_assets():
+def test_registry_package_keeps_official_v38x2_workflows_and_excludes_development_assets():
     rules = (ROOT / ".comfyignore").read_text(encoding="utf-8").splitlines()
     assert "tests/" in rules
     assert "tools/*" in rules
@@ -123,12 +126,14 @@ def test_registry_package_keeps_one_workflow_and_excludes_development_assets():
     assert "examples/*" in rules
     assert "!examples/workflows/" in rules
     assert "examples/workflows/*" in rules
-    assert "!examples/workflows/MiniMax_H3_Continuum_V38x.json" in rules
-    assert "!examples/workflows/MiniMax_H3_Continuum_V38x.zip" in rules
+    assert "!examples/workflows/MiniMax_H3_Continuum_V38X2.json" in rules
+    assert "!examples/workflows/MiniMax_H3_Continuum_V38X2.zip" in rules
+    assert "!examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json" in rules
+    assert "!examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip" in rules
     assert "*.zip" in rules
 
     workflow = json.loads(
-        (ROOT / "examples/workflows/MiniMax_H3_Continuum_V38x.json").read_text(
+        (ROOT / "examples/workflows/MiniMax_H3_Continuum_V38X2.json").read_text(
             encoding="utf-8"
         )
     )
@@ -170,8 +175,10 @@ def test_registry_manifest_matches_every_declared_source_file():
     assert {
         path for path in entries if path.startswith("examples/")
     } == {
-        "examples/workflows/MiniMax_H3_Continuum_V38x.json",
-        "examples/workflows/MiniMax_H3_Continuum_V38x.zip",
+        "examples/workflows/MiniMax_H3_Continuum_V38X2.json",
+        "examples/workflows/MiniMax_H3_Continuum_V38X2.zip",
+        "examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json",
+        "examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip",
     }
 
     for relative_path, expected_digest in entries.items():
@@ -191,6 +198,9 @@ def test_intuitive_facade_is_discoverable_and_presentation_only(tmp_path):
     ).replace(
         'import { normalizeReferenceAudioLabels } from "./reference_audio_ui.js";',
         "function normalizeReferenceAudioLabels() {}",
+    ).replace(
+        'import { migrateReferenceImageInputs } from "./reference_image_ui.js";',
+        "function migrateReferenceImageInputs() {}",
     ).replace(
         'import { api } from "../../scripts/api.js";',
         "const api = { fetchApi: (...args) => globalThis.fetch(...args), "
@@ -281,6 +291,7 @@ const node = {{
     this.widgets.push(item);
     return item;
   }},
+  removeInput(index) {{ this.inputs.splice(index, 1); }},
   serialize() {{ return {{ widgets_values: this.widgets.map((item) => item.value) }}; }},
   configure(info) {{
     info.widgets_values.forEach((value, index) => {{ this.widgets[index].value = value; }});
@@ -657,8 +668,7 @@ setTimeout(async () => {{
             "last_frame",
             "reference_image_1",
             "reference_video_1",
-            "driving_audio",
-            "audio_references",
-            "guide",
-        ],
+                "driving_audio",
+                "audio_references",
+            ],
     }

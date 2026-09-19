@@ -1,6 +1,49 @@
-# ComfyUI-H3-Continuum 3.8.2 — V3.8X
+# ComfyUI-H3-Continuum 3.8.3 — V3.8X2
 
-> これは現在の**V3.8X／パッケージ3.8.2向けガイド**です。ここでは公開7ノードと同梱V3.8X Workflowだけを案内します。固定済みV3.8.1は[`v3.8.1`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.1)、旧V3.8.0は[`v3.8.0`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0)から引き続き導入できます。異なるrelease tagのWorkflowや説明は混在させないでください。
+> **V3.8X2**はpackage `3.8.3`の製品名・Workflow名です。V3.8 Production Samplerを維持し、任意のReference Image 4～9と内蔵Decode Cache Helperを追加しています。旧V3.8.0は[`v3.8.0`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0)から導入できます。
+
+## V3.8X2 公式Workflow
+
+- **標準名：** [JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.json)／[ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip)
+- **Helper明示名：** [JSON](examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json)／[ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip)
+
+2つの名称は**同じ公式graph**を収録した配布上の別名で、異なる設定のWorkflowではありません。どちらも内蔵Decode Cache Helperと9枚Reference Image用の接続を含み、Helperの保存値は`Auto / RAM 256MB / Disk 8GB / reset_token 0`です。各ZIPには、対応する名前のJSONだけを収録します。既存projectでは従来のV3.8X Workflowも引き続き使用できます。
+
+## Reference Image 9枚使用時のメモリ注意
+
+Reference Image 1～3はSamplerへ直接接続し、任意の4～9は`H3 Continuum Reference Images`を経由して`Reference Images (Optional)`へ接続します。9枚すべてを使う構成は高負荷であり、通常の最低要件ではありません。
+
+受入テストでは、**RTX 5060 Ti 16 GB／RAM 64 GB**環境で、9枚の元画像を各**約0.30 MP**に抑えた条件で完走しました。`512 × 608`出力、`3 × 5秒`、Spectrum Off、LoRA Off、Sage Attention、Balanced 22-frame continuityで、Sampling中のVRAMは`16,311 MiB`中の約**15.0～15.5 GiB**でした。16 GB環境では余裕がほとんどありません。
+
+多数、特に9枚を使う場合は、読み込み・接続前に元画像のコピーを約0.30 MPへ縮小してください。Sampler内の通常のconditioning用Resizeは引き続き行われますが、小さい入力ファイルにすることで読み込み・前処理時の負荷を抑えられます。高解像度参照、大きな出力、追加wrapper、同時GPU処理では、より高性能なGPUと多いシステムRAMが必要になる可能性があります。9枚は任意であり、3枚より常に高画質になる保証はありません。
+
+## 内蔵 Decode Cache Helper
+
+### 重要：新規生成が一律に速くなる機能ではありません
+
+**キャッシュの手動クリア**：普段は操作不要です。Helperの「キャッシュをクリア」ボタンを押すと、次回QueueでこのHelperのキャッシュを破棄し、通常Decodeからやり直します。ボタンは即時削除や自動Queueを行いません。内部の`reset_token`は保存・API互換用に残り、押すたびに1増えます（INT上限では0へ戻ります）。作成・読込・複製だけでは変更しません。JavaScriptが使えない環境やAPI版では、従来どおり`reset_token`の値を変更してください。
+
+**短縮するのは、変更していないlatentを再びデコードする時間です。Sampling（生成計算）自体は高速化しません。** 初回は通常Decodeとキャッシュ保存を行うためMISSとなり、保存・照合の負荷で遅くなる場合があります。毎回ランダムシードで異なるlatentを新規生成する使い方では、基本的にMISSとなり、この機能による短縮は期待できません。
+
+具体的に再利用できる場面：
+
+- **Continueでチャンクを追加**：既存チャンクのlatentを保持し、出力時にもう一度Decodeする場合、保存済みの既存部分だけを再利用します。追加チャンクは初回MISSです。
+- **Fix／部分再生成**：変更していないチャンクのlatentがそのまま再入力される場合、その部分だけを再利用します。再生成してlatentが変わった部分はMISSです。
+- **Complete／Resumeで再出力**：Samplingをやり直さず、保存済みlatentから全体を再Decodeする場合に有効です。単なる既存動画ファイルの再生ではありません。
+- **Decode以降のリトライ、Finalizeや出力設定の変更**：Helperへ同じlatent・Decode関連情報が再入力され、Decodeが再実行される場合に有効です。
+- **固定シードで同条件を再生成**：生成後のlatentが完全に一致した場合だけ再利用できます。同じシードだけではHITを保証しません。
+
+これらの操作名そのものが有効条件ではありません。**各Video／Audioの入力latentの内容・shape・dtype、Decode関連メタデータ、VAE識別情報が一致し、そのHelperにキャッシュが残っていること**がHITの条件です。ComfyUIが上流／出力をそのまま再利用してDecode自体を実行しない場合、Helperによる追加のDecode短縮はありません。Helperを接続し、`Auto`または`RAM`で使ってください。レポートの`hit`は再利用、`miss`は通常Decode、`off`／`bypass`はキャッシュ再利用なしを表します。
+
+キャッシュはPythonプロセス内の利用に限られ、再起動後は再利用しません。上限による退避・破棄やVAE識別情報の変化でもMISSになります。モード、RAM／Disk予算、`reset_token`を変更すると、この実装ではHelperキャッシュをクリアします。`reset_token = 0`を維持することは、毎回リセットする意味ではありません。
+
+`H3DecodeCacheHelper`をContinuumパッケージ内に収録し、UI上は`MiniMax H3/Continuum/Helpers`の独立公開ノードとして残します。インストール対象はContinuumだけです。公開IDはV3.8Xの7件にReference ImagesとHelperを加えた計9件です。Sampler、Finalize、Assembly Plan、Core Decode、Samplerの保存済みwidget/socket契約は変更しません。
+
+Samplerの`video_latents`／`audio_latents`と同じVideo／Audio VAEをHelperへ接続し、Helperの`images`／`audio`をFinalizeへ接続します。Samplerの`assembly_plan`はFinalizeへ直接接続したままです。[公式V3.8X2 Workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json)は保存済みgraphと設定を維持します。このgraphにはCore VAE Decodeノードがないため、Core直結へ戻すにはCore Video／Audio Decodeを追加してFinalizeへ再配線するか、旧V3.8XのCore直結graphを開いてください。Helperを単に削除しても自動では戻りません。
+
+`Auto`は全physical groupのVideo Decodeをプロセス専用Diskへ、小さなAudio Decodeを上限付きRAMへ保存します。`Off`はnative Decodeを使い、Helper Cacheを破棄します。Cache障害時はnative Decodeへ戻りますが、native DecodeのOOMやQueue中断は再試行しません。Python再起動後にCacheファイルを再利用しません。移行時は同じ`H3DecodeCacheHelper` IDを提供する旧単独addonと内蔵版を同時登録しないでください。内蔵版の導入確認後に旧addonを無効化または撤去します。
+
+736×416（0.306MP）、3×5秒、Euler/simple 6 steps、Turbo FL2V v1.2、ウォーム、Video 3/3 HITの1条件では、Full Run Totalの**機構推定中心値は約47秒／約24.5%短縮**でした。直接A/Bの1ペアは50.887秒／26.46%、Samplingを伴わないComplete/Resumeの2ペアは平均46.309秒／79.826%短縮でした。これは限定条件の観測値で、反復された一般平均や無条件の20%以上高速化保証ではありません。初回MISSは遅くなる場合があり、新規Samplingは高速化せず、latentまたはVAE識別情報が変わればMISSになります。
 
 MiniMax H3を複数チャンクで連続生成し、直前チャンク末尾の**映像latent / 音声latentを直接**次チャンクへ継承するComfyUIカスタムノードです。チャンク間でVideo/Audio VAEのDecode→Encodeは行いません。
 
@@ -31,7 +74,7 @@ git clone --branch v3.8.0 --single-branch https://github.com/ukr8b3g-cmyk/ComfyU
 
 Continuumのcheckoutは同時に1つだけ有効にしてください。ComfyUI Managerの**Update**は`main`を更新するため、過去tagの選択には使いません。
 
-V3.8X Workflow：[JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json)／[同じJSONを含むZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip)。Spectrum対応の1本で、保存状態ではSpectrumとTurbo LoRAはどちらもOFFです。[LightX2V Turbo](https://github.com/ModelTC/Minimax-H3-Turbo)にも切り替えられます。完全なgraphを開くにはSpectrum・rgthree・KJNodesが必要です。ComfyUI-Easy-Useは不要です。
+V3.8X2 Workflow：[JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.json)／[同じJSONを含むZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip)。Spectrum対応の1本で、保存状態ではSpectrumとTurbo LoRAはどちらもOFFです。[LightX2V Turbo](https://github.com/ModelTC/Minimax-H3-Turbo)にも切り替えられます。完全なgraphを開くにはSpectrum・rgthree・KJNodesが必要です。ComfyUI-Easy-Useは不要です。
 
 ## プロンプト・スキルのダウンロード
 
@@ -45,7 +88,7 @@ V3.8X Workflow：[JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json)／[�
 
 H3 Continuumは、長尺映像を最初からやり直さずに生成・確認・部分再生成・再開するProduction Samplerです。V3.8は`Main / Production`と`Advanced`の2層に整理しました。
 
-V3.8で検索可能な公開ノードは次の7つです。
+このローカル版で検索可能なノードは、元のV3.8の7ノードにReference ImagesとDecode Cache Helperを加えた次の9つです。
 
 - `H3 Continuum Sampler V3.8`
 - `H3 Continuum Finalize`
@@ -54,18 +97,24 @@ V3.8で検索可能な公開ノードは次の7つです。
 - `H3 Continuum Load Video`
 - `H3 Continuum Second Pass`
 - `H3 Continuum Reference Audios`
+- `H3 Continuum Reference Images`
+- `Decode Cache Helper`
 
 Main Sampler内の`Show Advanced Settings`／`Hide Advanced Settings`で詳細設定を開閉します。旧node property `H3 Continuum View`を含む保存Workflowは対応する開閉状態へ移行し、旧propertyを削除します。これは表示状態だけの変更です。Python input、widget順、保存済みwidget値、backend引数、Sampling identity、Run Storage identityは変更しません。Frontend extensionが読み込まれない場合も、Python定義の全widgetが表示された状態で実行できます。
 
-標準経路は`Sampler V3.8 -> Core Video/Audio Decode -> Finalize -> Create Video -> Save Video`です。Finalizeの`IMAGE`／`AUDIO`出力をCoreの`Create Video`で`VIDEO`へまとめてから保存します。Core Decode、Save、Upscalerは外付けとし、外部latent processorやupscalerはSecond Passをbridgeとして接続します。外部processorが変更できるのはVideo LATENTの空間解像度だけで、physical group、B/C/T、finite値、First Pass Audio、元のAssembly Planを維持する必要があります。Finalizeは公開`IMAGE`／`AUDIO`型を受け取り、特定decoder classへ依存しません。SageAttention、Sol-Attn、Spectrumは外部MODEL wrapperのままです。詳細は[V3.8 Open Integration Contract](docs/V38_OPEN_INTEGRATION_CONTRACT.md)を参照してください。旧Hi-Res FixはV3.8標準Workflowに含めません。
+V3.8X2公式Workflowの標準経路は`Sampler V3.8 -> Decode Cache Helper -> Finalize -> Create Video -> Save Video`です。HelperはMISSしたentryをCore Video／Audio Decodeへ委譲します。Core Decodeへ直接つなぐ手動構成も使用できますが、Decode結果のcacheはありません。Finalizeの`IMAGE`／`AUDIO`出力をCoreの`Create Video`で`VIDEO`へまとめてから保存します。Save、Upscalerは外付けとし、外部latent processorやupscalerはSecond Passをbridgeとして接続します。外部processorが変更できるのはVideo LATENTの空間解像度だけで、physical group、B/C/T、finite値、First Pass Audio、元のAssembly Planを維持する必要があります。Finalizeは公開`IMAGE`／`AUDIO`型を受け取り、特定decoder classへ依存しません。SageAttention、Sol-Attn、Spectrumは外部MODEL wrapperのままです。詳細は[V3.8 Open Integration Contract](docs/V38_OPEN_INTEGRATION_CONTRACT.md)を参照してください。旧Hi-Res FixはV3.8X2標準Workflowに含めません。
 
 ### Reference Audio 1/2/3
 
 `H3 Continuum Reference Audios`は、最大3本の単独Reference Audioを1本の`Audio References (Optional)` socketへまとめます。入力は間を空けずに接続し、Promptでは接続順どおりに`<Audio 1>`、`<Audio 2>`、`<Audio 3>`を使用します。共通のCore Audio VAEで各Audioを個別encodeします。生成後の最終Audioを置換せず、Driving Audio契約も変更しません。既存Workflowは従来の単数`Reference Audio (Optional)`をそのまま使用できますが、単数経路とbundle経路は同時接続しないでください。
 
-> **V3.8の対応範囲:** V3.8からexportするのは上記7ノードだけです。Finalizeの`H3ContinuumAssembleSeamV35`、Second Passの`H3ContinuumSecondPassV35`など、公開ノードの一部は旧IDを維持していますが、すべての旧Workflowに互換性があるという意味ではありません。現在の7ノード以外のIDを含む保存Workflowはunknown nodeになる場合があります。その場合は対応するhistorical Release/tagを使用してください。詳細は[V3.8 Release／Migration Policy](docs/V38_RELEASE_AND_MIGRATION.md)を参照してください。
+> **対応範囲:** 元のV3.8は7ノード、このローカル版はReference ImagesとDecode Cache Helperを加えた9ノードです。Finalizeの`H3ContinuumAssembleSeamV35`、Second Passの`H3ContinuumSecondPassV35`などは旧IDを維持しますが、すべての旧Workflowに互換性があるという意味ではありません。未対応のnode IDには対応するhistorical Release/tagを使用してください。詳細は[V3.8 Release／Migration Policy](docs/V38_RELEASE_AND_MIGRATION.md)を参照してください。
 
 複雑な16GB GPU受入Gateでは約`15.5～15.6 GiB`を使用しました。GPU、driver、backend、model精度、解像度、接続ノードで変動するため、すべての16GB GPUでの動作保証ではありません。
+
+Reference Imageは最大9枚です。Samplerの直入力1～3を維持し、追加4～9は`H3 Continuum Reference Images`のoptional IMAGE入力へ接続して、出力をSamplerの`Reference Images (Optional)`へ渡します。補助ノードは画像を束ねるだけで、Resize・hash・VAE Encodeは既存Sampler経路で実行します。未接続を除き1→9の順に使い、Picture番号はFirst／Last Imageの後に連番で割り当てます。空のbundleは参照なしとなり、旧0～3枚の生成・再利用契約は変わりません。
+
+以前の4・5直入力を含む保存Workflowは、グラフ読み込み後に元の画像接続をbundleへ移します。新接続を検証した後だけ旧接続口を削除し、接続元が不明・移行先が使用中の場合は警告して元の線を残します。旧API入力も維持しますが、同じ番号の画像を旧直入力とbundleの両方から指定すると入力競合として明示します。既存の3枚loaderテンプレートは上書きせず、そのまま利用できます。
 
 ### サイズの決め方を直接選択
 
@@ -243,7 +292,7 @@ Prompt/CLIPの数値はconditioning区間だけで、総生成時間ではあり
 
 RTX 5060 Ti 16 GB／RAM 64 GBの検証環境で測定したSage-only Production baselineは、576×576 T2VA 1×5秒が168.069秒、640×640 FL2VA Long Terminal Merge 3×5秒が379.765秒です。環境・設定固有の測定値であり、すべての環境に対する速度保証ではありません。Samplingが最大コストで、Continuum Assemble + Seamは1%未満でした。
 
-**V3.8.0はhistorical release baselineです。現在のpackageはV3.8X／3.8.2で、固定済みV3.8.1は対応するtagから引き続き利用できます。** V3.8Xが内部利用する旧module/classはsourceへ維持します。exportするのは現在の公開7ノードだけで、その一部は旧IDを維持しています。それ以外のIDを必要とする旧保存Workflowは、対応するhistorical Release/tagを使用してください。Still Image Guideは引き続きExperimentalです。
+**V3.8.0はhistorical release baselineです。現在の公開対象はV3.8X2／package 3.8.3です。** V3.8X2が内部利用する旧module/classはsourceへ維持します。exportするのは現在の公開9ノードだけで、その一部は旧IDを維持しています。それ以外のIDを必要とする旧保存Workflowは、対応するhistorical Release/tagを使用してください。Still Image Guideは引き続きExperimentalです。
 
 ## V3.5.1 Reference Audio／互換性更新
 
@@ -364,8 +413,9 @@ Hi-Res Fixを接続しなければV3.4 Sampling経路は変わりません。強
 
 ## 公開テンプレートワークフロー
 
-- [V3.8X Workflow JSON](examples/workflows/MiniMax_H3_Continuum_V38x.json) — Spectrum OFF初期設定の現行graph 1本
-- [V3.8X Workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38x.zip) — 同じJSONのみを格納。カスタムノードのインストーラーではありません
+- [V3.8X2 Workflow JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.json) — 現行公式graph。Spectrumは初期状態でOFF
+- [V3.8X2 Workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip) — 対応する同名JSONだけを格納。カスタムノードのインストーラーではありません
+- [V3.8X2 Helper明示名JSON](examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json)／[ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip) — 同じgraphを説明的な配布名で収録
 
 Registry配布予定の対象もこのJSONとZIPです。依存なしのテンプレートではなく、Spectrum・rgthree・KJNodesが必要です。ComfyUI-Easy-Useは不要です。Turboへ切り替えてもgraph内の外部ノードは残ります。SpectrumをOFFにし、用途に合うLightX2V Turbo LoRAを1本だけONにしてsampler／Stepsを合わせます。保存状態はSpectrum OFF、Turbo LoRA OFF、res_multistep／simple／20 Stepsです。
 
@@ -375,7 +425,7 @@ Registry配布予定の対象もこのJSONとZIPです。依存なしのテン�
 
 ## V3.4互換
 
-V3.4の実装moduleは内部継承とhistorical testのためsourceへ保持しています。V3.8からexportするのは現在の公開7ノードに含まれるIDだけです。それ以外のIDを必要とするV3.4保存Workflowは、対応するhistorical packageを使用してください。
+V3.4の実装moduleは内部継承とhistorical testのためsourceへ保持しています。V3.8X2からexportするのは現在の公開9ノードに含まれるIDだけです。それ以外のIDを必要とするV3.4保存Workflowは、対応するhistorical packageを使用してください。
 
 ## V3.4.0 Stable
 
@@ -491,15 +541,23 @@ V3.8はComfyUI 0.34.2で検証しています。以下の歴史的な受入記�
 
 ZIPを展開して、`ComfyUI-H3-Continuum`フォルダーを`ComfyUI/custom_nodes/`へ置き、ComfyUIを再起動します。
 
-再起動後は`H3 Continuum Sampler V3.8`を検索してください。V3.8の検索面は上記7ノードだけです。
+再起動後は`H3 Continuum Sampler V3.8`を検索してください。V3.8X2の検索面は上記9ノードです。
 
 旧`ComfyUI-H3-Continuum-Join`が残っている場合は同時ロードを避けるため削除または退避してください。同梱`install_windows.bat`は旧名・新名の既存フォルダーを日時付きでバックアップします。
 
 ## 検査
 
-現在のV3.8 Public Surface suiteは、正確な7 ID export、Spectrum graph 1本とZIP内JSONの同一性、外部依存、Registry除外、既存V3.8 widget/socket順、`Show Advanced Settings`／`Hide Advanced Settings`による表示切替を確認します。Registry配布対象のハッシュは`REGISTRY_MANIFEST.sha256`、source側の整合性は`MANIFEST.sha256`で管理します。
+現在のV3.8X2 Public Surface suiteは、正確な9 ID export、公式Workflow 2名称と各ZIP内JSONの同一性、外部依存、Registry除外、既存V3.8 widget/socket順、`Show Advanced Settings`／`Hide Advanced Settings`による表示切替を確認します。Registry配布対象のハッシュは`REGISTRY_MANIFEST.sha256`、source側の整合性は`MANIFEST.sha256`で管理します。
 
-**最新のローカルRC証拠：** Full CPU suiteは**1,261 passed / 1 skipped / 0 failed**です。最終GPU Functional Gateでは`3 × 5秒`のReview Each Chunkを実行し、Q1～Q3はphysical groupを1つずつ生成、Q4は`3 reused / 0 generated`で3 groupすべてを再利用しました。Q3とQ4の復号後RGBおよびPCM SHA-256は一致しています。これは実行、prefix再利用、AV再構築の確認であり、画像・音声の総合的な主観品質評価ではありません。
+**最新のV3.8X2準備証拠：** Full CPU suiteは**1,367 passed / 1 skipped / 0 failed**です。従来の最終GPU Functional Gateでは`3 × 5秒`のReview Each Chunkを実行し、Q1～Q3はphysical groupを1つずつ生成、Q4は`3 reused / 0 generated`で3 groupすべてを再利用しました。Q3とQ4の復号後RGBおよびPCM SHA-256は一致しています。9枚Reference Imageの別Gateは下記に記録しています。これは実行、prefix再利用、AV再構築、テストした9枚経路の確認であり、画像・音声の総合的な主観品質評価ではありません。
+
+### 9枚Reference Image入力Gate（0.3 MP参照画像）
+
+テストしたNVIDIA GeForce RTX 5060 Ti 16 GB／RAM 64 GB環境では、Reference Image 1～9、`512 × 608`出力、`3 × 5秒` Full Run、Spectrum Off、LoRA Off、Sage Attention、Balanced 22-frame continuity、各約`0.30 MP`のテスト参照画像で完走しました。Sampling中のVRAM使用量は、利用可能な`16,311 MiB`のうち約`15.0～15.5 GiB`であり、16 GB GPUでは余裕の小さい高負荷構成です。
+
+9枚bundleは、追加の外観・ポーズ情報が必要で、十分なVRAM余裕を確保できる環境で使用してください。このsingle-seed Gateは実行と基本的な視覚的連続性を確認したものです。9枚が3枚より常に高画質であること、高解像度参照・大きな出力・別model・同時GPU負荷でも動作することを保証するものではありません。
+
+16 GB GPUで9枚を使う場合は、読み込む前に元画像のコピーを約0.30 MPへ縮小してください。内部のconditioning用Resizeは継続しますが、9枚の大きな元画像によるメモリ負荷を管理する代わりにはなりません。
 
 検証結果はテストしたローカルsourceと環境に限られます。導入済み環境が最新版であること、すべてのmodel／wrapperが任意のGPUに収まること、別のpromptでも同じ画質になることを保証するものではありません。
 

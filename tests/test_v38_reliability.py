@@ -87,8 +87,8 @@ def test_current_v38_public_schema_is_preserved_exactly():
         )
     )
     assert tuple(v38["required"]) == tuple(expected_required)
-    assert list(v38["optional"])[:-1] == list(v37["optional"])
-    assert list(v38["optional"])[-1] == "audio_references"
+    assert list(v38["optional"])[:-2] == list(v37["optional"])
+    assert list(v38["optional"])[-2:] == ["audio_references", "image_references"]
     assert v38["optional"]["audio_references"][0] == (
         "H3_CONTINUUM_AUDIO_REFERENCES"
     )

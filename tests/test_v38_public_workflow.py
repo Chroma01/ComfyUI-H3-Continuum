@@ -7,12 +7,12 @@ from zipfile import ZipFile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW_PATH = ROOT / "examples" / "workflows" / "MiniMax_H3_Continuum_V38x.json"
+WORKFLOW_PATH = ROOT / "examples" / "workflows" / "MiniMax_H3_Continuum_V38X2.json"
 
 # User-approved final distribution. Do not sanitize or reserialize this graph.
-WORKFLOW_SHA256 = "26bbca92b5f7cac4cbde89290b3f801b7a895df76a07493ca6f65c18d5b1154a"
-ZIP_SHA256 = "df4e0e355020d2e731932cff86a4b00932b4f193ec7ed513be0db994ec0e71bb"
-ZIP_WORKFLOW_NAME = "MiniMax_H3_Continuum_V38x.json"
+WORKFLOW_SHA256 = "6c445d62979632bc1a801b1c28dbd639c23b51cc156ebae18837baaa757e592b"
+ZIP_SHA256 = "29e8ea19cf7c7e8a8a5e98577905d8fd01fc800bb8edb4f4218a638fe39e69d0"
+ZIP_WORKFLOW_NAME = "MiniMax_H3_Continuum_V38X2.json"
 EXTERNAL_PACKAGES = {
     "comfyui-spectrum-minimax-h3",
     "rgthree-comfy",
@@ -53,8 +53,8 @@ def _graph(workflow: dict) -> tuple[dict[int, dict], dict[int, list]]:
 
 def test_v38_public_workflow_declares_external_dependencies_and_is_reloadable():
     workflow = _workflow()
-    assert len(workflow["nodes"]) == 30
-    assert len(workflow["links"]) == 36
+    assert len(workflow["nodes"]) == 32
+    assert len(workflow["links"]) == 38
     packages = {
         node.get("properties", {}).get("cnr_id") for node in workflow["nodes"]
     } - {None, "", "comfy-core"}
@@ -81,6 +81,20 @@ def test_v38_public_workflow_and_zip_preserve_supplied_bytes():
         assert archive.namelist() == [ZIP_WORKFLOW_NAME]
         assert archive.testzip() is None
         assert archive.read(ZIP_WORKFLOW_NAME) == payload
+
+
+def test_v38x2_official_names_are_the_same_graph_with_matching_zips():
+    standard_payload = WORKFLOW_PATH.read_bytes()
+    explicit_path = WORKFLOW_PATH.with_name(
+        "MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json"
+    )
+    assert explicit_path.read_bytes() == standard_payload
+    for workflow_path in (WORKFLOW_PATH, explicit_path):
+        archive_path = workflow_path.with_suffix(".zip")
+        with ZipFile(archive_path) as archive:
+            assert archive.namelist() == [workflow_path.name]
+            assert archive.testzip() is None
+            assert archive.read(workflow_path.name) == standard_payload
 
 
 def test_v38_public_workflow_preserves_sampler_widget_positions():
@@ -122,17 +136,17 @@ def test_v38_public_workflow_preserves_sampler_widget_positions():
     assert sampler["widgets_values"] == [
         sampler["widgets_values_named"][name] for name in names
     ]
-    assert sampler["widgets_values_named"]["generation_mode"] == "Full Run"
+    assert sampler["widgets_values_named"]["generation_mode"] == "Review Each Chunk"
     assert sampler["widgets_values_named"]["review_action"] == "Continue / Next"
-    assert sampler["widgets_values_named"]["run_storage"] == "Off"
+    assert sampler["widgets_values_named"]["run_storage"] == "Save + Auto Resume"
     assert sampler["widgets_values_named"]["aspect"] == "Auto from First Image"
     assert sampler["widgets_values_named"]["preset"] == "Draft — 0.30 MP"
     assert sampler["widgets_values_named"]["size_source"] == "First Image"
-    assert sampler["widgets_values_named"]["width"] == 448
-    assert sampler["widgets_values_named"]["height"] == 672
-    assert sampler["widgets_values_named"]["chunks"] == 1
+    assert sampler["widgets_values_named"]["width"] == 480
+    assert sampler["widgets_values_named"]["height"] == 640
+    assert sampler["widgets_values_named"]["chunks"] == 2
     assert sampler["widgets_values_named"]["chunk_seconds"] == 10
-    assert sampler["widgets_values_named"]["control_after_generate"] == "randomize"
+    assert sampler["widgets_values_named"]["control_after_generate"] == "fixed"
     assert sampler["widgets_values_named"]["continuation_backend"] == "Standard"
 
 
@@ -152,6 +166,7 @@ def test_v38_public_workflow_keeps_required_and_optional_connections():
         "audio_vae",
         "reference_video_1",
         "audio_references",
+        "image_references",
     }
     assert required | optional <= set(inputs)
     assert all(inputs[name]["link"] is not None for name in required | optional)
@@ -176,6 +191,7 @@ def test_v38_public_workflow_keeps_required_and_optional_connections():
     assert source_modes["driving_audio"] == 4
     assert source_modes["reference_video_1"] == 4
     assert source_types["audio_references"] == "H3ContinuumReferenceAudios"
+    assert source_types["image_references"] == "H3ContinuumReferenceImages"
 
 
 def test_v38_public_workflow_preserves_accelerator_defaults_and_model_chain():
@@ -193,7 +209,7 @@ def test_v38_public_workflow_preserves_accelerator_defaults_and_model_chain():
     lora = source(spectrum, "model")
     assert lora["type"] == "Power Lora Loader (rgthree)"
     loras = [item for item in lora["widgets_values"] if isinstance(item, dict) and "lora" in item]
-    assert len(loras) == 4
+    assert len(loras) == 5
     assert all(item["on"] is False for item in loras)
     sage = source(lora, "model")
     assert sage["type"] == "MiniMaxH3MemoryEfficientSageAttentionPatch"
@@ -204,7 +220,7 @@ def test_v38_public_workflow_preserves_accelerator_defaults_and_model_chain():
     assert source(scheduler, "model")["id"] == spectrum["id"]
 
 
-def test_v38_public_workflow_keeps_decode_finalize_create_save_chain():
+def test_v38x2_public_workflow_keeps_helper_finalize_create_save_chain():
     workflow = _workflow()
     nodes, links = _graph(workflow)
     save = _one_node(workflow, "SaveVideo")
@@ -215,7 +231,15 @@ def test_v38_public_workflow_keeps_decode_finalize_create_save_chain():
     finalize = _one_node(workflow, "H3ContinuumAssembleSeamV35")
     assert [links[item["link"]][1] for item in create["inputs"][:2]] == [finalize["id"]] * 2
     incoming = [nodes[links[item["link"]][1]]["type"] for item in finalize["inputs"][:3]]
-    assert incoming == ["VAEDecode", "VAEDecodeAudio", "H3ContinuumSamplerV38"]
-    for node_type in ("VAEDecode", "VAEDecodeAudio"):
-        decode = _one_node(workflow, node_type)
-        assert nodes[links[decode["inputs"][0]["link"]][1]]["type"] == "H3ContinuumSamplerV38"
+    assert incoming == ["H3DecodeCacheHelper", "H3DecodeCacheHelper", "H3ContinuumSamplerV38"]
+    helper = _one_node(workflow, "H3DecodeCacheHelper")
+    helper_sources = {
+        item["name"]: nodes[links[item["link"]][1]]["type"]
+        for item in helper["inputs"]
+    }
+    assert helper_sources == {
+        "video_samples": "H3ContinuumSamplerV38",
+        "video_vae": "VAELoader",
+        "audio_samples": "H3ContinuumSamplerV38",
+        "audio_vae": "VAELoader",
+    }

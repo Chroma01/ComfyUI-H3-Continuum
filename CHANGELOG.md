@@ -1,11 +1,13 @@
 # Changelog
 
-## 3.8.2 — Publication metadata and package-integrity sync (2026-09-15)
+## 3.8.3 — V3.8X2 release preparation (2026-09-19)
 
-- Synchronize the current README and package validation record with both source and Registry manifests after the post-3.8.1 documentation update.
-- Preserve the accepted V3.8X R0–R6 runtime, seven-node public surface, supplied workflow bytes, Sampling, Review, and Run Storage contracts unchanged.
-- Keep the immutable V3.8.1 and historical V3.8.0 releases available through their matching tags.
-- Validate an external ComfyUI-Spectrum-MiniMax-H3 v0.2.27 Sage + Spectrum 3 x 5-second run. The previous `aimdo memory compile error` did not occur; decoded video/audio integrity and chunk-boundary checks passed. Spectrum's own v0.2.25+ AimDo malloc-graph workaround provides this compatibility; Continuum does not vendor or modify Spectrum.
+- Vendor the previously standalone Decode Cache Helper implementation into Continuum as a separate `H3DecodeCacheHelper` public node. Preserve its node ID, inputs, outputs, list behavior, native Core Decode delegation, and process-local cache behavior.
+- Add `H3 Continuum Reference Images` for optional Reference Images 4–9 while retaining the Sampler's direct Reference Images 1–3 and existing 0–3 image workflows.
+- Keep Sampler, Finalize, Assembly Plan, Core Decode and existing V3.8X widget/socket contracts unchanged.
+- Add the accepted workflow under two official distribution names: `MiniMax_H3_Continuum_V38X2` and `MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper`. The files contain the same graph and are not separate workflow variants.
+- Document the nine-reference GPU/RAM gate and recommend pre-scaling large reference sources to about 0.30 MP when using all nine on a 16 GB GPU.
+- Clarify that Decode Cache Helper speeds only repeated Decode of unchanged latents. It does not speed Sampling, a first MISS may be slower, and the measured 20%+ reductions are configuration-specific rather than a general guarantee.
 
 ## 3.8.1 — V3.8X release candidate (2026-09-15)
 
@@ -13,6 +15,7 @@
 - Rename the current supplied Spectrum workflow to `MiniMax_H3_Continuum_V38x.json` and its matching ZIP. The JSON and ZIP remain byte-for-byte paired; the graph is unchanged.
 - Preserve old V3.8.0 installation through the existing `v3.8.0` Git tag. Do not mix its workflow with V3.8X; use the matching tag/package for an older saved workflow.
 - No new public node, socket, widget-order, Sampling, Review, or Run Storage contract is introduced by this release label.
+- Compatibility note: validated V3.8X with external ComfyUI-Spectrum-MiniMax-H3 v0.2.27 in a Sage + Spectrum 3 x 5-second run. It completed without the previous `aimdo memory compile error`; decoded video/audio integrity and chunk-boundary checks passed. This relies on Spectrum's own v0.2.25+ AimDo malloc-graph fix; Continuum does not vendor or modify Spectrum.
 
 ## Unreleased — V3.8.x release hygiene (2026-09-14)
 

@@ -51,7 +51,8 @@ function environment() {
   const src=fs.readFileSync(path.join(ROOT,'web/project_id.js'),'utf8')
     .replace(/import \{ app \} from "\.\.\/\.\.\/scripts\/app.js";/,'')
     .replace(/import \{ api \} from "\.\.\/\.\.\/scripts\/api.js";/,'')
-    .replace(/import \{ normalizeReferenceAudioLabels \} from "\.\/reference_audio_ui.js";/,'function normalizeReferenceAudioLabels() {}');
+    .replace(/import \{ normalizeReferenceAudioLabels \} from "\.\/reference_audio_ui.js";/,'function normalizeReferenceAudioLabels() {}')
+    .replace(/import \{ migrateReferenceImageInputs \} from "\.\/reference_image_ui.js";/,'function migrateReferenceImageInputs() {}');
   vm.runInNewContext(src+`\nglobalThis.testFns={configureNode,loadTakeHistory,takeCatalog,selectTakeOffset,selectTakeAction,reviewStatus,reviewSettingsChanged,synchronizeReviewQueue};`,sandbox);
   app.extension.setup();
   const f=sandbox.testFns;

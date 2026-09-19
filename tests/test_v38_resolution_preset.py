@@ -201,8 +201,8 @@ def test_v38_schema_keeps_legacy_aspect_and_appends_size_source_contract():
             "the normal choice for T2VA or workflows without a First Image."
         ),
     }
-    assert list(v38["optional"])[:-1] == list(v37["optional"])
-    assert list(v38["optional"])[-1] == "audio_references"
+    assert list(v38["optional"])[:-2] == list(v37["optional"])
+    assert list(v38["optional"])[-2:] == ["audio_references", "image_references"]
     assert v38["optional"]["audio_references"][0] == (
         "H3_CONTINUUM_AUDIO_REFERENCES"
     )

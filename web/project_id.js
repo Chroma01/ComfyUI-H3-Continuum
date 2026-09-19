@@ -1,6 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { normalizeReferenceAudioLabels } from "./reference_audio_ui.js";
+import { migrateReferenceImageInputs } from "./reference_image_ui.js";
 
 const PRODUCTION_NODE_CLASS = "H3ContinuumSamplerProduction";
 const TIMELINE_NODE_CLASS = "H3ContinuumSamplerTimelineVideo";
@@ -341,6 +342,13 @@ function linkedInput(node, names) {
     return node.inputs?.some((input) => names.includes(input.name) && input.link != null) ?? false;
 }
 
+function removeUnusedLegacyInputs(node) {
+    if (node.comfyClass !== V38_NODE_CLASS) return;
+    for (const name of ["guide", "reference_audio_1", "reference_audio_vae"]) {
+        if (!linkedInput(node, [name])) removeUnusedInput(node, name);
+    }
+}
+
 function activeLinkedInput(node, names) {
     const inputs = node.inputs?.filter(
         (item) => names.includes(item.name) && item.link != null,
@@ -351,6 +359,11 @@ function activeLinkedInput(node, names) {
         const source = app.graph?.getNodeById?.(link.origin_id);
         if (!source) return true;
         if ([2, 4].includes(Number(source.mode))) return false;
+        if (source.comfyClass === "H3ContinuumReferenceImages") {
+            return activeLinkedInput(source, source.inputs.filter(
+                (item) => /^reference_image_[4-9]$/.test(item.name),
+            ).map((item) => item.name));
+        }
         const enableWidget = source.widgets?.find((widget) => (
             [
                 "Enable Image",
@@ -1214,7 +1227,7 @@ function configureIntuitiveV38Ux(node) {
         );
         const referenceConnected = activeLinkedInput(
             node,
-            ["reference_image_1", "reference_image_2", "reference_image_3"],
+            ["reference_image_1", "reference_image_2", "reference_image_3", "reference_image_4", "reference_image_5", "image_references"],
         );
         const videoConnected = activeLinkedInput(node, ["reference_video_1"]);
         const storageEnabled = findWidget(node, RUN_STORAGE_WIDGET)?.value === "Save + Auto Resume";
@@ -2683,6 +2696,7 @@ function configureConditionalWidgets(node) {
         regenerateWidget.__h3ContinuumManualIntentCallback = true;
     }
     const refresh = () => {
+        removeUnusedLegacyInputs(node);
         const productionView = true;
         const storageEnabled = node.comfyClass === V38_NODE_CLASS
             ? storageWidget?.value === "Save + Auto Resume"
@@ -2696,7 +2710,7 @@ function configureConditionalWidgets(node) {
         setWidgetVisible(
             findWidget(node, REFERENCE_SIZE_WIDGET),
             productionView
-                && linkedInput(node, ["reference_image_1", "reference_image_2", "reference_image_3"]),
+                && activeLinkedInput(node, ["reference_image_1", "reference_image_2", "reference_image_3", "reference_image_4", "reference_image_5", "image_references"]),
         );
         setWidgetVisible(
             findWidget(node, TIMELINE_SIZE_WIDGET),
@@ -3052,6 +3066,9 @@ function configureNode(node) {
     const isV37 = node.comfyClass === V37_NODE_CLASS;
     const isV38 = node.comfyClass === V38_NODE_CLASS;
     if (!isProduction && !isTimeline && !isV34 && !isV35 && !isV36 && !isV37 && !isV38) {
+        if (node.comfyClass === "H3ContinuumReferenceAudios") {
+            normalizeReferenceAudioLabels(node);
+        }
         configureAssembler(node);
         return null;
     }
@@ -3066,6 +3083,7 @@ function configureNode(node) {
     if (isV35 || isV36 || isV37 || isV38) {
         normalizeReferenceAudioLabels(node);
     }
+    removeUnusedLegacyInputs(node);
     hidePersistentWidget(findWidget(node, "diagnostics"));
     hidePersistentWidget(findWidget(node, "strict_compatibility"));
     hidePersistentWidget(findWidget(node, "debug"));
@@ -3147,7 +3165,8 @@ app.registerExtension({
     },
 
     afterConfigureGraph() {
-        for (const node of app.graph?._nodes || []) {
+        for (const node of [...(app.graph?._nodes || [])]) {
+            migrateReferenceImageInputs(node);
             configureNodeAfterSetup(node);
         }
     },

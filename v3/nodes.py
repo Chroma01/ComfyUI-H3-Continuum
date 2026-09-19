@@ -1024,6 +1024,9 @@ class H3ContinuumSamplerProduction(H3ContinuumSamplerV3):
         take_action="Automatic",
         _diagnostic_continuation_policy=None,
         audio_references=None,
+        reference_image_4=None,
+        reference_image_5=None,
+        image_references=None,
     ):
         runtime_started_at = time.perf_counter()
         from ..reference import prepare_reference_assets
@@ -1051,6 +1054,9 @@ class H3ContinuumSamplerProduction(H3ContinuumSamplerV3):
             output_height=int(height),
             size_mode=reference_size,
             reference_image_3=reference_image_3,
+            reference_image_4=reference_image_4,
+            reference_image_5=reference_image_5,
+            image_references=image_references,
         )
         reference_audio_source, resolved_reference_audio_vae = resolve_reference_audio_input(
             reference_audio_1,

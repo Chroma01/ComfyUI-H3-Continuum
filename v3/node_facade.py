@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
 
+from ..reference import resolve_reference_image_inputs
+
 
 @dataclass(frozen=True)
 class RuntimeRequest:
@@ -137,10 +139,13 @@ def execute_v38_runtime_request(
             output_width=request.resolution.width,
             output_height=request.resolution.height,
             chunk_seconds=float(inputs["chunk_seconds"]),
-            reference_images=(
+            reference_images=resolve_reference_image_inputs(
                 inputs.get("reference_image_1"),
                 inputs.get("reference_image_2"),
                 inputs.get("reference_image_3"),
+                inputs.get("reference_image_4"),
+                inputs.get("reference_image_5"),
+                inputs.get("image_references"),
             ),
             reference_size=str(inputs.get("reference_size", "Match Output")),
             video_guide=inputs.get("reference_video_1"),

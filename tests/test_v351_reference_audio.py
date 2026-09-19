@@ -33,11 +33,11 @@ def test_v35_appends_reference_audio_sockets_without_changing_v34_schema():
     assert list(v35_optional)[-2:] == ["reference_audio_1", "reference_audio_vae"]
     assert v35_optional["reference_audio_1"][0] == "AUDIO"
     assert v35_optional["reference_audio_1"][1]["display_name"] == (
-        "Reference Audio (Optional)"
+        "Reference Audio (Legacy)"
     )
     assert v35_optional["reference_audio_vae"][0] == "VAE"
     assert v35_optional["reference_audio_vae"][1]["display_name"] == (
-        "Reference Audio VAE (Optional)"
+        "Reference Audio VAE (Legacy)"
     )
     assert "Driving Audio" in v35_optional["reference_audio_1"][1]["tooltip"]
 

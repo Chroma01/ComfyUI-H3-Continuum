@@ -13,6 +13,7 @@ from ..constants import (
     DIAGNOSTICS_FULL,
     DIAGNOSTICS_OFF,
     FPS,
+    normalize_continuity_mode,
     normalize_diagnostics_mode,
 )
 from ..driving_audio import prepare_driving_audio_source
@@ -26,6 +27,7 @@ from ..reference_video import (
     REFERENCE_VIDEO_SIZE_EFFICIENT,
     REFERENCE_VIDEO_SIZE_OPTIONS,
 )
+from ..reference import H3ContinuumReferenceImages, REFERENCE_IMAGES_TYPE
 from ..reference_audio import (
     H3ContinuumReferenceAudios,
     REFERENCE_AUDIOS_TYPE,
@@ -284,7 +286,7 @@ class H3ContinuumSamplerV35(H3ContinuumSamplerV34):
         optional["reference_audio_1"] = (
             "AUDIO",
             {
-                "display_name": "Reference Audio (Optional)",
+                "display_name": "Reference Audio (Legacy)",
                 "tooltip": (
                     "Optional standalone audio reference for H3 conditioning. "
                     "It is not the audio track of Video Guide Frames. Unlike Driving "
@@ -295,7 +297,7 @@ class H3ContinuumSamplerV35(H3ContinuumSamplerV34):
         optional["reference_audio_vae"] = (
             "VAE",
             {
-                "display_name": "Reference Audio VAE (Optional)",
+                "display_name": "Reference Audio VAE (Legacy)",
                 "tooltip": (
                     "Required only when Reference Audio is connected. It encodes the "
                     "reference for H3 conditioning; generated audio remains the output."
@@ -415,7 +417,9 @@ class H3ContinuumSamplerV36(H3ContinuumSamplerV35):
         audio_continuity = kwargs.get("audio_continuity")
         if audio_continuity is None:
             audio_continuity = True
-        continuity = kwargs.get("continuity", _V36_BALANCED_CONTINUITY)
+        continuity = normalize_continuity_mode(
+            kwargs.get("continuity", _V36_BALANCED_CONTINUITY)
+        )
         transport, fallback_reason = _resolve_v36_continuation_transport(
             continuation_backend=continuation_backend,
             audio_continuity=audio_continuity,
@@ -684,12 +688,17 @@ class H3ContinuumSamplerV38(H3ContinuumSamplerV37):
         optional["audio_references"] = (
             REFERENCE_AUDIOS_TYPE,
             {
-                "display_name": "Audio References (Optional)",
+                "display_name": "Reference Audios (Optional)",
                 "tooltip": (
                     "Optional ordered bundle from H3 Continuum Reference Audios. "
                     "Do not connect it together with the legacy single Reference Audio input."
                 ),
             },
+        )
+        optional["image_references"] = (
+            REFERENCE_IMAGES_TYPE,
+            {"display_name": "Reference Images (Optional)",
+             "tooltip": "Optional Reference Images 4–9 from H3 Continuum Reference Images. Existing slots 1–3 remain first."},
         )
         schema["optional"] = optional
         return schema
@@ -843,12 +852,14 @@ class H3ContinuumSamplerV38MemoryPolicyExperimental(H3ContinuumSamplerV38):
                     REFERENCE_VIDEO_SIZE_EFFICIENT,
                 )
             ),
-            has_reference_images=any(
+            has_reference_images=kwargs.get("image_references") is not None or any(
                 kwargs.get(name) is not None
                 for name in (
                     "reference_image_1",
                     "reference_image_2",
                     "reference_image_3",
+                    "reference_image_4",
+                    "reference_image_5",
                 )
             ),
             has_video_guide=kwargs.get("reference_video_1") is not None,
@@ -1054,6 +1065,7 @@ NODE_CLASS_MAPPINGS = {
     "H3ContinuumSamplerV37": H3ContinuumSamplerV37,
     "H3ContinuumSamplerV38": H3ContinuumSamplerV38,
     "H3ContinuumReferenceAudios": H3ContinuumReferenceAudios,
+    "H3ContinuumReferenceImages": H3ContinuumReferenceImages,
     "H3ContinuumMemoryActionPolicyExperimental": (
         H3ContinuumMemoryActionPolicyExperimental
     ),
@@ -1072,6 +1084,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "H3ContinuumSamplerV37": "H3 Continuum Sampler V3.7",
     "H3ContinuumSamplerV38": "H3 Continuum Sampler V3.8",
     "H3ContinuumReferenceAudios": "H3 Continuum Reference Audios",
+    "H3ContinuumReferenceImages": "H3 Continuum Reference Images",
     "H3ContinuumMemoryActionPolicyExperimental": (
         "H3 Continuum Memory Action Policy (Experimental)"
     ),

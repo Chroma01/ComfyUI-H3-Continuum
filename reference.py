@@ -19,6 +19,7 @@ import torch
 REFERENCE_CONTRACT_VERSION = 1
 REFERENCE_PREPROCESS_VERSION = 1
 HYBRID_PRESENTATION_VERSION = 1
+REFERENCE_IMAGES_TYPE = "H3_CONTINUUM_IMAGE_REFERENCES"
 REFERENCE_SIZE_MATCH_OUTPUT = "Match Output"
 REFERENCE_SIZE_MAX_IDENTITY = "Max Identity"
 REFERENCE_SIZE_OPTIONS = (
@@ -32,6 +33,34 @@ _PICTURE_TAG = re.compile(r"<Picture\s+(\d+)>")
 
 class ReferenceConditioningError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class ReferenceImageBundle:
+    images: tuple[torch.Tensor | None, ...]
+
+
+def resolve_reference_image_inputs(
+    reference_image_1=None,
+    reference_image_2=None,
+    reference_image_3=None,
+    reference_image_4=None,
+    reference_image_5=None,
+    image_references=None,
+) -> tuple[torch.Tensor | None, ...]:
+    extra = [None] * 6
+    if image_references is not None:
+        if not isinstance(image_references, ReferenceImageBundle) or len(image_references.images) != 6:
+            raise ReferenceConditioningError("expected a Reference Images bundle for slots 4–9")
+        extra = list(image_references.images)
+    for index, legacy in enumerate((reference_image_4, reference_image_5)):
+        if legacy is not None:
+            if extra[index] is not None:
+                raise ReferenceConditioningError(
+                    f"Reference Image {index + 4} is connected through both the legacy input and the bundle"
+                )
+            extra[index] = legacy
+    return (reference_image_1, reference_image_2, reference_image_3, *extra)
 
 
 @dataclass(frozen=True)
@@ -55,16 +84,14 @@ class ReferenceAssets:
             "image_hashes": list(self.image_hashes),
             "combined_hash": self.combined_hash,
         }
-        # Preserve the V3.2.2 JSON contract byte-for-byte for zero, one, and
-        # two references. The V3.2.3 extension exists only when Image 3 is
-        # connected, so removing it can resolve back to an older Revision.
-        if self.count == 3:
-            image = self.images[2]
-            result["reference_image_3"] = {
-                "reference_position": 3,
+        # Keep the existing zero-to-three-reference contracts unchanged.
+        for index in range(2, self.count):
+            image = self.images[index]
+            result[f"reference_image_{index + 1}"] = {
+                "reference_position": index + 1,
                 "shape": [int(value) for value in image.shape],
                 "dtype": str(image.dtype),
-                "sha256": self.image_hashes[2],
+                "sha256": self.image_hashes[index],
                 "preprocess_version": REFERENCE_PREPROCESS_VERSION,
             }
         return result
@@ -175,13 +202,19 @@ def prepare_reference_assets(
     output_height: int,
     size_mode: str,
     reference_image_3: torch.Tensor | None = None,
+    reference_image_4: torch.Tensor | None = None,
+    reference_image_5: torch.Tensor | None = None,
+    image_references: ReferenceImageBundle | None = None,
 ) -> ReferenceAssets | None:
     # Match Core's dynamic Reference inputs: bypassed or otherwise absent
     # sockets are ignored, then active images are numbered contiguously in
     # connection order as Picture 1..N.
     inputs = [
         image
-        for image in (reference_image_1, reference_image_2, reference_image_3)
+        for image in resolve_reference_image_inputs(
+            reference_image_1, reference_image_2, reference_image_3,
+            reference_image_4, reference_image_5, image_references,
+        )
         if image is not None
     ]
     if not inputs:
@@ -406,3 +439,36 @@ def encode_reference_prompt(
         [tensor, {**dict(metadata), "minimax_refs": list(refs)}]
         for tensor, metadata in conditioning
     ]
+
+
+class H3ContinuumReferenceImages:
+    CATEGORY = "MiniMax H3/Continuum/Input"
+    DESCRIPTION = "Bundle optional Reference Images 4–9 for the Continuum Sampler. Encoding remains in the Sampler."
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "optional": {
+                f"reference_image_{index}": (
+                    "IMAGE",
+                    {"display_name": f"Reference Image {index} (Optional)",
+                     "tooltip": "One optional appearance or identity image. Empty slots are skipped in prompt order."},
+                )
+                for index in range(4, 10)
+            }
+        }
+
+    RETURN_TYPES = (REFERENCE_IMAGES_TYPE,)
+    RETURN_NAMES = ("image_references",)
+    FUNCTION = "pack"
+
+    def pack(
+        self, reference_image_4=None, reference_image_5=None,
+        reference_image_6=None, reference_image_7=None,
+        reference_image_8=None, reference_image_9=None,
+    ):
+        images = (
+            reference_image_4, reference_image_5, reference_image_6,
+            reference_image_7, reference_image_8, reference_image_9,
+        )
+        return (ReferenceImageBundle(images) if any(image is not None for image in images) else None,)

@@ -132,7 +132,7 @@ def test_r6_facade_decorates_status_only_after_existing_runtime_returns():
     assert seen["video_latents"] is video
     assert seen["audio_latents"] is audio
     assert seen["assembly_plan"] is plan
-    assert seen["reference_images"] == ("image-1", None, None)
+    assert seen["reference_images"] == ("image-1",) + (None,) * 8
     assert seen["still_guide_active"] is True
 
 

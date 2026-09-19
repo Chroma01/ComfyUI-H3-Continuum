@@ -11,11 +11,13 @@ from pathlib import Path
 EXPECTED_PUBLIC_NODE_DISPLAY_NAMES = {
     "H3ContinuumSamplerV38": "H3 Continuum Sampler V3.8",
     "H3ContinuumReferenceAudios": "H3 Continuum Reference Audios",
+    "H3ContinuumReferenceImages": "H3 Continuum Reference Images",
     "H3ContinuumAssembleSeamV35": "H3 Continuum Finalize",
     "H3EasyLoadImage": "H3 Continuum Load Image",
     "H3EasyLoadAudio": "H3 Continuum Load Audio",
     "H3ContinuumLoadVideo": "H3 Continuum Load Video",
     "H3ContinuumSecondPassV35": "H3 Continuum Second Pass",
+    "H3DecodeCacheHelper": "Decode Cache Helper",
 }
 
 
@@ -35,7 +37,7 @@ def load_package(root: Path):
 
 
 def public_registration_issues(module) -> list[str]:
-    """Return exact public-surface differences for the installed V3.8 package."""
+    """Return exact public-surface differences for the installed V3.8X2 package."""
 
     expected = EXPECTED_PUBLIC_NODE_DISPLAY_NAMES
     actual_classes = set(getattr(module, "NODE_CLASS_MAPPINGS", {}))
@@ -107,7 +109,7 @@ def main() -> int:
 
     registration_issues = public_registration_issues(module)
     if registration_issues:
-        print("H3 Continuum V3.8 public-node verification FAILED:")
+        print("H3 Continuum V3.8X2 public-node verification FAILED:")
         for issue in registration_issues:
             print(f"  - {issue}")
         return 1

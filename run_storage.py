@@ -35,7 +35,7 @@ from .branch_provenance import (
     physical_groups,
     resolve_chain,
 )
-from .constants import CONTINUUM_ACTUAL_PREFIX_STEPS
+from .constants import CONTINUUM_ACTUAL_PREFIX_STEPS, continuity_storage_mode
 from .v2.session import make_session, validate_chunk_entry
 from .v3.review_control import (
     GENERATION_MODE_REVIEW,
@@ -946,7 +946,7 @@ def build_sampling_contract(
         "sigmas": _tensor_exact(sigmas),
         "width": int(width), "height": int(height),
         "chunk_seconds": float(chunk_seconds),
-        "continuity": str(continuity),
+        "continuity": continuity_storage_mode(continuity),
         "audio_continuity": bool(audio_continuity),
         "base_seed": int(base_seed),
         "strict_compatibility": bool(strict_compatibility),
