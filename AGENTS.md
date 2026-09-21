@@ -101,3 +101,9 @@ GPU checks must cover Sage only, Sage+Sol, Sage+Spectrum, and Sage+Sol+Spectrum 
 - Read this file before each task. Record durable project decisions, paths, commands, failure causes, and validation methods here so later work reuses them instead of restarting from zero.
 - GitHub authentication for this repository is already configured. Do not request a new login or token unless an actual authentication command fails.
 - Commit and push only when the user explicitly requests publication.
+
+## User-approved loader migration (2026-09-21)
+
+- Keep H3EasyLoadImage and Enable Image; delegate inherited mode accessors and leave Core widget collections, drawing and serialization intact.
+- New official workflows use Core LoadAudio and Core LoadVideo -> H3ContinuumVideoAdapter. The adapter has no Enable/file/upload UI and reuses the existing frame-rate conversion. Preserve the original Audio/Video IDs as deprecated compatibility nodes; never infer lost filenames or saved OFF states.
+- The approved export exception adds H3ContinuumVideoAdapter to the existing nine-node mapping. Do not change Main Sampler, Sampling, external wrappers, Decode Cache or Run Storage semantics for this repair.

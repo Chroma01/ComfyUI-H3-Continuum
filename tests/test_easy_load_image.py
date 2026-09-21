@@ -150,7 +150,7 @@ console.log(JSON.stringify({{ initial, toggledOff, externalUnbypass, externalByp
     observed = json.loads(result.stdout)
     assert observed == {
         "initial": {
-            "names": ["Enable Image", "image", "upload"],
+            "names": ["image", "upload", "Enable Image"],
             "toggle": True,
             "saved": {"mode": 0, "widgets_values": ["first.png", "image"]},
         },
@@ -166,12 +166,12 @@ console.log(JSON.stringify({{ initial, toggledOff, externalUnbypass, externalByp
             "toggle": False,
             "image": "reloaded.png",
             "upload": "image",
-            "names": ["Enable Image", "image", "upload"],
+            "names": ["image", "upload", "Enable Image"],
         },
     }
 
 
-def test_shared_bypass_helper_redraws_only_enable_row_at_full_opacity(tmp_path):
+def test_shared_bypass_helper_preserves_core_widget_collection_when_drawing(tmp_path):
     node_executable = shutil.which("node")
     if node_executable is None:
         pytest.skip("Node.js is required for the frontend drawing regression")
@@ -246,47 +246,16 @@ console.log(JSON.stringify({{
         text=True,
     )
     observed = json.loads(result.stdout)
-    assert observed == {
-        "image": {
-            "bypassCalls": [
-                {"names": ["Enable Image", "file"], "alpha": 0.2},
-                {"names": ["Enable Image"], "alpha": 1},
-            ],
-            "enabledCalls": [
-                {"names": ["Enable Image", "file"], "alpha": 1}
-            ],
+    for kind, result in observed.items():
+        names = ["enable_video", "file"] if kind == "video" else ["file", f"Enable {kind.title()}"]
+        assert result == {
+            "bypassCalls": [{"names": names, "alpha": 0.2}],
+            "enabledCalls": [{"names": names, "alpha": 1}],
             "mode": 0,
             "toggle": True,
             "clickable": True,
             "visible": True,
-        },
-        "audio": {
-            "bypassCalls": [
-                {"names": ["Enable Audio", "file"], "alpha": 0.2},
-                {"names": ["Enable Audio"], "alpha": 1},
-            ],
-            "enabledCalls": [
-                {"names": ["Enable Audio", "file"], "alpha": 1}
-            ],
-            "mode": 0,
-            "toggle": True,
-            "clickable": True,
-            "visible": True,
-        },
-        "video": {
-            "bypassCalls": [
-                {"names": ["enable_video", "file"], "alpha": 0.2},
-                {"names": ["enable_video"], "alpha": 1},
-            ],
-            "enabledCalls": [
-                {"names": ["enable_video", "file"], "alpha": 1}
-            ],
-            "mode": 0,
-            "toggle": True,
-            "clickable": True,
-            "visible": True,
-        },
-    }
+        }
 
 
 def test_easy_load_image_frontend_has_no_backend_boolean_or_polling():

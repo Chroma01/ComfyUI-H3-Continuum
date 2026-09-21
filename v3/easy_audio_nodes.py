@@ -37,6 +37,7 @@ class H3EasyLoadAudio(CoreLoadAudio):
     def define_schema(cls):
         schema = super().define_schema()
         schema.node_id = "H3EasyLoadAudio"
+        schema.is_deprecated = True  # Kept for saved workflows; new graphs use Core LoadAudio.
         schema.display_name = "H3 Continuum Load Audio"
         schema.category = "MiniMax H3/Continuum"
         schema.description = (

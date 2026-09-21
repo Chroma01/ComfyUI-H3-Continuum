@@ -1,5 +1,12 @@
 # Project State
 
+## Loader persistence repair (2026-09-21)
+
+- User approved Image Enable repair, Core Audio workflow replacement, and Core Video plus Enable-free 24fps adapter, including commit/push. Legacy Audio/Video IDs remain deprecated/loadable. Main Sampler, Sampling and stored generation contracts are unchanged.
+- Source baseline 3d7c2fd6928a545b12b84968b09dc455e7f9da65. Real source was snapshotted using tools/snapshot.ps1 before edits on an isolated Actions runner. Original-code regression exposed 3 failures; focused CPU/Node suite 46 PASS. See docs/LOADER_PERSISTENCE_REPAIR.md.
+- Windows worktree/runtime/browser and GPU were not accessed. Live frontend 1.53.6 tab switching/save/reopen and fixed H3情報チェック handoff remain PENDING. No Release/tag/Registry publication.
+
+
 ## Issue #20 workflow persistence hotfix (2026-09-10)
 
 - User authorized repair and publication to main from pinned 6b453fe. The only runtime change is `serialize: false` on the read-only Render History widget in `web/project_id.js`; existing `options.serialize: false` is retained. Backend widget order, Sampling, Audio, Run Storage, public workflow/ZIP bytes, and Easy Loader Bypass behavior are unchanged.

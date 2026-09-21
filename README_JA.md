@@ -1,5 +1,16 @@
 # ComfyUI-H3-Continuum 3.8.3 — V3.8X2
 
+## mainのLoader保存・復元修正（2026-09-21、3.8.3以降）
+
+現行V3.8X2ワークフローは、音声を **Core Load Audio**、動画を **Core Load Video → H3 Continuum Video Adapter** に変更しました。Video Adapterは24fpsへの変換（Force Rate初期値24）とIMAGE/AUDIO出力だけを担当し、**Enableやファイル選択UIはありません**。動画を使わない場合はAdapter、または動画入力グループ全体をBypassしてください。Load VideoだけをBypassして必須入力のAdapterをONに残す構成は避けてください。
+
+画像は **H3 Continuum Load ImageとEnable Imageを維持**します。Issue #23の継承されたmode setterへの委譲と、描画・保存中のwidget配列差し替え廃止を適用します。EnableはCoreの欄の後ろに配置し、画像ファイルとBypassの保存はCoreに委ねます。旧Audio/VideoノードIDは既存workflow用の非推奨互換ノードとして残します。登録IDは互換用2個を含め10個で、Sampler設定・Sampling・Decode Cache・Finalize・既存Run Storage契約は変更しません。
+
+更新後はComfyUI再起動と画面の再読み込みが必要です。既に保存JSONから消えたファイル名やOFF状態は推測で復元できないため、一度選び直して保存してください。既存ユーザーworkflowや保存済みTakeは自動変更しません。上流ノードの種類変更でRun Storageが新revisionになることはあるため、過去Runの再開には元workflowを保管してください。
+
+検証範囲は[Loader修正記録](docs/LOADER_PERSISTENCE_REPAIR.md)を参照してください。CPU回帰テストと実ブラウザ確認は別です。Windows Core 0.36.0 / frontend 1.53.6のタブ切替確認は未実施で、Release/tag・Registry公開も別作業です。以下の旧Loader画像は互換ノードの説明です。
+
+
 > **V3.8X2**はpackage `3.8.3`の製品名・Workflow名です。V3.8 Production Samplerを維持し、任意のReference Image 4～9と内蔵Decode Cache Helperを追加しています。旧V3.8.0は[`v3.8.0`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0)から導入できます。
 
 ## V3.8X2 公式Workflow

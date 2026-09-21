@@ -1,5 +1,16 @@
 # ComfyUI-H3-Continuum 3.8.3 — V3.8X2
 
+## Loader persistence repair on main (2026-09-21, after 3.8.3)
+
+The current paired V3.8X2 workflows now use **Core Load Audio** and **Core Load Video -> H3 Continuum Video Adapter**. The adapter has Force Rate (default 24) and IMAGE/AUDIO outputs, but **no Enable switch or file selector**. Core owns video selection/upload/save; the established duration-preserving frame selection is reused and audio is passed unchanged. To disable Video Guide, bypass the adapter or the whole video-input group; do not bypass only Load Video while leaving its required-input adapter active.
+
+**H3 Continuum Load Image remains**, including Enable Image. Its mode observer now delegates to inherited Core setters (Issue #23), and no longer replaces the widget collection while drawing or saving. Enable is appended after Core's widgets; Core handles the filename and native Bypass persistence. The older Audio/Video node IDs remain loadable as deprecated compatibility nodes, not as the recommended new-workflow loaders. Ten node IDs are registered including these two legacy nodes. Sampler inputs, generation parameters, Decode Cache, Finalize and existing latent/storage contracts are unchanged.
+
+After updating, restart ComfyUI and reload/refresh the frontend. A workflow that already omitted its filename or saved an incorrect mode cannot recover those missing values: reselect the intended file and Bypass state, then save once. Existing user workflows and saved Takes are not automatically rewritten. Changing upstream node types can legitimately create a new Run Storage revision; preserve the original workflow when resuming accepted runs.
+
+Validation details and limits: [Loader repair record](docs/LOADER_PERSISTENCE_REPAIR.md). CPU/store-model regression tests are not a substitute for the pending Windows Core 0.36.0 / frontend 1.53.6 browser tab-switch acceptance. No Release/tag or Registry publication is implied by this main-branch repair. Older loader screenshots below describe the retained legacy nodes.
+
+
 > **V3.8X2** is the product and workflow label for package `3.8.3`. It keeps the V3.8 production sampler and adds optional Reference Images 4–9 plus the built-in Decode Cache Helper. The older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0).
  <img width="1536" height="1024" alt="exec-9cfa73b4-c1d3-4416-8950-fa661b946638_2" src="https://github.com/user-attachments/assets/8df15764-6db6-4d4c-9eb5-0d2c7b0668f0" />
 
@@ -39,7 +50,7 @@ The action names themselves do not enable reuse. **Each Video/Audio entry must m
 
 Cache reuse is process-local and does not survive Python restarts. Eviction and VAE identity changes can also cause MISS. Changing mode, RAM/Disk budgets, or `reset_token` clears this implementation's Helper cache. Keeping `reset_token = 0` does not reset it on every Queue.
 
-V3.8X2 ships `H3DecodeCacheHelper` inside this Continuum package. It remains a separate public node under `MiniMax H3/Continuum/Helpers`; no second custom-node addon is needed. The nine public node IDs are the seven V3.8X IDs plus Reference Images and this helper. Sampler, Finalize, Assembly Plan, Core Decode, and saved Sampler widget/socket contracts are unchanged.
+V3.8X2 ships `H3DecodeCacheHelper` inside this Continuum package. It remains a separate public node under `MiniMax H3/Continuum/Helpers`; no second custom-node addon is needed. The original nine IDs remain registered for compatibility; the loader migration adds H3ContinuumVideoAdapter. Sampler, Finalize, Assembly Plan, Core Decode, and saved Sampler widget/socket contracts are unchanged.
 
 Connect Sampler `video_latents` and `audio_latents` plus their native Video/Audio VAE inputs to the Helper, then connect Helper `images` and `audio` to Finalize. Keep the Sampler `assembly_plan` directly connected to Finalize. The [official V3.8X2 workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json) preserves its saved graph and settings. It contains no Core VAE Decode nodes, so returning to Core direct Decode requires adding those two Core nodes and reconnecting Finalize, or loading a prior Core-direct V3.8X workflow. Do not simply remove the Helper and expect automatic rewiring.
 
@@ -108,13 +119,14 @@ AI products, plans, and repository-reading behavior change frequently. If a URL 
 
 ## V3.8 supported surface
 
-This local package exposes nine searchable nodes: the original seven V3.8 nodes plus Decode Cache Helper and Reference Images.
+The package registers ten node IDs, including two deprecated loader compatibility IDs. Current workflows use Core Load Audio and Core Load Video plus the Video Adapter.
 
 - **H3 Continuum Sampler V3.8** — the Main sampler
 - **H3 Continuum Finalize** — decoded Video/Audio assembly with optional seam handling
 - **H3 Continuum Load Image**
-- **H3 Continuum Load Audio**
-- **H3 Continuum Load Video**
+- **H3 Continuum Load Audio** (legacy compatibility; new workflows use Core Load Audio)
+- **H3 Continuum Load Video** (legacy compatibility; new workflows use Core Load Video + Video Adapter)
+- **H3 Continuum Video Adapter** — Core VIDEO to H3 IMAGE/AUDIO, default 24fps, no Enable
 - **H3 Continuum Second Pass** — the Advanced bridge for external latent processing or upscaling
 - **H3 Continuum Reference Audios** — an ordered Reference Audio 1/2/3 bundle helper
 - **H3 Continuum Reference Images** — optional additional Reference Images 4–9

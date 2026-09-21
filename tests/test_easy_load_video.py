@@ -332,12 +332,12 @@ console.log(JSON.stringify({{ initial, enabled, externalBypass, externalUnbypass
     }
 
 
-def test_video_bypass_appearance_uses_native_mode_without_hardcoded_color():
+def test_legacy_video_has_no_frontend_enable_bridge():
     source = FRONTEND_PATH.read_text(encoding="utf-8")
     common = COMMON_FRONTEND_PATH.read_text(encoding="utf-8")
-    assert 'from "./easy_bypass_toggle.js"' in source
-    assert "configureExistingEasyBypassWidgetNode" in source
-    assert 'widgetNames: ["enable_video", "Enable Video"]' in source
+    assert 'from "./easy_bypass_toggle.js"' not in source
+    assert "configureExistingEasyBypassWidgetNode" not in source
+    assert 'widgetNames: ["enable_video", "Enable Video"]' not in source
     assert "NODE_MODE_BYPASS" in common
     assert "node.color" not in source
     assert "node.bgcolor" not in source

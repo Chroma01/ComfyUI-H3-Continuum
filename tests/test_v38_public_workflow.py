@@ -9,9 +9,9 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_PATH = ROOT / "examples" / "workflows" / "MiniMax_H3_Continuum_V38X2.json"
 
-# User-approved final distribution. Do not sanitize or reserialize this graph.
-WORKFLOW_SHA256 = "6c445d62979632bc1a801b1c28dbd639c23b51cc156ebae18837baaa757e592b"
-ZIP_SHA256 = "29e8ea19cf7c7e8a8a5e98577905d8fd01fc800bb8edb4f4218a638fe39e69d0"
+# User-approved loader migration (2026-09-21); non-loader graph values are protected.
+WORKFLOW_SHA256 = "1b2212b7511fac0b63dfa6e9f006cd8644c72d08c6945ab0e4ed0e722c97a730"
+ZIP_SHA256 = "8f839a955859bffa0d9cf0b15e91ee484dd911aca5ae31f1787debd56afdc7da"
 ZIP_WORKFLOW_NAME = "MiniMax_H3_Continuum_V38X2.json"
 EXTERNAL_PACKAGES = {
     "comfyui-spectrum-minimax-h3",
@@ -53,8 +53,8 @@ def _graph(workflow: dict) -> tuple[dict[int, dict], dict[int, list]]:
 
 def test_v38_public_workflow_declares_external_dependencies_and_is_reloadable():
     workflow = _workflow()
-    assert len(workflow["nodes"]) == 32
-    assert len(workflow["links"]) == 38
+    assert len(workflow["nodes"]) == 33
+    assert len(workflow["links"]) == 39
     packages = {
         node.get("properties", {}).get("cnr_id") for node in workflow["nodes"]
     } - {None, "", "comfy-core"}
@@ -243,3 +243,27 @@ def test_v38x2_public_workflow_keeps_helper_finalize_create_save_chain():
         "audio_samples": "H3ContinuumSamplerV38",
         "audio_vae": "VAELoader",
     }
+
+
+def test_current_workflow_uses_core_audio_and_enable_free_video_adapter():
+    workflow = _workflow()
+    nodes, links = _graph(workflow)
+    types = {node["type"] for node in workflow["nodes"]}
+    assert "H3EasyLoadAudio" not in types
+    assert "H3ContinuumLoadVideo" not in types
+    audio = _one_node(workflow, "LoadAudio")
+    video = _one_node(workflow, "LoadVideo")
+    adapter = _one_node(workflow, "H3ContinuumVideoAdapter")
+    for core, title in ((audio, "Load Audio"), (video, "Load Video")):
+        assert core.get("title", title) == title
+        assert core["properties"]["cnr_id"] == "comfy-core"
+        assert core["mode"] == 4
+    assert audio["widgets_values_named"]["audio"] == "prnas_.mp3"
+    assert video["widgets_values_named"]["file"] == "MiniMax_H3_00001_.mp4"
+    assert adapter["widgets_values_named"] == {"force_rate": 24}
+    assert adapter["widgets_values"] == [24]
+    assert adapter["mode"] == 4
+    assert links[adapter["inputs"][0]["link"]][1:3] == [video["id"], 0]
+    sampler = _one_node(workflow, "H3ContinuumSamplerV38")
+    guide = next(x for x in sampler["inputs"] if x["name"] == "reference_video_1")
+    assert nodes[links[guide["link"]][1]]["type"] == "H3ContinuumVideoAdapter"

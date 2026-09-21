@@ -1,8 +1,8 @@
 {
   "id": "735ad332-ca97-474f-b53f-7c44f6b6c383",
   "revision": 0,
-  "last_node_id": 354,
-  "last_link_id": 398,
+  "last_node_id": 355,
+  "last_link_id": 399,
   "nodes": [
     {
       "id": 142,
@@ -81,7 +81,7 @@
     },
     {
       "id": 315,
-      "type": "H3EasyLoadAudio",
+      "type": "LoadAudio",
       "pos": [
         990,
         2360
@@ -104,18 +104,15 @@
         }
       ],
       "properties": {
-        "aux_id": "ukr8b3g-cmyk/ComfyUI-H3-Continuum",
-        "Node name for S&R": "H3EasyLoadAudio",
-        "ver": "ddaedfd401b171651b48059285a44897e84fce70"
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadAudio",
+        "ver": "0.30.0"
       },
       "widgets_values": [
-        "prnas_.mp3",
-        null,
-        null
+        "prnas_.mp3"
       ],
       "widgets_values_named": {
-        "audio": "prnas_.mp3",
-        "upload": null
+        "audio": "prnas_.mp3"
       },
       "color": "#232",
       "bgcolor": "#353"
@@ -174,19 +171,25 @@
     },
     {
       "id": 320,
-      "type": "H3ContinuumLoadVideo",
+      "type": "H3ContinuumVideoAdapter",
       "pos": [
         440,
-        2350
+        2590
       ],
       "size": [
-        480,
-        630
+        480.0,
+        115
       ],
       "flags": {},
       "order": 3,
       "mode": 4,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 399
+        }
+      ],
       "outputs": [
         {
           "name": "images",
@@ -204,21 +207,13 @@
         }
       ],
       "properties": {
-        "aux_id": "ukr8b3g-cmyk/ComfyUI-H3-Continuum",
-        "Node name for S&R": "H3ContinuumLoadVideo",
-        "ver": "ddaedfd401b171651b48059285a44897e84fce70"
+        "Node name for S&R": "H3ContinuumVideoAdapter"
       },
       "widgets_values": [
-        false,
-        "MiniMax_H3_00001_.mp4",
-        24,
-        "image"
+        24
       ],
       "widgets_values_named": {
-        "enable_video": false,
-        "file": "MiniMax_H3_00001_.mp4",
-        "force_rate": 24,
-        "upload": "image"
+        "force_rate": 24
       },
       "color": "#232",
       "bgcolor": "#353"
@@ -1829,6 +1824,43 @@
       "widgets_values_named": {
         "value": ""
       }
+    },
+    {
+      "id": 355,
+      "type": "LoadVideo",
+      "pos": [
+        440,
+        2350
+      ],
+      "size": [
+        480.0,
+        210
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "slot_index": 0,
+          "links": [
+            399
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadVideo",
+        "ver": "0.30.0"
+      },
+      "widgets_values": [
+        "MiniMax_H3_00001_.mp4"
+      ],
+      "widgets_values_named": {
+        "file": "MiniMax_H3_00001_.mp4"
+      }
     }
   ],
   "links": [
@@ -2135,6 +2167,14 @@
       348,
       2,
       "IMAGE"
+    ],
+    [
+      399,
+      355,
+      0,
+      320,
+      0,
+      "VIDEO"
     ]
   ],
   "groups": [

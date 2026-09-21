@@ -41,3 +41,6 @@ examples/workflows/*
 !examples/workflows/MiniMax_H3_Continuum_V38X2.zip
 !examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json
 !examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip
+
+# Current loader migration instructions.
+!docs/LOADER_PERSISTENCE_REPAIR.md

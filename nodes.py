@@ -448,6 +448,10 @@ from .v3.hires_fix_nodes import (
 NODE_CLASS_MAPPINGS.update(V35_HIRES_FIX_NODE_CLASS_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(V35_HIRES_FIX_NODE_DISPLAY_NAME_MAPPINGS)
 
+from .v3.video_adapter_nodes import H3ContinuumVideoAdapter
+
+NODE_CLASS_MAPPINGS["H3ContinuumVideoAdapter"] = H3ContinuumVideoAdapter
+
 from .decode_cache.nodes import H3DecodeCacheHelper
 
 NODE_CLASS_MAPPINGS["H3DecodeCacheHelper"] = H3DecodeCacheHelper
@@ -464,6 +468,7 @@ _PUBLIC_NODE_DISPLAY_NAMES = {
     "H3EasyLoadImage": "H3 Continuum Load Image",
     "H3EasyLoadAudio": "H3 Continuum Load Audio",
     "H3ContinuumLoadVideo": "H3 Continuum Load Video",
+    "H3ContinuumVideoAdapter": "H3 Continuum Video Adapter",
     "H3ContinuumSecondPassV35": "H3 Continuum Second Pass",
     "H3DecodeCacheHelper": "Decode Cache Helper",
 }

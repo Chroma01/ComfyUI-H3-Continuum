@@ -22,13 +22,14 @@ PUBLIC_DISPLAY_NAMES = {
     "H3EasyLoadImage": "H3 Continuum Load Image",
     "H3EasyLoadAudio": "H3 Continuum Load Audio",
     "H3ContinuumLoadVideo": "H3 Continuum Load Video",
+    "H3ContinuumVideoAdapter": "H3 Continuum Video Adapter",
     "H3ContinuumSecondPassV35": "H3 Continuum Second Pass",
     "H3ContinuumReferenceImages": "H3 Continuum Reference Images",
     "H3DecodeCacheHelper": "Decode Cache Helper",
 }
 
 
-def test_public_export_is_exactly_the_v38x2_nine_node_allowlist():
+def test_public_export_keeps_legacy_loaders_and_adds_video_adapter():
     assert set(root_nodes.NODE_CLASS_MAPPINGS) == set(PUBLIC_DISPLAY_NAMES)
     assert root_nodes.NODE_DISPLAY_NAME_MAPPINGS == PUBLIC_DISPLAY_NAMES
 

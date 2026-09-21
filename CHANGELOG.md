@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Loader persistence repair (2026-09-21)
+
+- Repair Issue #23 by delegating inherited native mode accessors; preserve Enable Image and remove draw/save-time widget collection replacement.
+- Switch the two paired official V3.8X2 workflows to Core Load Audio and Core Load Video plus an Enable-free H3 Continuum Video Adapter using the existing FPS converter.
+- Keep old Audio/Video IDs as deprecated compatibility nodes. Preserve other workflow nodes, settings and output contracts; regenerate matching ZIPs and integrity hashes.
+- Add store-backed loader and converter regressions. Windows/browser acceptance remains a separate pending check; no Release/tag/Registry publication.
+
+
 ## 3.8.3 — V3.8X2 release preparation (2026-09-19)
 
 - Vendor the previously standalone Decode Cache Helper implementation into Continuum as a separate `H3DecodeCacheHelper` public node. Preserve its node ID, inputs, outputs, list behavior, native Core Decode delegation, and process-local cache behavior.

@@ -74,6 +74,7 @@ except ImportError:  # pragma: no cover - standalone unit tests
         Boolean = _InputFactory
         Combo = _InputFactory
         Float = _InputFactory
+        Video = _InputFactory
         Image = _OutputFactory
         Audio = _OutputFactory
         UploadType = _UploadType
@@ -191,6 +192,7 @@ class H3ContinuumLoadVideo(io.ComfyNode):
         files = folder_paths.filter_files_content_types(files, ["video"])
         return io.Schema(
             node_id="H3ContinuumLoadVideo",
+            is_deprecated=True,
             display_name="H3 Continuum Load Video",
             category=CATEGORY,
             description=(

@@ -1853,3 +1853,17 @@ D:\Codex\_snapshots\ComfyUI-H3-Continuum\pre-rollback-after-00038-fail-20260821_
 
 - Updated repository-root `H3-Continuum-Skill-v1.zip` without changing runtime code or workflows. Promoted the standalone Timeline-header rule into `SKILL.md`, refreshed `references/continuum-contract.md` to the current V3.8 parser baseline `bd12073c4322a88ce666fe062b7bb265f5de131a`, added simple `3x5`, `3x10`, and `2x15` Timeline examples plus inline-input normalization to `references/examples.md`, and added the same critical syntax note to `README_JA.md`.
 - Validation: `tools/snapshot.ps1` completed before modification; ZIP retained exactly seven entries and passed ZIP integrity validation; targeted `tests/test_v2_prompts.py` passed 52/52. New ZIP SHA-256: `144324850D4BA086938DA5F4ED7B02FF0668DEC554F092695328240E43FEC3EC`. This is documentation/prompt-skill only; Sampling, Run Storage, public node schema, workflows, and runtime tensors are unchanged. H3情報チェック handoff remains pending because that cross-task destination is unavailable from this GitHub Actions job.
+
+## Loader persistence repair (2026-09-21)
+
+- User approved Image Enable repair, Core Audio workflow replacement, and Core Video plus Enable-free 24fps adapter, including commit/push. Legacy Audio/Video IDs remain deprecated/loadable. Main Sampler, Sampling and stored generation contracts are unchanged.
+- Source baseline 3d7c2fd6928a545b12b84968b09dc455e7f9da65. Real source was snapshotted using tools/snapshot.ps1 before edits on an isolated Actions runner. Original-code regression exposed 3 failures; focused CPU/Node suite 46 PASS. See docs/LOADER_PERSISTENCE_REPAIR.md.
+- Windows worktree/runtime/browser and GPU were not accessed. Live frontend 1.53.6 tab switching/save/reopen and fixed H3情報チェック handoff remain PENDING. No Release/tag/Registry publication.
+
+## Validation result
+
+- Original-code regression: 6 cases; 3 expected failures and 0 collection/runtime errors.
+- Focused CPU/Node suite: 46 passed, zero failures/errors/skips.
+- JavaScript module syntax, changed Python compilation, workflow JSON/ZIP parity, endpoint consistency and git diff whitespace checks passed.
+- Official workflow structural guard preserved every non-loader node, each original link, and non-layout workflow metadata.
+- Scope: isolated GitHub Actions CPU runner, not Windows deployment or a real-browser/GPU test.

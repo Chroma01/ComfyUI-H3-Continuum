@@ -1,16 +1,10 @@
-// Shared native-Bypass control for Easy workflow loader nodes.
-
-// ComfyUI Frontend 1.49.6 defines LGraphEventMode.ALWAYS=0 and BYPASS=4.
-// Prefer exported LiteGraph constants when available and keep the audited
-// numeric values only as compatibility fallbacks.
+// Convenience toggles delegate to Core node.mode; Core owns persistence/drawing.
 const NODE_MODE_ALWAYS =
     typeof LiteGraph !== "undefined" && Number.isInteger(LiteGraph.ALWAYS)
-        ? LiteGraph.ALWAYS
-        : 0;
+        ? LiteGraph.ALWAYS : 0;
 const NODE_MODE_BYPASS =
     typeof LiteGraph !== "undefined" && Number.isInteger(LiteGraph.BYPASS)
-        ? LiteGraph.BYPASS
-        : 4;
+        ? LiteGraph.BYPASS : 4;
 
 function isConfiguredNode(node, nodeClass) {
     return node?.comfyClass === nodeClass || node?.type === nodeClass;
@@ -23,28 +17,36 @@ export function findEasyBypassWidget(node) {
 
 function syncWidgetFromMode(node) {
     const widget = findEasyBypassWidget(node);
-    if (!widget) return;
-    widget.value = node.mode === NODE_MODE_ALWAYS;
+    if (widget) widget.value = node.mode === NODE_MODE_ALWAYS;
+}
+
+function findModeDescriptor(node) {
+    for (let owner = node; owner; owner = Object.getPrototypeOf(owner)) {
+        const descriptor = Object.getOwnPropertyDescriptor(owner, "mode");
+        if (descriptor) return descriptor;
+    }
+    return undefined;
 }
 
 function installModeSourceOfTruth(node) {
     if (node.__h3EasyBypassModeObserved) return true;
-    const descriptor = Object.getOwnPropertyDescriptor(node, "mode");
-    if (descriptor && descriptor.configurable === false) return false;
-
+    const own = Object.getOwnPropertyDescriptor(node, "mode");
+    if (own?.configurable === false) return false;
+    const descriptor = findModeDescriptor(node);
+    const accessor = descriptor && ("get" in descriptor || "set" in descriptor);
+    // Never replace a read-only property or manufacture a second store value.
+    if (accessor && (!descriptor.get || !descriptor.set)) return false;
+    if (descriptor && !accessor && descriptor.writable === false) return false;
     let currentMode = Number(node.mode ?? NODE_MODE_ALWAYS);
     Object.defineProperty(node, "mode", {
         configurable: true,
-        enumerable: descriptor?.enumerable ?? true,
+        enumerable: own?.enumerable ?? descriptor?.enumerable ?? true,
         get() {
-            return descriptor?.get ? descriptor.get.call(this) : currentMode;
+            return accessor ? descriptor.get.call(this) : currentMode;
         },
         set(value) {
-            if (descriptor?.set) {
-                descriptor.set.call(this, value);
-            } else {
-                currentMode = Number(value);
-            }
+            if (accessor) descriptor.set.call(this, value);
+            else currentMode = Number(value);
             syncWidgetFromMode(this);
         },
     });
@@ -52,132 +54,48 @@ function installModeSourceOfTruth(node) {
     return true;
 }
 
-function installWidgetSerializationGuard(node, widget) {
-    if (node.__h3EasyBypassSerializationGuard) return;
-
-    const originalSerialize = node.serialize;
-    if (typeof originalSerialize === "function") {
-        node.serialize = function (...args) {
-            const index = this.widgets?.indexOf(widget) ?? -1;
-            if (index >= 0) this.widgets.splice(index, 1);
-            try {
-                return originalSerialize.apply(this, args);
-            } finally {
-                if (index >= 0) this.widgets.splice(index, 0, widget);
-            }
-        };
-    }
-
-    const originalConfigure = node.configure;
-    if (typeof originalConfigure === "function") {
-        node.configure = function (...args) {
-            const index = this.widgets?.indexOf(widget) ?? -1;
-            if (index >= 0) this.widgets.splice(index, 1);
-            try {
-                return originalConfigure.apply(this, args);
-            } finally {
-                if (index >= 0) this.widgets.splice(index, 0, widget);
-                syncWidgetFromMode(this);
-            }
-        };
-    }
-
-    node.__h3EasyBypassSerializationGuard = true;
-}
-
-function installBypassToggleForeground(node) {
-    if (node.__h3EasyBypassForegroundInstalled) return;
-    const originalDrawWidgets = node.drawWidgets;
-    if (typeof originalDrawWidgets !== "function") return;
-
-    node.drawWidgets = function (ctx, options = {}) {
-        const result = originalDrawWidgets.call(this, ctx, options);
-        if (this.mode !== NODE_MODE_BYPASS) return result;
-
-        const widget = findEasyBypassWidget(this);
-        const widgets = this.widgets;
-        if (!widget || widget.hidden || !Array.isArray(widgets)) return result;
-        if (!widgets.includes(widget)) return result;
-
-        // ComfyUI draws every widget at the node's Bypass alpha. Redraw only
-        // the Enable row afterwards at full opacity so it remains readable and
-        // uses the unchanged native widget hit area/click handling.
-        this.widgets = [widget];
-        try {
-            originalDrawWidgets.call(this, ctx, {
-                ...(options ?? {}),
-                editorAlpha: 1,
-            });
-        } finally {
-            this.widgets = widgets;
-        }
-        return result;
-    };
-    node.__h3EasyBypassForegroundInstalled = true;
-}
-
 function setModeFromToggle(node, enabled) {
     node.mode = enabled ? NODE_MODE_ALWAYS : NODE_MODE_BYPASS;
     syncWidgetFromMode(node);
+    node.graph?.change?.();
     node.setDirtyCanvas?.(true, true);
 }
 
 export function configureEasyBypassToggleNode(
-    node,
-    { nodeClass, widgetName, tooltip },
+    node, { nodeClass, widgetName, tooltip },
 ) {
     if (!isConfiguredNode(node, nodeClass)) return;
     node.__h3EasyBypassToggle = { nodeClass, widgetName };
-
     let widget = findEasyBypassWidget(node);
     if (!widget) {
         widget = node.addWidget(
-            "toggle",
-            widgetName,
-            node.mode === NODE_MODE_ALWAYS,
+            "toggle", widgetName, node.mode === NODE_MODE_ALWAYS,
             (value) => setModeFromToggle(node, Boolean(value)),
-            {
-                on: "ON",
-                off: "OFF",
-                serialize: false,
-            },
+            { on: "ON", off: "OFF", serialize: false },
         );
-        widget.serialize = false;
+        widget.serialize = false; // Workflow persistence.
         widget.options ||= {};
-        widget.options.serialize = false;
+        widget.options.serialize = false; // API prompt serialization.
         widget.tooltip = tooltip;
-        const currentIndex = node.widgets?.indexOf(widget) ?? -1;
-        if (currentIndex > 0) {
-            node.widgets.splice(currentIndex, 1);
-            node.widgets.unshift(widget);
-        }
-        installWidgetSerializationGuard(node, widget);
+        // Append only. Never splice/reassign widgets in draw/serialize/configure:
+        // newer Core uses a stable mutation view backed by its widget store.
     }
-
     if (!installModeSourceOfTruth(node)) {
-        console.warn(
-            `${nodeClass} could not observe node.mode; external Bypass changes may require a workflow reload.`,
-        );
+        console.warn(`${nodeClass}: native mode could not be observed; use Core Bypass.`);
     }
-    installBypassToggleForeground(node);
     syncWidgetFromMode(node);
     node.setDirtyCanvas?.(true, true);
 }
 
+// Retained for existing callers; new Video Adapter has no Enable widget.
 export function configureExistingEasyBypassWidgetNode(
-    node,
-    { nodeClass, widgetNames },
+    node, { nodeClass, widgetNames },
 ) {
     if (!isConfiguredNode(node, nodeClass)) return;
     const names = Array.isArray(widgetNames) ? widgetNames : [widgetNames];
     const widget = node.widgets?.find((item) => names.includes(item.name));
     if (!widget) return;
-
-    node.__h3EasyBypassToggle = {
-        nodeClass,
-        widgetName: widget.name,
-    };
-
+    node.__h3EasyBypassToggle = { nodeClass, widgetName: widget.name };
     if (!widget.__h3EasyBypassCallbackObserved) {
         const originalCallback = widget.callback;
         widget.callback = function (value, ...args) {
@@ -187,18 +105,7 @@ export function configureExistingEasyBypassWidgetNode(
         };
         widget.__h3EasyBypassCallbackObserved = true;
     }
-
-    if (!installModeSourceOfTruth(node)) {
-        console.warn(
-            `${nodeClass} could not observe node.mode; external Bypass changes may require a workflow reload.`,
-        );
-    }
-    installBypassToggleForeground(node);
-
-    if (node.mode === NODE_MODE_BYPASS) {
-        syncWidgetFromMode(node);
-    } else {
-        setModeFromToggle(node, Boolean(widget.value));
-    }
-    node.setDirtyCanvas?.(true, true);
+    installModeSourceOfTruth(node);
+    if (node.mode === NODE_MODE_BYPASS) syncWidgetFromMode(node);
+    else setModeFromToggle(node, Boolean(widget.value));
 }

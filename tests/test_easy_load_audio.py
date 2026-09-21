@@ -164,7 +164,7 @@ console.log(JSON.stringify({{ initial, off, onAgain, externalBypass, reloaded }}
     observed = json.loads(result.stdout)
     assert observed == {
         "initial": {
-            "names": ["Enable Audio", "audio", "audioUI"],
+            "names": ["audio", "audioUI", "Enable Audio"],
             "saved": {
                 "mode": 0,
                 "widgets_values": [
@@ -201,7 +201,7 @@ console.log(JSON.stringify({{ initial, off, onAgain, externalBypass, reloaded }}
             "toggle": False,
             "audio": "reloaded.wav",
             "player": {"position": 2.5, "volume": 0.6},
-            "names": ["Enable Audio", "audio", "audioUI"],
+            "names": ["audio", "audioUI", "Enable Audio"],
         },
     }
 
