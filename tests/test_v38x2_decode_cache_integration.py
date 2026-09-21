@@ -33,7 +33,7 @@ def test_builtin_helper_preserves_public_node_contract():
 def test_supplied_workflow_is_preserved_and_routes_through_builtin_helper():
     payload = WORKFLOW.read_bytes()
     assert hashlib.sha256(payload).hexdigest().upper() == (
-        "6C445D62979632BC1A801B1C28DBD639C23B51CC156EBAE18837BAAA757E592B"
+        "1B2212B7511FAC0B63DFA6E9F006CD8644C72D08C6945AB0E4ED0E722C97A730"
     )
     workflow = json.loads(payload)
     nodes = {node["id"]: node for node in workflow["nodes"]}

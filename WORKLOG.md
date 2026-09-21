@@ -1867,3 +1867,10 @@ D:\Codex\_snapshots\ComfyUI-H3-Continuum\pre-rollback-after-00038-fail-20260821_
 - JavaScript module syntax, changed Python compilation, workflow JSON/ZIP parity, endpoint consistency and git diff whitespace checks passed.
 - Official workflow structural guard preserved every non-loader node, each original link, and non-layout workflow metadata.
 - Scope: isolated GitHub Actions CPU runner, not Windows deployment or a real-browser/GPU test.
+
+## Loader repair full-suite follow-up (2026-09-21)
+
+- Main repair `f8eb40d8b44e54386bcf3c5197c48f0f71daf6df` passed the 46 focused tests. Its first full CI returned 1376 passed, 3 skipped, and one stale pre-migration workflow fingerprint failure in `test_v38x2_decode_cache_integration.py`.
+- Updated only that expected fingerprint to the user-approved migrated workflow (1B2212B7511FAC0B63DFA6E9F006CD8644C72D08C6945AB0E4ED0E722C97A730); all Decode Cache route and output assertions remain. No runtime or workflow bytes changed in this follow-up.
+- Full isolated CPU/Node suite: 1377 passed, 3 skipped, zero failures/errors. Actions run 35558988542. Source was snapshotted with `tools/snapshot.ps1` before edits; source/Registry manifest hashes verified.
+- Windows deployment, live-browser checks and GPU generation were not performed; fixed H3情報チェック handoff remains pending. No Release/tag/Registry publication.
