@@ -1,5 +1,13 @@
 # ComfyUI-H3-Continuum 3.9.0 — V3.9
 
+![H3 Continuum V3.9: fixed Reference Image slots, per-chunk assignments, and one Sampler input](docs/images/v39/v39-feature-summary.png)
+
+*V3.9 is current on `main`: fixed Image 1–9 slots, per-chunk Reference selection, and one Reference Images connection to the V3.9 Sampler.*
+
+![H3 Continuum V3.8X2 feature card from its original release](docs/images/v39/v38x2-feature-summary-historical.png)
+
+*This V3.8X2 card is retained for comparison. Its “CURRENT MAIN” label describes the time it was made; V3.9 is current now. The V3.8 Sampler and V3.8X2 workflow remain available, but their Reference wiring is not automatically converted to V3.9.*
+
 ## Start here: V3.9 and the retained V3.8X2 workflow
 
 The ComfyUI **Templates → ComfyUI-H3-Continuum** gallery offers two separate entries: the user-selected [V3.9 workflow](examples/workflows/MiniMax_H3_Continuum_V39.json) and [V3.8X2 workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json). The [V3.8X2 workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip) contains **both unchanged JSON workflows** for one-download setup; the [V3.9 ZIP](examples/workflows/MiniMax_H3_Continuum_V39.zip) contains only V3.9. These are workflow archives, not custom-node installers. The V3.8 Sampler remains available, so existing V3.8X2 workflows still load. V3.9 does not automatically convert their Reference connections or saved Runs/Takes: preserve the old workflow and open the dedicated V3.9 graph for new work.
@@ -13,6 +21,18 @@ V3.9.0 is the current source version on `main`. This source update is **not** a 
 `pyproject.toml` declares ComfyUI `>=0.32.0`; the current real-generation/GPU validation baseline is ComfyUI `0.34.2`. The minimum declaration does not establish V3.9 runtime acceptance on 0.32.0. The latest recorded Windows CPU run is `1536 passed / 1 skipped / 0 failed`; a separate Linux rerun report records `1534 passed / 3 skipped / 0 failed`. Neither replaces browser save/reload or GPU acceptance for the current official template.
 
 ## V3.9 Reference Images
+
+### Reference Images node: choose the image for each chunk
+
+![H3 Continuum Reference Images V3.9 node with fixed image slots and a per-chunk assignment table](docs/images/v39/v39-reference-images-node.png)
+
+*Example UI, not the downloadable workflow's default assignments.* Image 1–9 are fixed slots: Image 1 is always `@R1`, even when other slots are empty. With `Reference Use = Per chunk`, tick the image/chunk intersections you want; each row's `All` / `Off` buttons select or clear that image across chunks. In this screenshot, Image 1 is assigned to Chunks 1 and 2, while other images have different assignments. The official V3.9 workflow starts with its image loaders bypassed and every assignment unchecked; choose real image files, enable their loaders, then tick the intended chunks.
+
+### Sampler V3.9: connect the helper once
+
+![H3 Continuum Sampler V3.9 with one Reference Images Optional input](docs/images/v39/v39-sampler-node.png)
+
+Connect the helper's green `reference_images` output to the Sampler's single `Reference Images (Optional)` input. The V3.8X2 workflow uses its own V3.8 Sampler and older Reference sockets; opening it does not convert those connections to V3.9. This screenshot shows a **Manual 480×640 example**, not the official V3.9 workflow's saved **First Image + Draft 0.30 MP** setting. `Reference Image Size = Match Output` controls Reference conditioning size after image loading; it does not pre-resize source files or set output resolution.
 
 V3.9 now connects all nine fixed Reference Images through one **H3 Continuum Reference Images V3.9** node. Its in-node table selects All chunks or specific chunks. The V3.9 Sampler has one typed Reference Images connection and keeps Sequence Prompt, First/Last, Review and the rest of its generation controls. Use `@R1` for Image 1; the backend converts active tags to the group's actual `<Picture N>`. Both modes use the same group-routing engine.
 

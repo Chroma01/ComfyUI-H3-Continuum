@@ -1,5 +1,13 @@
 # ComfyUI-H3-Continuum 3.9.0 — V3.9
 
+![H3 Continuum V3.9：固定の参照画像番号、チャンク別割り当て、Samplerへの1本の接続](docs/images/v39/v39-feature-summary.png)
+
+*現在の`main`はV3.9です。Image 1～9の固定番号、チャンク別のReference選択、V3.9 Samplerへの1本の接続が新しい操作です。*
+
+![公開当時のH3 Continuum V3.8X2機能紹介画像](docs/images/v39/v38x2-feature-summary-historical.png)
+
+*V3.8X2の画像も比較用に残しています。画像内の「CURRENT MAIN」は作成当時の表記で、現在の`main`はV3.9です。V3.8 SamplerとV3.8X2 Workflowは利用できますが、Reference配線はV3.9へ自動変換されません。*
+
 ## 最初に：V3.9とV3.8X2
 
 ComfyUIの **Templates → ComfyUI-H3-Continuum** には、今回選んだ[V3.9公式Workflow](examples/workflows/MiniMax_H3_Continuum_V39.json)と、別の[V3.8X2 Workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json)を2件表示します。[V3.8X2 Workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip)には、**V3.8X2とV3.9の両JSON**を同梱しました。[V3.9単独ZIP](examples/workflows/MiniMax_H3_Continuum_V39.zip)も残します。いずれもWorkflow用ZIPで、カスタムノード本体のインストーラーではありません。V3.8 Samplerは残るので既存のV3.8X2 Workflowは使えます。ただしV3.9へReference配線や保存済みRun／Takeは自動移行しません。旧Workflowを保存しておき、新しい作業ではV3.9専用Workflowを開いてください。
@@ -13,6 +21,18 @@ V3.9.0は`main`の現行ソースです。今回のmain更新は新しいGitHub 
 `pyproject.toml`の宣言上はComfyUI `>=0.32.0`ですが、現行の実生成・GPU検証基準はComfyUI `0.34.2`です。最低宣言版でV3.9の実機動作を確認済みという意味ではありません。最新の記録済みWindows CPU試験は`1536 passed / 1 skipped / 0 failed`、別環境のLinux再実行報告は`1534 passed / 3 skipped / 0 failed`です。これらは現行公式テンプレートの実ブラウザー保存・再読込やGPU受入を代替しません。
 
 ## V3.9 Reference Images
+
+### Reference Imagesノード：画像とチャンクを選ぶ
+
+![H3 Continuum Reference Images V3.9ノードの固定スロットとチャンク別割り当て表](docs/images/v39/v39-reference-images-node.png)
+
+*この画像は操作例で、配布Workflowの初期割り当てではありません。* Image 1～9は固定スロットで、途中が空でもImage 1は常に`@R1`です。`Reference Use = Per chunk`にすると、使いたい画像とチャンクの交点をチェックできます。各行の`All`／`Off`は、その画像を全チャンクで選択／解除します。画像ではImage 1をChunk 1・2に割り当て、ほかの画像は別のチャンクに割り当てています。公式V3.9 Workflowは画像Loaderが初期Bypass、割り当てが全OFFです。実ファイルを選び、Loaderを有効化してから、使うチャンクにチェックしてください。
+
+### Sampler V3.9：ヘルパーから1本で接続
+
+![Reference Images Optional入力を1本持つH3 Continuum Sampler V3.9](docs/images/v39/v39-sampler-node.png)
+
+ヘルパーの緑色の`reference_images`出力を、Samplerの`Reference Images (Optional)`入力へ1本つなぎます。V3.8X2 Workflowは旧V3.8 Samplerと従来のReference接続を使用し、開くだけでV3.9配線へ変換されるわけではありません。この画像のサイズ設定は**Manual 480×640の操作例**で、公式V3.9 Workflowの保存値は**First Image＋Draft 0.30 MP**です。`Reference Image Size = Match Output`は画像読込後のReference conditioningサイズを決め、元ファイルを事前縮小したり、動画の出力解像度を直接決めたりはしません。
 
 V3.9では、固定番号の参照画像1～9を新しい **H3 Continuum Reference Images V3.9** ノードにまとめます。ノード内の表で「All chunks」またはチャンク別のチェックを選び、Samplerへは1本だけ接続します。`Sequence Prompt`で`@R1`と書けば固定の画像1を指します。有効なタグは各生成groupの実際の`<Picture N>`へ変換されます。両モードとも同じチャンク別処理を通ります。
 
