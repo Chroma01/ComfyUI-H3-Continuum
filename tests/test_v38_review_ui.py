@@ -286,7 +286,7 @@ def test_execution_success_reloads_v38_history_without_auto_queue():
     ):
         assert f'"{event_name}"' in setup
     assert "refreshV38TakeHistoryAfterExecution" in setup
-    assert "node.comfyClass !== V38_NODE_CLASS" in refresh
+    assert "!isModernSamplerClass(node.comfyClass)" in refresh
     assert "await loadTakeHistory(node," in refresh
     assert "reviewPrompts.get(promptId)" in refresh
     assert "event?.detail?.prompt_id" in refresh
@@ -308,6 +308,8 @@ def test_review_requires_fixed_control_after_generate(tmp_path):
     )
     script = f"""
 const V38_NODE_CLASS = "H3ContinuumSamplerV38";
+const V39_NODE_CLASS = "H3ContinuumSamplerV39";
+const isModernSamplerClass = (name) => name === V38_NODE_CLASS || name === V39_NODE_CLASS;
 const GENERATION_MODE_WIDGET = "generation_mode";
 const GENERATION_MODE_REVIEW = "Review Each Chunk";
 {functions}
@@ -366,6 +368,8 @@ def test_review_mode_switch_fixes_the_linked_seed_control(tmp_path):
     )
     script = f"""
 const V38_NODE_CLASS = "H3ContinuumSamplerV38";
+const V39_NODE_CLASS = "H3ContinuumSamplerV39";
+const isModernSamplerClass = (name) => name === V38_NODE_CLASS || name === V39_NODE_CLASS;
 const GENERATION_MODE_WIDGET = "generation_mode";
 const REVIEW_ACTION_WIDGET = "review_action";
 const RUN_STORAGE_WIDGET = "run_storage";

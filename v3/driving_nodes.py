@@ -28,6 +28,11 @@ from ..reference_video import (
     REFERENCE_VIDEO_SIZE_OPTIONS,
 )
 from ..reference import H3ContinuumReferenceImages, REFERENCE_IMAGES_TYPE
+from .reference_images_v39 import (
+    H3ContinuumReferenceImagesV39,
+    REFERENCE_IMAGES_V39_TYPE,
+    effective_reference_inputs,
+)
 from ..reference_audio import (
     H3ContinuumReferenceAudios,
     REFERENCE_AUDIOS_TYPE,
@@ -800,6 +805,61 @@ class H3ContinuumSamplerV38(H3ContinuumSamplerV37):
         )
 
 
+class H3ContinuumSamplerV39(H3ContinuumSamplerV38):
+    """Single nine-image input using the existing group-local routing engine."""
+
+    DESCRIPTION = (
+        "H3 Continuum V3.9. Connect Reference Images V3.9 to assign fixed "
+        "images 1–9 to all chunks or selected chunks."
+    )
+    SEARCH_ALIASES = ["H3 Continuum Sampler V3.9", "MiniMax H3 Reference Routing"]
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        schema = super().INPUT_TYPES()
+        schema["required"] = dict(schema["required"])
+        optional = dict(schema["optional"])
+        for index in range(1, 4):
+            optional.pop(f"reference_image_{index}", None)
+        optional.pop("image_references", None)
+        optional.pop("reference_image_4", None)
+        optional.pop("reference_image_5", None)
+        optional["reference_images"] = (
+            REFERENCE_IMAGES_V39_TYPE,
+            {"display_name": "Reference Images (Optional)",
+             "tooltip": "Connect H3 Continuum Reference Images V3.9; assign chunks there."},
+        )
+        schema["optional"] = optional
+        return schema
+
+    def run(self, reference_images=None, **kwargs):
+        # The public V3.9 schema owns a single Reference input. Stale API
+        # keys must not create a second route around that input.
+        for name in (
+            *(f"reference_image_{index}" for index in range(1, 6)),
+            "image_references", "reference_routing_mode",
+            *(f"reference_r{index}_chunks" for index in range(1, 10)),
+        ):
+            kwargs.pop(name, None)
+        direct, extra, selectors = effective_reference_inputs(
+            reference_images, chunks=int(kwargs.get("chunks", 3)),
+        )
+        kwargs.update({f"reference_image_{index}": image
+                       for index, image in enumerate(direct, start=1)})
+        kwargs["image_references"] = extra
+        outputs = super().run(_reference_routing_settings=selectors, **kwargs)
+        if not isinstance(outputs, tuple) or len(outputs) < 4:
+            return outputs
+        from .reference_plan_inspector import format_reference_plan
+        plan = outputs[2].get("reference_routing_v1")
+        if not isinstance(plan, dict):
+            raise RuntimeError("V3.9 Reference Routing has no verified output Plan")
+        return {
+            "ui": {"h3_reference_plan": [format_reference_plan(plan)]},
+            "result": outputs,
+        }
+
+
 class H3ContinuumMemoryActionPolicyExperimental:
     """Explicit opt-in Reference sizing policy for the A7b experiment."""
 
@@ -1091,8 +1151,10 @@ NODE_CLASS_MAPPINGS = {
     "H3ContinuumStillImageGuideV37": H3ContinuumStillImageGuideV37,
     "H3ContinuumSamplerV37": H3ContinuumSamplerV37,
     "H3ContinuumSamplerV38": H3ContinuumSamplerV38,
+    "H3ContinuumSamplerV39": H3ContinuumSamplerV39,
     "H3ContinuumReferenceAudios": H3ContinuumReferenceAudios,
     "H3ContinuumReferenceImages": H3ContinuumReferenceImages,
+    "H3ContinuumReferenceImagesV39": H3ContinuumReferenceImagesV39,
     "H3ContinuumMemoryActionPolicyExperimental": (
         H3ContinuumMemoryActionPolicyExperimental
     ),
@@ -1110,8 +1172,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "H3ContinuumStillImageGuideV37": "H3 Continuum Still Image Guide V3.7",
     "H3ContinuumSamplerV37": "H3 Continuum Sampler V3.7",
     "H3ContinuumSamplerV38": "H3 Continuum Sampler V3.8",
+    "H3ContinuumSamplerV39": "H3 Continuum Sampler V3.9",
     "H3ContinuumReferenceAudios": "H3 Continuum Reference Audios",
     "H3ContinuumReferenceImages": "H3 Continuum Reference Images",
+    "H3ContinuumReferenceImagesV39": "H3 Continuum Reference Images V3.9",
     "H3ContinuumMemoryActionPolicyExperimental": (
         "H3 Continuum Memory Action Policy (Experimental)"
     ),

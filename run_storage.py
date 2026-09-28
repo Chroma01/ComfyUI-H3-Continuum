@@ -54,6 +54,13 @@ from .v3.review_control import (
     validate_review_prefix_metadata,
 )
 from .v3.planning_types import PrefixFacts
+from .v3.reference_storage_contract import (
+    REFERENCE_ROUTING_CONTRACT_VERSION,
+    ReferenceStoragePlan,
+    ReferenceStorageContractError,
+    session_routing_settings,
+    validate_reference_group_contracts,
+)
 
 
 RUN_STORAGE_SCHEMA_VERSION = 3
@@ -731,6 +738,12 @@ def _apply_nonce_contract(
     global_hash = _hash(result["global"])
     chunk_contracts = []
     chunk_hashes = []
+    routed_groups = result.get("reference_group_contracts")
+    routed_by_chunk = {}
+    if routed_groups is not None:
+        for group_record in routed_groups:
+            for chunk in group_record["descriptor"]["logical_chunks"]:
+                routed_by_chunk[int(chunk)] = group_record["sha256"]
     for position, prompt_hash in enumerate(result["prompt_hashes"]):
         number = position + 1
         affected = boundary > 0 and number >= boundary
@@ -742,6 +755,8 @@ def _apply_nonce_contract(
             "effective_reroll_nonce": int(effective_nonce) if affected else 0,
             "last_frame_hash": str(result["last_frame_hash"]) if number == int(result["chunk_count"]) else "",
         }
+        if routed_groups is not None:
+            chunk_contract["physical_group_reference_sha256"] = routed_by_chunk[number]
         timeline_chunks = result.get("timeline_video_chunk_contracts") or []
         if position < len(timeline_chunks):
             chunk_contract["timeline_video"] = dict(timeline_chunks[position])
@@ -769,7 +784,7 @@ def _nonce_lineage_hash(
 ) -> str:
     """Recompute the nonce-independent compatible sampling lineage."""
 
-    return _hash({
+    identity = {
         "global_hash": _hash(contract["global"]),
         "chunk_count": int(contract["chunk_count"]),
         "prompt_mode": str(contract["prompt_mode"]),
@@ -780,7 +795,12 @@ def _nonce_lineage_hash(
             if timeline_video_chunk_contracts is not None
             else contract.get("timeline_video_chunk_contracts") or []
         ),
-    })
+    }
+    if "reference_group_contracts" in contract:
+        identity["reference_group_hashes"] = [
+            record["sha256"] for record in contract["reference_group_contracts"]
+        ]
+    return _hash(identity)
 
 
 def _apply_reroll_branch_contract(
@@ -864,7 +884,10 @@ def build_sampling_contract(
     timeline_video_contract: dict[str, Any] | None = None,
     guide_contract: dict[str, Any] | None = None,
     execution_semantics: dict[str, Any] | None = None,
+    reference_storage_plan: ReferenceStoragePlan | None = None,
 ) -> tuple[dict[str, Any], bool, list[str]]:
+    if reference_storage_plan is not None and reference_contract is not None:
+        raise RunStorageError("routed Reference plan cannot use legacy Reference contract")
     last_frame_hash = _canonical_optional_hash(last_frame_hash)
     model_value, model_safe = _model_signature(model, model_fingerprint_value)
     clip_value, clip_safe = _clip_signature(clip)
@@ -884,6 +907,8 @@ def build_sampling_contract(
             f"declared={conditioning_mode}, inferred={inferred_mode}"
         )
     uses_video_vae = (
+        reference_storage_plan is not None
+        or
         conditioning_mode_uses_video_vae(conditioning_mode)
         or reference_video_contract is not None
         or timeline_video_contract is not None
@@ -956,7 +981,12 @@ def build_sampling_contract(
     if graph_authoritative:
         global_contract["upstream_graph"] = dict(upstream_graph_contract)
     if execution_semantics is not None:
-        global_contract["execution_semantics"] = dict(execution_semantics)
+        semantics = dict(execution_semantics)
+        if reference_storage_plan is not None:
+            semantics.pop("terminal_prompt_policy", None)
+        global_contract["execution_semantics"] = semantics
+    if reference_storage_plan is not None:
+        global_contract["reference_routing_contract_version"] = REFERENCE_ROUTING_CONTRACT_VERSION
     if uses_video_vae:
         global_contract["video_vae"] = video_vae_value
     if has_first:
@@ -1006,6 +1036,15 @@ def build_sampling_contract(
         "reroll_from_chunk": boundary,
         "last_frame_hash": str(last_frame_hash),
     }
+    if reference_storage_plan is not None:
+        routed_groups = reference_storage_plan.group_contracts
+        validate_reference_group_contracts(
+            routed_groups, chunk_count=chunks,
+            terminal_merge_enabled=(
+                (execution_semantics or {}).get("flf_execution") == "terminal_merged_10s_seed_v2"
+            ),
+        )
+        contract["reference_group_contracts"] = routed_groups
     lineage_sha256 = _nonce_lineage_hash(
         contract,
         timeline_video_chunk_contracts=timeline_chunk_contracts,
@@ -1151,6 +1190,8 @@ def _resume_session_settings(
     revision_id: str,
     first_frame_hash: str,
     last_frame_hash: str,
+    reference_storage_plan: ReferenceStoragePlan | None = None,
+    accepted_chunks: int = 0,
 ) -> dict[str, Any]:
     settings = {
         "run_storage_validated_prefix": True,
@@ -1161,6 +1202,10 @@ def _resume_session_settings(
     settings.update(
         dict((contract.get("global") or {}).get("execution_semantics") or {})
     )
+    if reference_storage_plan is not None:
+        settings["reference_routing_v1"] = session_routing_settings(
+            reference_storage_plan, accepted_chunks,
+        )
     return settings
 
 
@@ -1173,6 +1218,28 @@ def _manifest_sampling_identity(manifest: dict[str, Any]) -> tuple[str, str]:
     contract = manifest.get("contract")
     if not isinstance(contract, dict):
         raise RunStorageError("stored sampling contract is missing")
+    routed_version = (contract.get("global") or {}).get("reference_routing_contract_version")
+    routed_groups = contract.get("reference_group_contracts")
+    if routed_version is not None or routed_groups is not None:
+        if routed_version != REFERENCE_ROUTING_CONTRACT_VERSION:
+            raise RunStorageError("stored Reference routing contract version is incompatible")
+        try:
+            groups = validate_reference_group_contracts(
+                routed_groups, chunk_count=int(contract["chunk_count"]),
+                terminal_merge_enabled=_terminal_merge_enabled(contract),
+            )
+        except (ReferenceStorageContractError, KeyError, TypeError, ValueError) as exc:
+            raise RunStorageError(f"stored Reference group contract is invalid: {exc}") from exc
+        expected = {
+            int(chunk): record["sha256"]
+            for record in groups for chunk in record["descriptor"]["logical_chunks"]
+        }
+        chunks = contract.get("chunk_contracts")
+        if (not isinstance(chunks, list) or len(chunks) != len(expected)
+                or any(not isinstance(item, dict) or
+                       item.get("physical_group_reference_sha256") != expected[index + 1]
+                       for index, item in enumerate(chunks))):
+            raise RunStorageError("stored Reference group/chunk contracts disagree")
     contract_revision_id, contract_sha256 = revision_identity(contract)
     if str(manifest.get("contract_sha256", "")) != contract_sha256:
         raise RunStorageError("stored sampling contract SHA-256 is invalid")
@@ -1730,6 +1797,8 @@ class RunStorageController:
                 if producer is None:
                     compatible = False
                     break
+                if "reference_group_contracts" in (producer.get("contract") or {}):
+                    _manifest_sampling_identity(producer)
                 producing = producer.get("contract") or {}
                 hashes = producing.get("chunk_contract_hashes") or []
                 # Accepted earlier Takes can come from several nonce branches.
@@ -1843,6 +1912,10 @@ class RunStorageController:
                 for position, original in enumerate(imported["records"])
             ],
         }
+        if imported.get("selected_take_import") is not None:
+            self.manifest["prefix_import"]["selected_take"] = dict(
+                imported["selected_take_import"]
+            )
         self._write_manifest()
         records = []
         imported_entries = list(imported["entries"])
@@ -1863,6 +1936,16 @@ class RunStorageController:
                 for record in self.manifest["chunks"][-len(positions):]
             )
         self.generated_count = 0  # Copies are reused work, never new Sampling.
+        if imported.get("selected_take_import") is not None:
+            local_chain = self._manifest_provenance_chain(
+                self.manifest, self._read_manifests(),
+            )
+            if not local_chain:
+                raise RunStorageError("imported Take has no new-plan provenance")
+            self.pending_branch_cut = {
+                "selected_revision_id": local_chain[-1]["revision_id"],
+                "after_physical_group": int(local_chain[-1]["group"]["physical_group"]),
+            }
         self.notes.append(f"Imported {len(records)} verified prefix chunks into the new plan; originals preserved")
         return records
 
@@ -1878,8 +1961,9 @@ class RunStorageController:
     def _validated_take_selection(
         self,
         contract: dict[str, Any],
+        *, source_lineage: str | None = None,
     ) -> dict[str, Any]:
-        lineage = str(contract.get("nonce_lineage_sha256", ""))
+        lineage = str(source_lineage or contract.get("nonce_lineage_sha256", ""))
         manifests, catalog, _ = self._provenance_catalog(
             lineage_sha256=lineage,
         )
@@ -2252,9 +2336,53 @@ class RunStorageController:
                 raise RunStorageError(
                     "Take selection cannot be combined with manual Regenerate From"
                 )
-            candidate = self._validated_take_selection(contract)
-            self.selected_take_chain = list(candidate["chain"])
-            self.selected_take_records = list(candidate["records"])
+            source_lineage = str(contract.get("nonce_lineage_sha256", ""))
+            if "reference_group_contracts" in contract:
+                _, all_takes, _ = self._provenance_catalog()
+                selected_take = all_takes.get(self.take_revision_id)
+                if selected_take is not None:
+                    source_lineage = str(selected_take.get("lineage_sha256", ""))
+            candidate = self._validated_take_selection(
+                contract, source_lineage=source_lineage,
+            )
+            if source_lineage != str(contract.get("nonce_lineage_sha256", "")):
+                source_manifest = candidate.get("manifest")
+                if not isinstance(source_manifest, dict):
+                    raise RunStorageError("selected Take source manifest is unavailable")
+                source_contract = source_manifest.get("contract") or {}
+                if _hash(source_contract.get("global")) != _hash(contract.get("global")):
+                    raise RunStorageError("selected Take has a different common execution contract")
+                manifests = self._read_manifests()
+                source_chain = self._manifest_provenance_chain(source_manifest, manifests)
+                selected_chain = candidate["chain"]
+                if ([item["revision_id"] for item in source_chain[:len(selected_chain)]]
+                        != [item["revision_id"] for item in selected_chain]):
+                    raise RunStorageError("selected Take is not the source manifest's validated prefix")
+                selected_end = int(candidate["validated_prefix_count"])
+                try:
+                    compatible_entries, compatible_records = self._compatible_plan_prefix(
+                        source_manifest, contract, stop_before=selected_end + 1,
+                    )
+                except (OSError, ValueError) as exc:
+                    raise RunStorageError(f"selected Take prefix cannot be imported: {exc}") from exc
+                if (len(compatible_entries) != selected_end
+                        or compatible_records != candidate["records"]):
+                    failed_group = len(compatible_entries) + 1
+                    raise RunStorageError(
+                        f"selected Take is incompatible with the new Reference plan "
+                        f"at physical group starting with chunk {failed_group}; "
+                        "choose an earlier compatible Take or deselect Take and Regenerate From"
+                    )
+                candidate["entries"] = compatible_entries
+                candidate["records"] = compatible_records
+                candidate["selected_take_import"] = {
+                    "revision_id": self.take_revision_id,
+                    "physical_group": self.take_group,
+                }
+                self._plan_import = candidate
+            else:
+                self.selected_take_chain = list(candidate["chain"])
+                self.selected_take_records = list(candidate["records"])
             self.selected_take_revision = dict(candidate)
         else:
             smart_only = self.review_action == REVIEW_ACTION_REGENERATE_CURRENT
@@ -2463,6 +2591,7 @@ class RunStorageController:
         timeline_video_contract: dict[str, Any] | None = None,
         guide_contract: dict[str, Any] | None = None,
         execution_semantics: dict[str, Any] | None = None,
+        reference_storage_plan: ReferenceStoragePlan | None = None,
     ) -> dict[str, Any] | None:
         if existing_session is not None:
             raise RunStorageError("Run Storage cannot be combined with an explicit Session")
@@ -2472,6 +2601,8 @@ class RunStorageController:
             self.prompt_graph,
             self.sampler_node_id,
             require_video_vae=(
+                reference_storage_plan is not None
+                or
                 conditioning_mode_uses_video_vae(str(conditioning_mode))
                 or reference_video_contract is not None
                 or timeline_video_contract is not None
@@ -2508,6 +2639,7 @@ class RunStorageController:
             timeline_video_contract=timeline_video_contract,
             guide_contract=guide_contract,
             execution_semantics=execution_semantics,
+            reference_storage_plan=reference_storage_plan,
         )
         self.contract = contract
         if self.review_generation_mode is not None or self.review_action is not None:
@@ -2654,6 +2786,11 @@ class RunStorageController:
             "chunks": best_records,
             "report_summary": (exact or {}).get("report_summary", ""),
         }
+        if reference_storage_plan is not None:
+            self.manifest["reference_routing_audit"] = (
+                (exact or {}).get("reference_routing_audit")
+                or reference_storage_plan.audit()
+            )
         if exact is not None and isinstance(exact.get("prefix_import"), dict):
             self.manifest["prefix_import"] = dict(exact["prefix_import"])
         if self.selected_take_chain:
@@ -2687,6 +2824,8 @@ class RunStorageController:
             revision_id=self.revision_id,
             first_frame_hash=first_frame_hash,
             last_frame_hash=last_frame_hash,
+            reference_storage_plan=reference_storage_plan,
+            accepted_chunks=len(best_entries),
         )
         return make_session(
             chunks=best_entries, width=int(width), height=int(height),

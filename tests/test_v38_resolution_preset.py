@@ -389,7 +389,7 @@ def test_project_frontend_applies_v37_controls_and_custom_mp_visibility_to_v38()
     source = (ROOT / "web" / "project_id.js").read_text(encoding="utf-8")
     assert 'const V38_NODE_CLASS = "H3ContinuumSamplerV38";' in source
     assert "isV35 || isV36 || isV37 || isV38" in source
-    assert 'node.comfyClass === V38_NODE_CLASS' in source
+    assert 'const isModernSamplerClass = (name) => name === V38_NODE_CLASS || name === V39_NODE_CLASS;' in source
     assert 'presetWidget?.value === CUSTOM_RESOLUTION_PRESET' in source
     assert 'attachRefresh(presetWidget, "__h3ContinuumResolutionPresetCallback", refresh);' in source
     assert 'const SIZE_SOURCE_WIDGET = "size_source";' in source
@@ -424,6 +424,8 @@ def test_size_source_frontend_migrates_legacy_and_disables_the_correct_widgets(t
     )
     script = f"""
 const V38_NODE_CLASS = "H3ContinuumSamplerV38";
+const V39_NODE_CLASS = "H3ContinuumSamplerV39";
+const isModernSamplerClass = (name) => name === V38_NODE_CLASS || name === V39_NODE_CLASS;
 const RESOLUTION_PRESET_WIDGET = "preset";
 const CUSTOM_MP_WIDGET = "custom_mp";
 const CUSTOM_RESOLUTION_PRESET = "Custom";

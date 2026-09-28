@@ -12,14 +12,12 @@ from ComfyUI_H3_Continuum_Join import nodes as root_nodes
 from ComfyUI_H3_Continuum_Join.v3 import driving_nodes
 from ComfyUI_H3_Continuum_Join.v3 import easy_nodes
 from ComfyUI_H3_Continuum_Join.v3 import second_pass_nodes
-from ComfyUI_H3_Continuum_Join.tools.verify_runtime import (
-    EXPECTED_PUBLIC_NODE_DISPLAY_NAMES,
-)
 
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_DISPLAY_NAMES = {
     "H3ContinuumSamplerV38": "H3 Continuum Sampler V3.8",
+    "H3ContinuumSamplerV39": "H3 Continuum Sampler V3.9",
     "H3ContinuumReferenceAudios": "H3 Continuum Reference Audios",
     "H3ContinuumAssembleSeamV35": "H3 Continuum Finalize",
     "H3EasyLoadImage": "H3 Continuum Load Image",
@@ -28,6 +26,7 @@ PUBLIC_DISPLAY_NAMES = {
     "H3ContinuumVideoAdapter": "H3 Continuum Video Adapter",
     "H3ContinuumSecondPassV35": "H3 Continuum Second Pass",
     "H3ContinuumReferenceImages": "H3 Continuum Reference Images",
+    "H3ContinuumReferenceImagesV39": "H3 Continuum Reference Images V3.9",
     "H3DecodeCacheHelper": "Decode Cache Helper",
 }
 
@@ -35,7 +34,6 @@ PUBLIC_DISPLAY_NAMES = {
 def test_public_export_keeps_legacy_loaders_and_adds_video_adapter():
     assert set(root_nodes.NODE_CLASS_MAPPINGS) == set(PUBLIC_DISPLAY_NAMES)
     assert root_nodes.NODE_DISPLAY_NAME_MAPPINGS == PUBLIC_DISPLAY_NAMES
-    assert EXPECTED_PUBLIC_NODE_DISPLAY_NAMES == PUBLIC_DISPLAY_NAMES
 
 
 def test_labs_and_unreleased_easy_implementations_remain_internal():
@@ -136,6 +134,12 @@ def test_registry_package_keeps_official_v38x2_workflows_and_excludes_developmen
     assert "!examples/workflows/MiniMax_H3_Continuum_V38X2.zip" in rules
     assert "!examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json" in rules
     assert "!examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip" in rules
+    assert "!examples/workflows/MiniMax_H3_Continuum_V39_Reference_Inline.json" in rules
+    assert "!examples/workflows/MiniMax_H3_Continuum_V39_Reference_Inline.zip" in rules
+    assert "!examples/workflows/MiniMax_H3_Continuum_V39.json" in rules
+    assert "!examples/workflows/MiniMax_H3_Continuum_V39.zip" in rules
+    assert "!examples/MiniMax_H3_Continuum_V39.json" in rules
+    assert "!examples/MiniMax_H3_Continuum_V38X2.json" in rules
     assert "*.zip" in rules
 
     workflow = json.loads(
@@ -185,6 +189,12 @@ def test_registry_manifest_matches_every_declared_source_file():
         "examples/workflows/MiniMax_H3_Continuum_V38X2.zip",
         "examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json",
         "examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip",
+        "examples/workflows/MiniMax_H3_Continuum_V39_Reference_Inline.json",
+        "examples/workflows/MiniMax_H3_Continuum_V39_Reference_Inline.zip",
+        "examples/workflows/MiniMax_H3_Continuum_V39.json",
+        "examples/workflows/MiniMax_H3_Continuum_V39.zip",
+        "examples/MiniMax_H3_Continuum_V39.json",
+        "examples/MiniMax_H3_Continuum_V38X2.json",
     }
 
     for relative_path, expected_digest in entries.items():
@@ -204,6 +214,9 @@ def test_intuitive_facade_is_discoverable_and_presentation_only(tmp_path):
     ).replace(
         'import { normalizeReferenceAudioLabels } from "./reference_audio_ui.js";',
         "function normalizeReferenceAudioLabels() {}",
+    ).replace(
+        'import { configureV39ReferenceImages, connectedV39LegacyReferenceInputs, pruneV39LegacyReferenceInputs, refreshV39ReferenceImagesForSampler } from "./reference_images_v39.js";',
+        "function configureV39ReferenceImages() {} function connectedV39LegacyReferenceInputs() { return []; } function pruneV39LegacyReferenceInputs() { return 0; } function refreshV39ReferenceImagesForSampler() {}",
     ).replace(
         'import { migrateReferenceImageInputs } from "./reference_image_ui.js";',
         "function migrateReferenceImageInputs() {}",

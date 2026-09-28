@@ -130,6 +130,12 @@ def execute_v38_runtime_request(
     if request.diagnostics_mode == diagnostics_off:
         return output.as_public_tuple()
 
+    # The V3.8 reliability summary counts every connected Reference image.
+    # A Custom V3.9 group intentionally prepares only its selected images, so
+    # that legacy summary would describe a different conditioning path.
+    if "_reference_routing_settings" in request.runtime_kwargs:
+        return output.as_public_tuple()
+
     try:
         inputs = request.diagnostics_inputs
         diagnostics = build_diagnostics(

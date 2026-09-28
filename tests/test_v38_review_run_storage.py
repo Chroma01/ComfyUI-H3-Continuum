@@ -25,7 +25,19 @@ from ComfyUI_H3_Continuum_Join.branch_provenance import (
 )
 from ComfyUI_H3_Continuum_Join.state import make_plan
 from ComfyUI_H3_Continuum_Join.v2.seeds import derive_chunk_seed
-from ComfyUI_H3_Continuum_Join.v2.session import make_chunk_entry
+from ComfyUI_H3_Continuum_Join.v2.session import make_chunk_entry, make_session
+from ComfyUI_H3_Continuum_Join.v2 import session_io
+from ComfyUI_H3_Continuum_Join.v2.sequence import _preserved_prefix
+from ComfyUI_H3_Continuum_Join.reference import REFERENCE_SIZE_MATCH_OUTPUT
+from ComfyUI_H3_Continuum_Join.v3.reference_routing import (
+    REFERENCE_SLOT_IDS, compile_reference_routing_schedule,
+)
+from ComfyUI_H3_Continuum_Join.v3.reference_runtime import (
+    ReferenceInputSet, ReferenceRoutingRuntime,
+)
+from ComfyUI_H3_Continuum_Join.v3.reference_storage_contract import (
+    build_reference_storage_plan, routed_session_identity, session_routing_settings,
+)
 from ComfyUI_H3_Continuum_Join.v3.nodes import (
     H3ContinuumSamplerProduction,
     H3ContinuumSamplerV3,
@@ -353,6 +365,184 @@ def _take(project: dict, *, group: int, nonce: int) -> dict:
         if int(revision["group"]["physical_group"]) == group
         and int(revision["variation_nonce"]) == nonce
     )
+
+
+def _rr_r5_contract(*, changed_group: int = 0) -> dict:
+    selectors = {slot: "off" for slot in REFERENCE_SLOT_IDS}
+    selectors["R1"] = "all" if not changed_group else ",".join(
+        str(index) for index in range(1, 5) if index != changed_group
+    )
+    if changed_group:
+        selectors["R4"] = str(changed_group)
+    routing = ReferenceRoutingRuntime(
+        schedule=compile_reference_routing_schedule(
+            total_chunks=4, terminal_merge_enabled=False,
+            mode="Custom", selectors_by_slot=selectors,
+        ),
+        inputs=ReferenceInputSet(
+            (torch.full((1, 64, 64, 3), 0.1), None, None,
+             torch.full((1, 64, 64, 3), 0.4), *([None] * 5)),
+            96, 64, REFERENCE_SIZE_MATCH_OUTPUT,
+        ),
+    )
+    plan = build_reference_storage_plan(
+        runtime=routing, prompts=[f"prompt {index}" for index in range(1, 5)],
+        first_frame_hash="none", last_frame_hash="none",
+    )
+    contract = _contract(chunks=4)
+    contract["global"]["reference_routing_contract_version"] = 1
+    contract["reference_group_contracts"] = plan.group_contracts
+    contract["nonce_lineage_sha256"] = _nonce_lineage_hash(contract)
+    return _apply_reroll_branch_contract(
+        contract, boundary=0, requested_nonce=0, effective_nonce=0,
+    )
+
+
+def test_rr_r5_selected_foreign_take_requires_whole_compatible_prefix(tmp_path):
+    source = _persist(
+        tmp_path, _rr_r5_contract(), prefix=2, review_unit=(2, 2),
+        updated_utc="2026-09-24T00:00:00+00:00",
+    )
+    selected = _take(_project(source), group=2, nonce=0)
+    controller, resolved, _, decision = _resolve(
+        tmp_path, _rr_r5_contract(changed_group=4),
+        take_action=TAKE_ACTION_USE, take_group=2,
+        take_revision_id=selected["revision_id"],
+    )
+    assert decision == "select_take"
+    assert controller.review_runtime_metrics["review_decision_created"] == 1
+    assert controller._plan_import is not None
+    assert controller.selected_take_chain == []
+    assert len(controller.validated_prefix.entries) == 2
+    assert resolved["nonce_lineage_sha256"] != source.contract["nonce_lineage_sha256"]
+    assert source.manifest["chunks"][0]["storage_revision_id"] == source.revision_id
+    controller.contract = resolved
+    sampling_revision_id, controller.contract_sha256 = revision_identity(resolved)
+    controller.revision_id = controller.storage_revision_id_override
+    controller.revision_root = controller.revisions_root / controller.revision_id
+    controller.manifest = {
+        "run_storage_schema_version": RUN_STORAGE_SCHEMA_VERSION,
+        "sampling_contract_version": SAMPLING_CONTRACT_VERSION,
+        "run_name": controller.run_name,
+        "revision_id": controller.revision_id,
+        "sampling_revision_id": sampling_revision_id,
+        "contract_sha256": controller.contract_sha256,
+        "contract": resolved,
+        "nonce_lifecycle": dict(resolved["nonce_lifecycle"]),
+        "status": REVISION_STATUS_IN_PROGRESS,
+        "created_utc": "2026-09-24T01:00:00+00:00",
+        "updated_utc": "2026-09-24T01:00:00+00:00",
+        "chunks": [],
+    }
+    controller._write_manifest()
+    imported = controller._adopt_plan_prefix(controller._plan_import)
+    assert len(imported) == 2
+    assert all(record["storage_revision_id"] == controller.revision_id for record in imported)
+    assert controller.manifest["prefix_import"]["selected_take"]["revision_id"] == selected["revision_id"]
+    assert controller.pending_branch_cut["selected_revision_id"] != selected["revision_id"]
+    controller.finalize(
+        session={"session_id": "routed-take", "chunks": list(controller.validated_prefix.entries)},
+        report="routed Take import", review_pause_metadata=controller.review_pause_metadata(),
+    )
+    assert controller.manifest["status"] == REVISION_STATUS_REVIEW_READY
+    assert source.manifest["chunks"][0]["storage_revision_id"] == source.revision_id
+
+
+def test_rr_r5_selected_foreign_take_rejects_changed_group_without_fallback(tmp_path):
+    source = _persist(
+        tmp_path, _rr_r5_contract(), prefix=2, review_unit=(2, 2),
+        updated_utc="2026-09-24T00:00:00+00:00",
+    )
+    selected = _take(_project(source), group=2, nonce=0)
+    with pytest.raises(RunStorageError, match="physical group starting with chunk 2"):
+        _resolve(
+            tmp_path, _rr_r5_contract(changed_group=2),
+            take_action=TAKE_ACTION_USE, take_group=2,
+            take_revision_id=selected["revision_id"],
+        )
+
+
+def test_rr_r5_explicit_session_keeps_only_compatible_complete_groups(tmp_path, monkeypatch):
+    old = _rr_r5_contract()
+    current = _rr_r5_contract(changed_group=2)
+    old_plan = SimpleNamespace(group_contracts=old["reference_group_contracts"],
+                               routing_config_sha256="a" * 64)
+    current_plan = SimpleNamespace(group_contracts=current["reference_group_contracts"])
+    identity = routed_session_identity("base")
+    saved = make_session(
+        chunks=[_entry(index, old) for index in range(3)],
+        width=32, height=32, chunk_seconds=5.0,
+        identity_hash=identity, model_fingerprint_value="f" * 64,
+        parent_session_id=None, reroll_from_chunk=0,
+        settings={"reference_routing_v1": session_routing_settings(old_plan, 3)},
+    )
+    monkeypatch.setattr(session_io, "session_directory", lambda: tmp_path)
+    session_io.save_session(saved, prefix="rr-r5", slot=1)
+    saved = session_io.load_session(prefix="rr-r5", slot=1)
+    preserved, notes = _preserved_prefix(
+        session=saved, prompt_hashes=current["prompt_hashes"], chunks=4,
+        reroll_from_chunk=0, width=32, height=32, chunk_seconds=5.0,
+        identity_hash=identity, last_frame_hash="none",
+        reference_storage_plan=current_plan,
+    )
+    assert len(preserved) == 1
+    assert any("Reference group changed" in note for note in notes)
+
+
+def test_rr_r5_plan_import_stops_at_first_changed_physical_group(tmp_path):
+    source = _persist(
+        tmp_path, _rr_r5_contract(), prefix=3, review_unit=(3, 3),
+        updated_utc="2026-09-24T00:00:00+00:00",
+    )
+    destination = RunStorageController("phase-d-review")
+    destination.run_root = source.run_root
+    destination.revisions_root = source.revisions_root
+    destination.prompts = [f"prompt {index}" for index in range(1, 5)]
+    current = _rr_r5_contract(changed_group=3)
+    imported = destination._find_plan_import(current)
+    assert imported is not None
+    assert imported["validated_prefix_count"] == 2
+    assert [record["sequence_index"] for record in imported["records"]] == [0, 1]
+    assert imported["revision_id"] == source.revision_id
+
+
+def test_rr_r5_review_decision_uses_fixed_imported_prefix_once(tmp_path):
+    source = _persist(
+        tmp_path, _rr_r5_contract(), prefix=2, review_unit=(2, 2),
+        updated_utc="2026-09-24T00:00:00+00:00",
+    )
+    controller, resolved, _, decision = _resolve(
+        tmp_path, _rr_r5_contract(changed_group=3),
+        review_action=REVIEW_ACTION_CONTINUE,
+    )
+    assert controller._plan_import is not None
+    assert len(controller.validated_prefix.entries) == 2
+    assert controller.review_runtime_metrics["review_decision_created"] == 1
+    assert controller.review_runtime_metrics["review_reconcile"] == 0
+    assert controller.review_execution.next_review_unit_start == 3
+    assert resolved["nonce_lineage_sha256"] != source.contract["nonce_lineage_sha256"]
+    assert decision == "inactive"
+
+
+def test_rr_r5_foreign_take_preserves_verified_nonce_variation(tmp_path):
+    source_contract = _apply_reroll_branch_contract(
+        _rr_r5_contract(), boundary=3,
+        requested_nonce=1, effective_nonce=1,
+    )
+    source = _persist(
+        tmp_path, source_contract, prefix=3, review_unit=(3, 3),
+        updated_utc="2026-09-24T00:00:00+00:00",
+    )
+    selected = _take(_project(source), group=3, nonce=1)
+    controller, resolved, nonce, decision = _resolve(
+        tmp_path, _rr_r5_contract(changed_group=4),
+        take_action=TAKE_ACTION_USE, take_group=3,
+        take_revision_id=selected["revision_id"],
+    )
+    assert decision == "select_take"
+    assert (resolved["reroll_from_chunk"], nonce) == (3, 1)
+    assert len(controller.validated_prefix.entries) == 3
+    assert controller._plan_import is not None
 
 
 def _persist_resolved_branch(
@@ -1410,6 +1600,8 @@ def test_partial_review_rebuilds_decode_outputs_without_truncating_session():
         preserve_final_frame=False,
         terminal_merged=False,
     )
+    verified_route_plan = {"mode": "Custom", "accepted_chunks": 3, "groups": []}
+    full_plan["reference_routing_v1"] = verified_route_plan
     result = {
         "last_state": {},
         "session": {"session_id": "session", "chunks": entries},
@@ -1449,6 +1641,7 @@ def test_partial_review_rebuilds_decode_outputs_without_truncating_session():
     assert torch.equal(scoped[0][0]["samples"], entries[1]["video"])
     assert torch.equal(scoped[1][0]["samples"], entries[1]["audio"])
     assert scoped[2]["target_frames"] == 120
+    assert scoped[2]["reference_routing_v1"] is verified_route_plan
     assert scoped[2]["chunks"][0]["sequence_index"] == 1
     assert scoped[2]["chunks"][0]["chunk_index"] == 2
     assert scoped[2]["second_pass_contract"]["physical_groups"][0][

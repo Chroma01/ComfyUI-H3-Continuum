@@ -376,6 +376,10 @@ def prepare_physical_refine_groups(
             "adaptation_stats": adaptation_stats,
             "physical_clip_index": physical_clip_index,
             "context_frames": context_frames,
+            "reference_routing_v1": (
+                captured_group.get("reference_routing_v1")
+                if captured_group is not None else None
+            ),
         }
         if group_consumer_fn is not None:
             group_consumer_fn(
@@ -472,7 +476,9 @@ def run_second_pass_groups(
     )
     group_seeds: list[int] = []
     conditioning_sources: list[str] = []
+    reference_inheritance: list[dict[str, Any]] = []
     group_report_lines: list[str] = []
+    routed_first_pass = isinstance(assembly_plan.get("reference_routing_v1"), Mapping)
 
     def sample_prepared_group(
         group_index,
@@ -492,6 +498,17 @@ def run_second_pass_groups(
         physical_seed = derive_refine_seed(int(refine_seed), group_index)
         group_seeds.append(physical_seed)
         conditioning_sources.append(conditioning_source)
+        route_record = detail.get("reference_routing_v1")
+        inheritance = (
+            "verified" if conditioning_source == "refine_context" and route_record is not None
+            else "not_inherited" if routed_first_pass
+            else "not_applicable"
+        )
+        reference_inheritance.append({
+            "physical_group": group_index + 1,
+            "status": inheritance,
+            "contract_sha256": route_record.get("sha256") if route_record is not None else None,
+        })
         nested_latent = latent_builder(video_samples, audio_samples)
         sample_arguments = dict(
             model=chunk_model,
@@ -530,6 +547,7 @@ def run_second_pass_groups(
             f"{group_index + 1}: logical_chunks={group.get('logical_chunks')}, "
             f"prompt_policy={group.get('prompt_policy', 'unknown')}, "
             f"conditioning_source={conditioning_source}, "
+            f"reference_inheritance={inheritance}, "
             f"physical_clip_index={physical_clip_index}, "
             f"context_frames={context_frames}, "
             f"refine_seed={physical_seed}, shape={tuple(refined_video.shape)}, "
@@ -607,6 +625,8 @@ def run_second_pass_groups(
     else:
         contract["execution"] = "t2va_physical_groups_audio_locked_v2"
     contract["conditioning_sources"] = conditioning_sources
+    if any(item["status"] != "not_applicable" for item in reference_inheritance):
+        contract["reference_inheritance"] = reference_inheritance
     contract["refine_seed_base"] = int(refine_seed)
     contract["refine_group_seeds"] = group_seeds
     contract["audio_output"] = "bit_exact_first_pass_passthrough"

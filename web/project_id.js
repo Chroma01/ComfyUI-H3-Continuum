@@ -1,6 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { normalizeReferenceAudioLabels } from "./reference_audio_ui.js";
+import { configureV39ReferenceImages, connectedV39LegacyReferenceInputs, pruneV39LegacyReferenceInputs, refreshV39ReferenceImagesForSampler } from "./reference_images_v39.js";
 import { migrateReferenceImageInputs } from "./reference_image_ui.js";
 
 const PRODUCTION_NODE_CLASS = "H3ContinuumSamplerProduction";
@@ -12,6 +13,10 @@ const V35_NODE_CLASS = "H3ContinuumSamplerV35";
 const V36_NODE_CLASS = "H3ContinuumSamplerV36";
 const V37_NODE_CLASS = "H3ContinuumSamplerV37";
 const V38_NODE_CLASS = "H3ContinuumSamplerV38";
+const V39_NODE_CLASS = "H3ContinuumSamplerV39";
+const isModernSamplerClass = (name) => name === V38_NODE_CLASS || name === V39_NODE_CLASS;
+const V39_PLAN_WIDGET = "Reference Plan Inspector";
+const V39_UNVERIFIED_PLAN = "Configured only — Queue has not verified the effective Reference Plan.";
 const V35_ASSEMBLE_SEAM_NODE_CLASS = "H3ContinuumAssembleSeamV35";
 const PROJECT_WIDGET = "project_id";
 const LEGACY_RUN_NAME_WIDGET = "run_name";
@@ -343,7 +348,7 @@ function linkedInput(node, names) {
 }
 
 function removeUnusedLegacyInputs(node) {
-    if (node.comfyClass !== V38_NODE_CLASS) return;
+    if (!isModernSamplerClass(node.comfyClass)) return;
     for (const name of ["guide", "reference_audio_1", "reference_audio_vae"]) {
         if (!linkedInput(node, [name])) removeUnusedInput(node, name);
     }
@@ -709,7 +714,7 @@ function setReviewSeedControlFixed(node) {
 }
 
 function requireFixedSeedForReview(node) {
-    if (node.comfyClass !== V38_NODE_CLASS) return;
+    if (!isModernSamplerClass(node.comfyClass)) return;
     if (findWidget(node, GENERATION_MODE_WIDGET)?.value !== GENERATION_MODE_REVIEW) return;
     const control = String(baseSeedControlWidget(node)?.value || "").toLowerCase();
     if (control === "fixed") return;
@@ -1000,7 +1005,7 @@ function moveNamedWidgetsToFront(node, orderedNames) {
 }
 
 function configureIntuitiveV38Ux(node) {
-    if (node.comfyClass !== V38_NODE_CLASS || typeof node.addWidget !== "function") return;
+    if (!isModernSamplerClass(node.comfyClass) || typeof node.addWidget !== "function") return;
     const sourceOptions = (name) => {
         const widget = name === "control_after_generate"
             ? baseSeedControlWidget(node)
@@ -1227,7 +1232,8 @@ function configureIntuitiveV38Ux(node) {
         );
         const referenceConnected = activeLinkedInput(
             node,
-            ["reference_image_1", "reference_image_2", "reference_image_3", "reference_image_4", "reference_image_5", "image_references"],
+            node.comfyClass === V39_NODE_CLASS ? ["reference_images"]
+                : ["reference_image_1", "reference_image_2", "reference_image_3", "reference_image_4", "reference_image_5", "image_references"],
         );
         const videoConnected = activeLinkedInput(node, ["reference_video_1"]);
         const storageEnabled = findWidget(node, RUN_STORAGE_WIDGET)?.value === "Save + Auto Resume";
@@ -2073,10 +2079,10 @@ function installReviewQueueAdapter() {
         const output = { ...(data?.output || {}) };
         const records = [];
         for (const [nodeId, item] of Object.entries(output)) {
-            if (item?.class_type !== V38_NODE_CLASS || !reviewPromptIncludes(output, nodeId, options)) continue;
+            if (!isModernSamplerClass(item?.class_type) || !reviewPromptIncludes(output, nodeId, options)) continue;
             const node = app.graph?.getNodeById?.(nodeId)
                 || app.graph?._nodes?.find(n => String(n.id) === nodeId);
-            if (!node || node.comfyClass !== V38_NODE_CLASS) continue;
+            if (!node || !isModernSamplerClass(node.comfyClass)) continue;
             requireFixedSeedForReview(node);
             const normalizedInputs = { ...(item.inputs || {}) };
             normalizeRunStorageState(node, normalizedInputs);
@@ -2138,7 +2144,7 @@ async function synchronizeReviewQueue({discover = false} = {}) {
                 for (const node of app.graph?._nodes || []) {
                     const nodeId = String(node.id);
                     const submitted = output[nodeId];
-                    if (node.comfyClass !== V38_NODE_CLASS || submitted?.class_type !== V38_NODE_CLASS
+                    if (!isModernSamplerClass(node.comfyClass) || submitted?.class_type !== node.comfyClass
                             || !reviewPromptIncludes(output, nodeId, {partialExecutionTargets: item[4]})
                             || reviewPromptRunName(submitted.inputs) !== takeRunName(node)) continue;
                     records.push({node, nodeId, runName: takeRunName(node),
@@ -2184,7 +2190,7 @@ async function synchronizeReviewQueue({discover = false} = {}) {
 
 async function reloadReviewHistory() {
     for (const node of app.graph?._nodes || []) {
-        if (node.comfyClass === V38_NODE_CLASS) await loadTakeHistory(node, {force: true});
+        if (isModernSamplerClass(node.comfyClass)) await loadTakeHistory(node, {force: true});
     }
     await synchronizeReviewQueue({discover: true});
 }
@@ -2227,7 +2233,7 @@ function attachTakeHistoryReload(node) {
 }
 
 function configureProductionReviewUx(node) {
-    if (node.comfyClass !== V38_NODE_CLASS || typeof node.addWidget !== "function") return;
+    if (!isModernSamplerClass(node.comfyClass) || typeof node.addWidget !== "function") return;
     let statusWidget = transientProductionWidgets(node).find(
         (widget) => widget.name === PRODUCTION_STATUS_WIDGET,
     );
@@ -2646,12 +2652,113 @@ function configureProductionReviewUx(node) {
     refresh();
 }
 
+function configureV39ReferenceUx(node) {
+    if (node.comfyClass !== V39_NODE_CLASS) return;
+    let planWidget = transientProductionWidgets(node).find(
+        (widget) => widget.name === V39_PLAN_WIDGET,
+    );
+    if (!planWidget) {
+        const value = V39_UNVERIFIED_PLAN;
+        planWidget = typeof node.addCustomWidget === "function"
+            ? node.addCustomWidget({
+                type: "h3_continuum_reference_plan",
+                name: V39_PLAN_WIDGET,
+                value,
+                serialize: false,
+                options: { serialize: false },
+                [PRODUCTION_TRANSIENT_WIDGET]: true,
+                computeSize(width) {
+                    const count = String(this.value || "").split("\n").length;
+                    return [width, Math.min(220, Math.max(48, 14 + count * 16))];
+                },
+                draw(ctx, _node, width, y, height) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(15, y + 4, Math.max(1, width - 30), Math.max(1, height - 8));
+                    ctx.clip();
+                    ctx.fillStyle = "#e7f4e9";
+                    ctx.font = "12px Arial";
+                    ctx.textAlign = "left";
+                    ctx.textBaseline = "top";
+                    const lines = String(this.value || "").split("\n");
+                    const count = Math.max(1, Math.floor((height - 12) / 16));
+                    for (let index = 0; index < Math.min(lines.length, count); index += 1) {
+                        ctx.fillText(lines[index], 18, y + 6 + index * 16, Math.max(1, width - 36));
+                    }
+                    ctx.restore();
+                },
+            })
+            : addTransientProductionWidget(
+                node, "text", V39_PLAN_WIDGET, value, null, { multiline: true },
+            );
+        if (planWidget) {
+            planWidget.disabled = true;
+            setWidgetTooltip(planWidget, (
+                "Read-only. Before Queue this is only configured intent. After Queue the "
+                + "backend reports actual physical groups, reused/generated status, "
+                + "R1-R9 to Picture mapping, contract hashes, and warnings."
+            ));
+        }
+        installProductionSerializationGuard(node);
+    }
+    const routeKey = () => reviewSettingsSnapshot(node);
+    const refresh = () => {
+        const key = routeKey();
+        if (node.__h3ContinuumReferenceRouteKey !== key) {
+            node.__h3ContinuumReferenceRouteKey = key;
+            node.__h3ContinuumReferencePlan = null;
+        }
+        const legacyConnections = connectedV39LegacyReferenceInputs(node);
+        const reviewOpen = reviewReady(node)
+            && !node.__h3ContinuumReviewSettingsOpen
+            && !node.__h3ContinuumModeSetup;
+        if (planWidget) {
+            planWidget.value = legacyConnections.length
+                ? `Old Reference connection(s) ${legacyConnections.join(", ")} are not used by V3.9. Reconnect them through H3 Continuum Reference Images V3.9.`
+                : node.__h3ContinuumReferencePlan || V39_UNVERIFIED_PLAN;
+            setWidgetVisible(planWidget, !reviewOpen || legacyConnections.length > 0);
+        }
+        node.setDirtyCanvas?.(true, true);
+    };
+    if (!node.__h3ContinuumV39ReferenceUxInstalled) {
+        const previousRefresh = node.__h3ContinuumIntuitiveUxRefresh;
+        node.__h3ContinuumIntuitiveUxRefresh = () => {
+            previousRefresh?.();
+            refresh();
+        };
+        attachRefresh(findWidget(node, "chunks"), "__h3ContinuumV39ChunksRefresh", () => {
+            refreshV39ReferenceImagesForSampler(node);
+            refresh();
+        });
+        const previousExecuted = node.onExecuted;
+        node.onExecuted = function(message, ...args) {
+            const result = previousExecuted?.call(this, message, ...args);
+            const text = message?.h3_reference_plan?.[0];
+            if (typeof text === "string") {
+                this.__h3ContinuumReferencePlan = text;
+                refresh();
+            }
+            return result;
+        };
+        const previousConnectionsChange = node.onConnectionsChange;
+        node.onConnectionsChange = function(...args) {
+            const result = previousConnectionsChange?.apply(this, args);
+            this.__h3ContinuumReferencePlan = null;
+            refreshV39ReferenceImagesForSampler(this);
+            refresh();
+            return result;
+        };
+        node.__h3ContinuumV39ReferenceUxInstalled = true;
+    }
+    refresh();
+}
+
 function normalizedV38View(node) {
     return node.__h3ContinuumAdvancedOpen ? V38_VIEW_PRODUCTION : V38_VIEW_BASIC;
 }
 
 function applyV38View(node) {
-    if (node.comfyClass !== V38_NODE_CLASS) return;
+    if (!isModernSamplerClass(node.comfyClass)) return;
     node.__h3ContinuumIntuitiveUxRefresh?.();
     node.__h3ContinuumProductionUxRefresh?.();
     if (!node.__h3ContinuumTakeInitialLoad) {
@@ -2662,7 +2769,7 @@ function applyV38View(node) {
 }
 
 function configureV38ViewProperty(node) {
-    if (node.comfyClass !== V38_NODE_CLASS) return V38_VIEW_BASIC;
+    if (!isModernSamplerClass(node.comfyClass)) return V38_VIEW_BASIC;
     node.properties ||= {};
     if (!node.__h3ContinuumLegacyViewMigrated) {
         node.__h3ContinuumAdvancedOpen = (
@@ -2713,7 +2820,7 @@ function configureConditionalWidgets(node) {
     const refresh = () => {
         removeUnusedLegacyInputs(node);
         const productionView = true;
-        const storageEnabled = node.comfyClass === V38_NODE_CLASS
+        const storageEnabled = isModernSamplerClass(node.comfyClass)
             ? storageWidget?.value === "Save + Auto Resume"
             : normalizeRunStorageState(node);
         const explicitRegeneration = storageEnabled
@@ -2725,7 +2832,9 @@ function configureConditionalWidgets(node) {
         setWidgetVisible(
             findWidget(node, REFERENCE_SIZE_WIDGET),
             productionView
-                && activeLinkedInput(node, ["reference_image_1", "reference_image_2", "reference_image_3", "reference_image_4", "reference_image_5", "image_references"]),
+                && activeLinkedInput(node, node.comfyClass === V39_NODE_CLASS
+                    ? ["reference_images"]
+                    : ["reference_image_1", "reference_image_2", "reference_image_3", "reference_image_4", "reference_image_5", "image_references"]),
         );
         setWidgetVisible(
             findWidget(node, TIMELINE_SIZE_WIDGET),
@@ -2752,7 +2861,7 @@ function configureConditionalWidgets(node) {
 }
 
 function configureResolutionPresetWidgets(node) {
-    if (node.comfyClass !== V38_NODE_CLASS) {
+    if (!isModernSamplerClass(node.comfyClass)) {
         return;
     }
     const aspectWidget = findWidget(node, LEGACY_ASPECT_WIDGET);
@@ -2893,7 +3002,7 @@ function isOneShotReviewAction(value) {
 }
 
 function normalizeReviewActionOnLoad(node) {
-    if (node.comfyClass !== V38_NODE_CLASS) {
+    if (!isModernSamplerClass(node.comfyClass)) {
         return false;
     }
     delete node[REVIEW_PENDING_ACTION];
@@ -2986,7 +3095,7 @@ function buildReviewQueueInputs(node, apiInputs) {
 }
 
 function configureReviewControls(node) {
-    if (node.comfyClass !== V38_NODE_CLASS) {
+    if (!isModernSamplerClass(node.comfyClass)) {
         return;
     }
     const generationWidget = findWidget(node, GENERATION_MODE_WIDGET);
@@ -3079,8 +3188,10 @@ function configureNode(node) {
     const isV35 = node.comfyClass === V35_NODE_CLASS;
     const isV36 = node.comfyClass === V36_NODE_CLASS;
     const isV37 = node.comfyClass === V37_NODE_CLASS;
-    const isV38 = node.comfyClass === V38_NODE_CLASS;
+    const isV38 = isModernSamplerClass(node.comfyClass);
+    if (node.comfyClass === V39_NODE_CLASS) pruneV39LegacyReferenceInputs(node);
     if (!isProduction && !isTimeline && !isV34 && !isV35 && !isV36 && !isV37 && !isV38) {
+        configureV39ReferenceImages(node);
         if (node.comfyClass === "H3ContinuumReferenceAudios") {
             normalizeReferenceAudioLabels(node);
         }
@@ -3114,6 +3225,7 @@ function configureNode(node) {
     configureReviewControls(node);
     configureIntuitiveV38Ux(node);
     configureProductionReviewUx(node);
+    configureV39ReferenceUx(node);
     applyV38View(node);
     node.setDirtyCanvas?.(true, true);
     return projectWidget;
@@ -3175,6 +3287,9 @@ app.registerExtension({
     },
 
     loadedGraphNode(node) {
+        if (node.comfyClass === V39_NODE_CLASS) {
+            node.__h3ContinuumReferencePlan = null;
+        }
         normalizeReviewActionOnLoad(node);
         configureNodeAfterSetup(node);
     },
@@ -3191,6 +3306,10 @@ app.registerExtension({
         for (const node of app.graph?._nodes || []) {
             const projectWidget = configureNode(node);
             const apiNode = prompt.output?.[String(node.id)];
+            if (node.comfyClass === V39_NODE_CLASS && apiNode?.inputs) {
+                node.__h3ContinuumReferencePlan = null;
+                configureV39ReferenceUx(node);
+            }
             if (apiNode?.inputs) {
                 if (
                     node.comfyClass === PRODUCTION_NODE_CLASS
@@ -3199,10 +3318,10 @@ app.registerExtension({
                     || node.comfyClass === V35_NODE_CLASS
                     || node.comfyClass === V36_NODE_CLASS
                     || node.comfyClass === V37_NODE_CLASS
-                    || node.comfyClass === V38_NODE_CLASS
+                    || isModernSamplerClass(node.comfyClass)
                 ) {
                     node.__h3ContinuumResolutionUxRefresh?.();
-                    if (node.comfyClass !== V38_NODE_CLASS) {
+                    if (!isModernSamplerClass(node.comfyClass)) {
                         normalizeRunStorageState(node, apiNode.inputs);
                     }
                     apiNode.inputs.diagnostics = settingValue(SETTINGS.detailedReport, false)

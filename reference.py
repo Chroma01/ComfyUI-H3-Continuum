@@ -70,6 +70,9 @@ class ReferenceAssets:
     image_hashes: tuple[str, ...]
     combined_hash: str
     size_mode: str
+    # Internal source identity, aligned with the compact images/hash/latent tuples.
+    # An empty tuple keeps manually constructed legacy assets compatible.
+    source_slot_ids: tuple[str, ...] = ()
 
     @property
     def count(self) -> int:
@@ -205,19 +208,25 @@ def prepare_reference_assets(
     reference_image_4: torch.Tensor | None = None,
     reference_image_5: torch.Tensor | None = None,
     image_references: ReferenceImageBundle | None = None,
+    selected_source_slot_ids: tuple[str, ...] | None = None,
 ) -> ReferenceAssets | None:
     # Match Core's dynamic Reference inputs: bypassed or otherwise absent
     # sockets are ignored, then active images are numbered contiguously in
     # connection order as Picture 1..N.
-    inputs = [
-        image
-        for image in resolve_reference_image_inputs(
-            reference_image_1, reference_image_2, reference_image_3,
-            reference_image_4, reference_image_5, image_references,
-        )
+    resolved_inputs = resolve_reference_image_inputs(
+        reference_image_1, reference_image_2, reference_image_3,
+        reference_image_4, reference_image_5, image_references,
+    )
+    selected_slots = (
+        None if selected_source_slot_ids is None else set(selected_source_slot_ids)
+    )
+    active_slots = [
+        (f"R{slot_number}", image)
+        for slot_number, image in enumerate(resolved_inputs, start=1)
         if image is not None
+        and (selected_slots is None or f"R{slot_number}" in selected_slots)
     ]
-    if not inputs:
+    if not active_slots:
         return None
     images = tuple(
         _resize_reference(
@@ -226,7 +235,7 @@ def prepare_reference_assets(
             output_height=int(output_height),
             size_mode=size_mode,
         )
-        for index, image in enumerate(inputs, start=1)
+        for index, (_, image) in enumerate(active_slots, start=1)
     )
     image_hashes = tuple(_tensor_hash(image) for image in images)
     combined_hash = _canonical_hash(
@@ -242,6 +251,7 @@ def prepare_reference_assets(
         image_hashes=image_hashes,
         combined_hash=combined_hash,
         size_mode=size_mode,
+        source_slot_ids=tuple(slot_id for slot_id, _ in active_slots),
     )
 
 

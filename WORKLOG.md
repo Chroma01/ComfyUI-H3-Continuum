@@ -1875,8 +1875,143 @@ D:\Codex\_snapshots\ComfyUI-H3-Continuum\pre-rollback-after-00038-fail-20260821_
 - Full isolated CPU/Node suite: 1377 passed, 3 skipped, zero failures/errors. Actions run 35558988542. Source was snapshotted with `tools/snapshot.ps1` before edits; source/Registry manifest hashes verified.
 - Windows deployment, live-browser checks and GPU generation were not performed; fixed H3情報チェック handoff remains pending. No Release/tag/Registry publication.
 
-## Timeline Video Experimental local acceptance and publication preparation (2026-09-22)
+## Unified Timeline Video Experimental 1 — h3-timeline-video-experimental-1 (2026-09-21)
 
-- Applied the approved Timeline Video implementation to ComfyUI_W from baseline `085943ad...`. Added `Repeat Reference` compatibility default and opt-in `Follow Timeline` over the existing 24fps IMAGE input, plus slice-specific cache identity and separate comparison workflows. Official V3.8X2 workflow bytes were not changed.
-- Full CPU suite passed `1424 passed / 1 skipped / 0 failed`. Browser save/reload retained Follow mode and the Timeline Video input. Follow and Repeat `2 x 5 s` GPU runs both produced 704x416/24fps/240-frame/10-second video with 32kHz stereo audio; no OOM, NaN, allocation failure, or crash. Chunk-2 A/B SSIM `0.7246` confirmed mode separation after nearly identical Chunk 1.
-- README/README_JA and the experimental contract were updated with wiring, behavior, limits, measured 16GB headroom, and the corrected ten-node V3.8X2 public-surface count. No Release/tag or Registry publish is included in this main commit/push task.
+- User-approved offline ZIP implementation based on main `085943ad9cb8023a2042d4d731c83e638361c06e`. One appended optional `video_reference_mode`, old `reference_video_1` IMAGE input retained. Missing mode is Repeat; experimental copies explicitly select Follow/Repeat.
+- Follow selects the existing physical group's natural visible frame interval, excluding continuation context. It does not use the old timeline source that disables Terminal Merge. Per-slice VAE keys and fresh group-local prompt-cache dictionaries separate equal-prompt intervals. After source EOF, use no video reference; no automatic loop/stretch/long hold.
+- Source mode/content/preprocess identity does not depend on configured Chunks. Preserve sampling, seed, SIGMAS, masks, Audio, wrappers, existing public workflow bytes and old Repeat preprocessing.
+- Creation-time validation: isolated CPU backend tests with three Git-blob-verified upstream helpers, AST source-transform fixtures, Node.js restoration fixtures and installer transaction tests. See the ZIP's verification/evidence report for exact counts and scope. This is NOT full-repository, installed-ComfyUI, real-browser or GPU validation.
+- The offline updater requires exact baseline fingerprints, compiles intended Python changes before writing, and runs repository tools/snapshot.ps1 on the selected authoritative source before applying. The updater does not commit/push, restart the backend, submit a Queue, or access saved runs/media. Applied location and actual snapshot are recorded in .h3-timeline-experimental.json.
+- Production/GPU acceptance HOLD. Fixed H3情報チェック handoff PENDING; no cross-task transport in the creation environment. No Release/tag/Registry promotion.
+
+## 2026-09-23 — PackedLayout preflight and safe stale-layout repair (local)
+
+- Snapshotted the 604-file ComfyUI_W runtime before editing. Added block-level Video/Audio latent geometry and aggregate PackedLayout row validation in `layout_adapter.py`, integrated pre/post-materialization checks in `model_patch.py`, and retained one proven-safe rebuilt layout across Sampling evaluations.
+- Added CPU contracts for normal mixed blocks, stale-layout repair, Visual keyframe mismatch, Reference Image metadata mismatch, Reference Audio metadata mismatch, unavailable-layout compatibility, final validation and wrapper persistence. Focused suite passed `18`; full non-Manifest regression passed `1430` with `1 skipped`; the only unfiltered full-suite failure was the expected stale Registry Manifest hash after local source changes.
+- Deployed only `layout_adapter.py`, `model_patch.py`, `tests/test_model_patch.py`, and new `tests/test_packed_layout_preflight.py` to ComfyUI_W. Existing Timeline experimental and unrelated dirty files were preserved. No GPU Queue, backend restart, manifest update, source-repository edit, commit or push was performed.
+
+## 2026-09-24 — RR-R1 fixed Reference identity (local CPU)
+
+- Snapshotted the 605-file ComfyUI_W runtime immediately before editing. Added internal `source_slot_ids` to prepared Reference assets before sparse-slot compaction; normal and cached VAE encode retain the IDs through `replace()`. Existing Reference contract, hashes, order, and public surface remain unchanged.
+- Added 14 RR-R1 CPU tests covering sparse direct/bundle slots, legacy R4/R5, duplicate image slots, resize, golden pre-change hashes/contract, and plain/cached latent identity. RR-R1 plus related regression: `180 passed, 1 deselected` (known Registry Manifest mismatch). No GPU, browser, full-suite Green claim, Manifest update, commit, or push.
+
+## 2026-09-24 — RR-R1 Manifest and full CPU Green (local)
+
+- Snapshotted the 606-file ComfyUI_W source before this follow-up. Synchronized existing PackedLayout and RR-R1 source hashes in both Manifests; added the two new CPU regression files to the source Manifest. Source `384/384` and Registry `124/124` SHA entries now match, without changing runtime logic or workflow bytes.
+- Full CPU suite: `1445 passed, 1 skipped, 0 failed`. An isolated 125-file Registry declaration stage (including its Manifest) matched every source SHA; the four official/experimental workflow JSON-ZIP pairs matched. Official comfy-cli pack, live-browser/GPU checks, commit, push and publication were not performed.
+
+## 2026-09-24 — RR-R1 sparse-reference GPU integration smoke (local)
+
+- Used the already-running user-owned ComfyUI_W at `127.0.0.6:8188`; submitted the official V38X2 workflow in-memory without changing the saved workflow or browser tab. Queue was empty before and after.
+- T01 connected sparse R1/R4/R9 with the same full-body person image, 1x5s, Draft 0.30MP, Dasiwa Hybrid v2 int8, 20-step `res_multistep`/`simple`, Spectrum OFF, Run Storage OFF. Generation completed in `213.06s`; no OOM, NaN, allocation failure, crash, or execution error.
+- Output: 448x672, 24fps, 120 frames/5s; AAC 32kHz stereo/5s. Visual spot check showed recognizable face/outfit and forward movement. Audio was non-silent but dialogue/sound quality was not graded. Peak VRAM 15,565 MiB (718 MiB minimum free); peak RAM 35.54 GiB. See `D:\Codex\_test_results\ComfyUI-H3-Continuum\v39-rr-r1-gpu-20260924\T01_GPU_REPORT_JA.md` and raw JSON evidence.
+- Scope is only live sparse-reference integration. RR-R1 preserves internal slot IDs but does not route references per chunk or alter Sampling; this GPU smoke is not a proof of those later behaviors. No source/workflow changes, commit, push, tag, release, Registry publication, backend restart, or backend stop.
+
+## 2026-09-24 — RR-R1 all-nine Reference GPU integration (local)
+
+- After ComfyUI_W returned from the user's restart, verified API `127.0.0.6:8188`, ComfyUI 0.37.0, Sampler registration, and Queue `0/0`. T02 used the official V38X2 graph in-memory and independently connected the same 0.30MP person image to R1-R9, with no edits to saved workflows or browser tabs.
+- Fresh 1x5s Full Run with the same Dasiwa Hybrid v2 int8 / 20-step `res_multistep` / `simple` / Spectrum OFF / Run Storage OFF settings completed in `246.72s`. No OOM, NaN, allocation failure, crash, or execution error. Queue returned to `0/0`.
+- Output: 448x672, 24fps, 120 frames/5s; AAC 32kHz stereo/5s. Visual spot check showed consistent face/outfit and visible approach; audio was non-silent but dialogue/sound quality was not graded. Peak VRAM 15,165 MiB (1,118 MiB minimum free); peak RAM 40.17 GiB (23.75 GiB minimum free).
+- This validates maximum-slot input wiring/cardinality on this 16GB GPU at Draft 0.30MP, not distinct-image identity separation or later per-chunk routing. Detailed evidence: `D:\Codex\_test_results\ComfyUI-H3-Continuum\v39-rr-r1-gpu-20260924\T02_GPU_REPORT_JA.md`. No source/workflow changes, commit/push/publication, backend restart, or backend stop.
+
+## 2026-09-24 — RR-R2 pure Reference Routing schedule (local CPU)
+
+- Snapshotted the authoritative 606-file ComfyUI_W source before code changes (`pre-v39-rr-r2-20260924_141213`). Added isolated `v3/reference_routing.py` and 20 CPU contracts; no public node, frontend, Sampling, Review, Run Storage, Execution Planner, or active backend behavior was changed.
+- Selector parser supports legacy/unset All, explicit All, Custom R1-R9 selectors (`all`, `off`, integer, inclusive range, comma combinations), stable fixed-slot order, and structured invalid-input classification. Full logical chunk numbering remains 1-based and is not rebased; physical groups come from the existing `physical_groups()` function.
+- Terminal atomic route disagreement is preserved as a schedule `conflict`, with each member route retained and no auto-split, auto-selection, route union, or execution stop. Explicit Custom all-off is valid and distinct from absent-mode legacy All.
+- Focused RR-R2 tests: `20 passed`. Full CPU suite: `1465 passed, 1 skipped, 0 failed`. Updated Development/Registry manifests to include the new test/runtime module; final audit `386/386` and `125/125`, zero missing/hash mismatch. `git diff --check` and new-file whitespace checks passed.
+- Snapshots: `pre-v39-rr-r2-manifest-20260924_141955` (608 files) before manifest edits; `pre-v39-rr-r2-state-record` before this log/state update. GPU/browser not required or run. ComfyUI_W remains user-owned and running; no restart/stop, commit, push, or publication. RR-R3+ remain pending.
+
+## 2026-09-24 — RR-R3 pure effective Reference plan (local CPU)
+
+- Snapshotted the authoritative ComfyUI_W worktree before code, identity, Manifest, and state-record edits. Added `v3/reference_effective_plan.py` and 20 CPU contracts. The plan maps each logical route and physical group from fixed R1-R9 slots to compact asset indices, prepared-image SHA-256 and Core Picture numbers, accounting for First/Last presentation. Sparse and duplicate-content slots preserve their distinct IDs; empty routes stay empty; a conflicting terminal group has no silently chosen Picture map.
+- Focused RR-R3 tests: `20 passed`; full CPU suite: `1485 passed, 1 skipped, 0 failed`. Development Manifest `388/388` and Registry Manifest `126/126` matched actual SHA-256 values with no missing or duplicate entries. `git diff --check` and new-file whitespace checks passed. Existing Reference/Routing code, public nodes, frontend, and official workflow JSON/ZIP are byte-identical to the pre-R3 snapshot.
+- RR-R3 is plan construction only. Applying selected images to Qwen/DiT/VAE, prompt rewrite, cache, Run Storage, UI, and runtime/GPU validation belong to later phases. User-owned ComfyUI_W was not restarted or stopped; no Queue, commit, push, tag, release, or Registry publication occurred. RR-R4+ remain pending.
+
+## 2026-09-24 — RR-R4 group-local Reference runtime (local CPU)
+
+- Snapshotted the authoritative ComfyUI_W source before code, compatibility, Manifest, and record edits. Added the private RR-R4 runtime adapter and group-local selection in the existing Reference/Sequence path. Only each generated physical group's connected selected R1-R9 images reach resize/hash, VAE, Qwen, and DiT. `@R` tags resolve against that group's Picture map; inactive tags warn without stopping. Custom all-off remains empty; equal prompts with different selected references are encoded separately; terminal members share one physical route.
+- The first full CPU run found one regression: adding a private router argument changed the protected 41-keyword `run_sequence` signature. Replaced that with a private scoped entrypoint using `ContextVar`, restored both original signatures, and tested error-path context cleanup. Final full CPU: `1499 passed, 1 skipped, 0 failed`; focused signature/R4 suite `22 passed`.
+- Final Development Manifest `391/391` and Registry Manifest `127/127` SHA match, zero missing/duplicates. Public nodes, frontend, Sampling Engine, Run Storage, and official V38X2 JSON/ZIP match the pre-R4 snapshot. `git diff --check` and new-file whitespace checks pass.
+- R4 remains internal and CPU-validated. Saved Run/Session/State and Refine are explicitly deferred to RR-R5/RR-R6, so the private route cannot use them yet. User-owned backend was not restarted or stopped; no browser/GPU Queue, commit/push, or external publication.
+
+## 2026-09-25 — RR-R5 Reference Routing persistence (local CPU)
+
+- Snapshotted the authoritative ComfyUI_W worktree before implementation, Run Storage, Sequence/Session, Take import, Manifest synchronization and status recording. Added the private physical-group Reference descriptor with prepared-image SHA, compact Picture presentation, effective Prompt and terminal policy; routed Run Storage and explicit Session now certify only complete compatible prefixes. The old non-routing Sampling Contract path remains unchanged.
+- Added selected Take validation across changed-plan lineages, new-plan-owned raw copying and local provenance. Selected Take mismatch rejects at the first changed group without silently choosing canonical data. The generation path rechecks the frozen descriptor before VAE/CLIP/Sampling. Focused Take/import/Session save-load/changed-image tests passed; full CPU `1515 passed, 1 skipped, 0 failed`. Development Manifest `393/393`, Registry Manifest `128/128`, protected public source/workflow SHA parity and `git diff --check` passed.
+- This is RR-R5 local CPU completion only. Private GPU persistence/reuse Gate and RR-R6 public integration remain pending. The user-owned ComfyUI_W backend was not restarted or stopped; no Queue, commit, push, release or Registry publication occurred.
+
+## 2026-09-25 — RR-R5 GPU Gate and RR-R6 local integration
+
+- RR-R5 isolated GPU Functional Gate passed 7/7 across Full A/B, Review Q1–Q3 and Session S0/S1, with accepted-prefix tensor SHA/value parity, correct generated/reused groups and AV output. The isolated 8190 backend was stopped after Queue empty; 8188 remained user-owned. The pre-sampling first adapter rejection was corrected only in test harness, not Production source.
+- Snapshotted authoritative ComfyUI_W source before RR-R6. Added separate V3.9 public Sampler (All defaults to V3.8 path; Custom routes R1–R9), transient backend-derived Plan Inspector, and same-execution routed Refine Context/Second Pass inheritance classification. Kept V3.8 schema/widget order, official workflows, Sampling Engine, Runtime Coordinator and Run Storage unchanged. Frontend test harness now exercises V3.9 serialization, invalidation and reload.
+- Focused gates passed; Full CPU `1523 passed, 1 skipped, 0 failed`, frontend Review Queue `47/47`, JS syntax and local native PackedLayout/runtime verifier with 11 registered nodes passed. Manifests were synchronized after code/docs/tests. No real browser or V3.9 GPU test, backend restart, commit, push, tag, release or Registry publish in this phase. RR-R6 is local CPU PASS, not release acceptance.
+
+## 2026-09-25 — V3.9 local documentation and V3.8X2 release separation
+
+- Snapshotted the authoritative ComfyUI_W worktree to `D:\Codex\_snapshots\ComfyUI-H3-Continuum\pre-v39-local-rc-docs-20260925_232940` before editing. Updated both READMEs with V3.8X2-to-V3.9 workflow steps, `All`/`Custom` behavior, R1–R9 selectors, `@R` Picture mapping, saved-run compatibility limits and the local RR-R6B browser result. Corrected the stale CPU-only status in the Changelog and Project State.
+- Recorded the proposed separate V3.8X2 tag/Release plus `release/3.8x2` maintenance branch and a later separate V3.9 workflow/Release. These names are plans, not published download targets. No production code, official workflow, package version, commit, push, tag, Release or Registry publication was changed in this documentation task.
+- Rehashed changed public documents: Development Manifest `395/395` and Registry Manifest `129/129` match, zero errors. Focused release/Registry pytest `3 passed`; `git diff --check` passed. V3.9 runtime and official V38X2 JSON/ZIP match the pre-documentation snapshot SHA-256.
+
+## 2026-09-27 — V3.9 Reference Images in-node local implementation
+
+- Took the 617-file pre-change snapshot of authoritative ComfyUI_W source. Added a separate V3.9 nine-image helper, in-node All/Per-chunk table, one typed Sampler input, stable sparse IDs, new workflow JSON/ZIP, documentation and focused Python/JS contracts. Kept V3.8 Sampler and V38X2 workflows intact.
+- First full CPU run found old target indices on the V3.9 workflow's audio/video links; corrected the workflow generator, regenerated JSON/ZIP and re-synced both manifests. Final CPU `1530 passed / 1 skipped / 0 failed`; focused workflow and distribution tests `22 passed`; frontend and standalone runtime verification passed. No live browser/GPU run, backend restart or publication.
+
+## 2026-09-27 — V3.9 local CPU audit correction
+
+- Snapshotted the authoritative ComfyUI_W worktree (617 files) before changing it. Preserved all existing uncommitted V3.9 work.
+- Unified group prompt/warning resolution for generated and reused groups, while retaining descriptor/hash and observed accepted-group warnings. Indexed immutable Reference plan group lookup without changing its public constructor or returned record semantics.
+- Added focused CPU regression tests for reused warnings, atomic plan publication, and lookup parsing. Clarified current module/package documentation. Full CPU, manifest integrity and protected workflow checks follow this edit; no GPU, backend restart, commit, push or release was requested.
+
+## 2026-09-28 — V3.9 full official workflow candidate
+
+- Took a verified 629-file pre-change snapshot. Built a separate 36-node/42-link full V3.9 workflow JSON and matching single-entry ZIP from the existing V38X2-derived V3.9 candidate. Wired bypassed loaders into all nine helper slots, added a two-chunk standalone-header Timeline prompt, set Manual size for the bypassed First Image, fresh graph/Project IDs, and a correctly named V3.9 Save output. Preserved the V38X2 files, prior V3.9 migration fixture, model/LoRA/scheduler, Spectrum setting, Decode Cache and Finalize chain.
+- Focused static tests verify links, V3.9 helper/Sampler schema, prompt-plan coverage, bypass defaults and ZIP byte identity. Browser save/reload and GPU generation were not performed; no commit, push or release.
+
+## 2026-09-27 — V3.9 supplied-workflow rebase and stale live registration
+
+- Took a verified 623-file snapshot before edits. Converted the user-supplied V38X2+Decode Cache Helper graph to V3.9, routing all Reference Images 1–9 into the new helper and preserving all other nodes and media/model settings. Set a distinct Project ID to avoid reusing the original V3.8 Run Storage folder; regenerated matching JSON/ZIP and tightened the workflow test.
+- Read-only live `/object_info` showed that 8188 still had the old V3.9 schema; its Python process predates the new source. Did not stop or replace the user-managed backend. Final CPU `1530 passed / 1 skipped / 0 failed`, focused graph/public/Registry `22 passed`, JS contract and runtime verifier PASS, Manifest `401/401` and Registry Manifest `134/134` SHA-256 PASS. Live restart/browser/GPU acceptance remains separate.
+
+## 2026-09-27 — V3.9 stale direct Reference input UI cleanup
+
+- Verified the current 8188 backend and candidate workflow each expose only the new `reference_images` Sampler socket; the screenshot's separate node #359 retained old direct 1–3 sockets. Took a verified 625-file snapshot before edits.
+- Added idempotent frontend cleanup for unconnected obsolete V3.9 direct Reference inputs. Connected old inputs are preserved and visibly warned instead of being silently disconnected. V3.8 and backend contracts are unchanged. Added frontend regressions and documented the browser reload boundary.
+- Focused V3.9 frontend and Review UI regressions, 16 focused Python tests, JS syntax and diff whitespace checks passed. Development Manifest `401/401` and Registry Manifest `134/134` match. The live server serves the updated JS. The user's unsaved Chrome workflow was not reloaded, so actual browser canvas and GPU Gates remain pending. No commit, push, Release, Registry publication or ComfyUI restart.
+
+## 2026-09-28 — V3.9 Reference Images assignment panel overlap
+
+- A new browser screenshot confirmed overlap resolution but revealed excess blank space. Took a verified 629-file snapshot; compacted the DOM top gap and row-based panel height and allowed the helper node to shrink to its computed height. The three-row case now reserves 193 px total rather than 243 px. Focused JS contract/syntax passed; browser visual recheck and GPU test remain pending.
+- Follow-up screenshot confirmed that the previous height-only fix still let `Image 2 Chunks` draw at the panel top. A second verified 629-file snapshot was taken. Suppressed only the nine legacy selector widgets' visual drawing, retained their values, and placed the assignment panel in a host with 24 px of reserved top spacing. Focused frontend test and JavaScript syntax passed; no browser reload or GPU queue was performed.
+- The user's three-reference screenshot showed the per-chunk assignment DOM panel covering the selector control above it. Took a verified 629-file snapshot before changing the ComfyUI_W runtime.
+- Reserved explicit DOM widget height based on the connected-image rows, capped at 360 px with scrolling, and expanded the node when its computed height grows. No backend, reference routing, or serialized widget value changed.
+- Frontend contract checks cover three connected images, All chunks mode, and nine images across 16 chunks. JavaScript syntax and focused frontend contract passed. Manifest entries were updated. Browser visual verification remains pending until a safe refresh of the user's active tab; GPU test has not been queued for this UI repair.
+
+## 2026-09-28 — Local V3.9 launch-template and README preparation
+
+- Took and verified a 633-file snapshot of the ComfyUI_W source. Adopted the user-supplied V3.9 graph as a 35-node official workflow, correcting only its accidental `[` prompt and extra empty helper display-widget serialization. Rebuilt single-JSON ZIP and template-gallery copy. Added an unchanged V38X2 gallery copy; preserved the two old recommended-settings files byte-for-byte under `examples/settings/`.
+- Corrected `.comfyignore` so the official V3.9 JSON/ZIP and both gallery JSONs are distributable. Updated README/README_JA with V3.9 usage, V3.8 coexistence, Reference-only/First/Last caveats, prompt tags and resource limits. Package metadata and old V38X2 JSON/ZIP remain unchanged.
+- Live template API lists precisely V38X2/V39 and serves V39 HTTP 200. Final full CPU `1536 passed / 1 skipped / 0 failed` in 114.54 s; Development Manifest 406/406 and Registry Manifest 138/138 matched; ZIP has one JSON entry; diff whitespace check clean. No fresh default-template GPU or browser save/reload, version bump, commit, push or publication.
+
+## 2026-09-29 — V3.9 documentation reconciliation
+
+- Snapshotted the authoritative ComfyUI_W runtime before editing (635 files). Reconciled README EN/JA, package validation/install/info, historical V3.8 migration guidance and AGENTS version baseline without changing generation code or workflows.
+- Distinguished V3.8X2's ten IDs and the local V3.9 candidate's twelve, package metadata 3.8.3, historical versus current CPU results, and the still-pending browser/default-template GPU gates. Resynchronized both manifests and ran focused public-surface/official-workflow tests. No commit, push or publication.
+
+## 2026-09-29 — User-selected V3.9 Workflow (3) and combined V3.8X2 ZIP
+
+- Verified a new 635-file snapshot before replacement. Copied the user's `MiniMax_H3_Continuum_V39 (3).json` byte-for-byte into the official workflow and Templates gallery locations. Its 32 nodes/39 links, empty prompt, six prewired bypassed image loaders, First Image + Draft 0.30 MP saved size controls, and bypassed First Image loader were not changed.
+- Repacked the V3.9-only ZIP and added both V3.8X2 and V3.9 JSONs to the standard V3.8X2 ZIP. The V3.8X2 JSON and its helper-explicit single-JSON ZIP were not changed. Updated launch README EN/JA, installer/package guidance, V3.9 guide, and tests for the exact bundle and the First Image setup caveat.
+- Focused workflow tests passed 22/22. The live `/workflow_templates` API listed exactly `MiniMax_H3_Continuum_V38X2` and `MiniMax_H3_Continuum_V39`; the supplied screenshot showed an older browser Templates view, so visual refresh confirmation remains pending. No GPU, version bump, commit, push, Release, or Registry publication.
+
+## 2026-09-29 — Final user-selected V3.9 Workflow (4)
+
+- Took a verified 635-file snapshot, then copied `MiniMax_H3_Continuum_V39 (4).json` byte-for-byte over the V3.9 official JSON and gallery copy. The only graph-setting change from (3) is the enabled First Image loader; viewport coordinates also changed. Repacked the V3.9-only and combined V38X2/V3.9 ZIPs without editing either workflow JSON.
+- Updated the focused workflow contract and launch guidance to show First Image + Draft 0.30 MP with an enabled image loader. Users must select their own First Image; Reference-only use needs First Image OFF and Manual sizing. Final focused tests 28/28 PASS, Registry Manifest 138/138, development Manifest 406/406, and whitespace check PASS. Live Templates API lists both workflows and serves both JSONs with HTTP 200; Chrome visual refresh remains pending because the user's original workflow tab may have unsaved work. No GPU, commit, push, Release, or Registry publication.
+
+## 2026-09-29 — V3.9.0 main-source publication
+
+- Snapshotted the authoritative ComfyUI_W source (635 files) before the version/documentation update. Kept the user's official V3.9 JSON byte-identical and retained the separate V3.8X2 Sampler, workflow JSON and historical GitHub Releases.
+- Bumped package metadata to 3.9.0, made README EN/JA and install/package guidance V3.9-first, retained V3.8X2 compatibility and both Templates, and reconciled the accepted Timeline Video Experimental documentation from the existing main branch. Updated integrity manifests and release-metadata tests.
+- Full Windows CPU suite passed `1536 passed / 1 skipped / 0 failed`; `git diff --check` passed. This GitHub main-source publication does not create a tag, new Release, Registry package or new GPU run. Default V3.9 template browser save/reload and GPU acceptance remain pending.

@@ -48,15 +48,18 @@ function environment() {
     setTimeout(cb,ms){const t=setTimeout(()=>{timers.delete(t);cb();},ms);timers.add(t);return t;},
     clearTimeout(t){clearTimeout(t);timers.delete(t);}, Map, Set, WeakMap, Uint8Array};
   sandbox.globalThis=sandbox;
+  const referenceSource=fs.readFileSync(path.join(ROOT,'web/reference_images_v39.js'),'utf8')
+    .replace(/export function /g,'function ');
   const src=fs.readFileSync(path.join(ROOT,'web/project_id.js'),'utf8')
     .replace(/import \{ app \} from "\.\.\/\.\.\/scripts\/app.js";/,'')
     .replace(/import \{ api \} from "\.\.\/\.\.\/scripts\/api.js";/,'')
     .replace(/import \{ normalizeReferenceAudioLabels \} from "\.\/reference_audio_ui.js";/,'function normalizeReferenceAudioLabels() {}')
+    .replace(/import \{ configureV39ReferenceImages, connectedV39LegacyReferenceInputs, pruneV39LegacyReferenceInputs, refreshV39ReferenceImagesForSampler \} from "\.\/reference_images_v39.js";/,'')
     .replace(/import \{ migrateReferenceImageInputs \} from "\.\/reference_image_ui.js";/,'function migrateReferenceImageInputs() {}');
-  vm.runInNewContext(src+`\nglobalThis.testFns={configureNode,loadTakeHistory,takeCatalog,selectTakeOffset,selectTakeAction,reviewStatus,reviewSettingsChanged,synchronizeReviewQueue};`,sandbox);
+  vm.runInNewContext(referenceSource+'\n'+src+`\nglobalThis.testFns={configureNode,loadTakeHistory,takeCatalog,selectTakeOffset,selectTakeAction,reviewStatus,reviewSettingsChanged,synchronizeReviewQueue};`,sandbox);
   app.extension.setup();
   const f=sandbox.testFns;
-  function makeNode(id=312,run='fixture'){
+  function makeNode(id=312,run='fixture',nodeClass='H3ContinuumSamplerV38'){
     const v={prompt_mode:'Auto',chunks:3,chunk_seconds:5,aspect:'Auto from First Image',
       preset:'Draft — 0.30 MP',custom_mp:.3,continuity:'Balanced — 22 frames',base_seed:123,
       control_after_generate:'fixed',audio_continuity:true,continuation_backend:'Standard',
@@ -65,7 +68,7 @@ function environment() {
       video_reference_size:'Efficient - 0.4 MP',diagnostics:'Basic',strict_compatibility:false,
       debug:false,show_preview:true,generation_mode:'Full Run',review_action:'Continue / Next',
       take_group:0,take_revision_id:'',take_action:'Automatic',size_source:'Manual',width:544,height:544};
-    const n={id,graph,comfyClass:'H3ContinuumSamplerV38',properties:{},inputs:[],size:[500,500],
+    const n={id,graph,comfyClass:nodeClass,properties:{},inputs:[],size:[500,500],
       widgets:Object.entries(v).map(([name,value])=>({name,value,type:typeof value==='number'?'number':'combo',options:{values:[]},computeSize:()=>[120,20]})),
       addWidget(type,name,value,callback,options){const w={type,name,value,callback,options:options||{},computeSize:()=>[120,20]};this.widgets.push(w);return w;},
       addCustomWidget(w){this.widgets.push(w);return w;},setDirtyCanvas(){},
@@ -524,6 +527,47 @@ await test('external duration links remain links through actual review Queue ada
  await e.api.queuePrompt(0,data);
  assert.deepEqual(e.submissions.at(-1).data.output[n.id].inputs.chunks,['900',0]);
  assert.deepEqual(e.submissions.at(-1).data.output[n.id].inputs.chunk_seconds,['901',0]);
+});
+await test('V39 helper settings invalidate transient observed Plan',async e=>{
+ const n=e.makeNode(390,'v39','H3ContinuumSamplerV39');
+ const helper=e.makeNode(391,'helper','H3ContinuumReferenceImagesV39');
+ helper.widgets.push({name:'reference_use',value:'Per chunk',type:'combo',options:{}});
+ helper.widgets.push({name:'reference_r1_chunks',value:'1,2',type:'text',options:{}});
+ e.app.graph.links[900]={origin_id:391,origin_slot:0,target_id:390,target_slot:0};
+ n.inputs.push({name:'reference_images',link:900});
+ n.__h3ContinuumIntuitiveUxRefresh();
+ const before=JSON.stringify(n.serialize());
+ const observed='Reference Plan Inspector (runtime verified)\nGroup 1 [C1] generated — R1=<Picture 1>';
+ n.onExecuted({h3_reference_plan:[observed]});
+ assert.equal(e.w(n,'Reference Plan Inspector').value,observed);
+ assert.equal(JSON.stringify(n.serialize()),before);
+ assert.equal((await e.inputs(n)).reference_r1_chunks,undefined);
+ e.w(helper,'reference_r1_chunks').value='2';
+ n.__h3ContinuumIntuitiveUxRefresh();
+ assert.match(e.w(n,'Reference Plan Inspector').value,/Configured only/);
+ n.onExecuted({h3_reference_plan:[observed]});
+ n.onConnectionsChange(1,0,true);
+ assert.match(e.w(n,'Reference Plan Inspector').value,/Configured only/);
+ e.app.extension.loadedGraphNode(n);
+ assert.match(e.w(n,'Reference Plan Inspector').value,/Configured only/);
+ assert.equal(e.w(helper,'reference_r1_chunks').value,'2');
+});
+await test('V39 loaded node removes only unused old Reference sockets',async e=>{
+ const n=e.makeNode(392,'v39-stale','H3ContinuumSamplerV39');
+ n.removeInput=function(index){this.inputs.splice(index,1);};
+ n.inputs.push(
+   {name:'reference_image_1',link:null},
+   {name:'reference_image_2',link:77},
+   {name:'reference_images',link:null},
+ );
+ e.app.extension.loadedGraphNode(n);
+ assert.deepEqual(n.inputs.map(input=>input.name),['reference_image_2','reference_images']);
+ assert.equal(n.inputs[0].link,77);
+ assert.match(e.w(n,'Reference Plan Inspector').value,/Old Reference connection/);
+ n.inputs[0].link=null;
+ e.app.extension.loadedGraphNode(n);
+ assert.deepEqual(n.inputs.map(input=>input.name),['reference_images']);
+ assert.match(e.w(n,'Reference Plan Inspector').value,/Configured only/);
 });
 console.log(JSON.stringify(results,null,2));if(results.some(r=>!r.pass))process.exitCode=1;
 })();

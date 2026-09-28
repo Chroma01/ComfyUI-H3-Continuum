@@ -1,14 +1,32 @@
 # Changelog
 
+## 3.9.0 — V3.9 source on main (2026-09-29)
+
+- Publish the separate V3.9 Sampler and nine-slot Reference Images V3.9 helper with fixed `@R1`–`@R9` identities and All / Per chunk assignments. V3.8X2 keeps its existing Sampler and Reference connections; saved Runs/Takes are not automatically migrated.
+- Ship the user-selected V3.9 workflow JSON unchanged, a V3.9-only workflow ZIP, and a combined V3.8X2/V3.9 workflow ZIP. The ComfyUI Templates gallery exposes both separate workflows.
+- Promote package metadata and startup version to `3.9.0`. Keep historical Releases/tags untouched. This main-source commit is not a new GitHub Release or Registry publication; browser save/reload and the unchanged default template's GPU acceptance remain separate gates.
+
+## V3.9 development history — Reference Images in-node UI (2026-09-27)
+
+- Add a separate nine-slot Reference Images V3.9 helper with fixed `@R1`–`@R9` IDs, in-node All chunks / Per chunk table, and one typed connection to the V3.9 Sampler. Both choices use the existing group-effective routing engine; disconnected or unassigned slots do not renumber later images.
+- Supply a separate V3.9 workflow JSON/ZIP and user guide. V3.8 Sampler and V38X2 workflow JSON/ZIP remain unchanged. Older V3.9 prototype graphs require manual rewiring and saved Runs/Takes do not migrate automatically.
+- Local CPU `1530 passed / 1 skipped / 0 failed`, frontend Reference Images and Review Queue contracts, and standalone runtime verification passed. Live-browser and GPU acceptance of this new helper/UI remain pending. No commit, push, Release or Registry publication.
+- Rebase the separate V3.9 JSON/ZIP on the supplied V38X2+Decode Cache Helper workflow, preserving its appended Repeat Reference video setting, media loader values, Image bypass and Decode Cache Helper. Route Reference Images 1–9 through the new helper; keep all other graph nodes and settings unchanged. The running 8188 backend still exposed the old V3.9 schema until a full backend restart.
+
+## Prior local prototype — V3.9 Reference Routing RR-R6B (2026-09-25)
+
+- Add a separate V3.9 Sampler ID with default All (unchanged V3.8 Reference path) and opt-in Custom R1–R9 per-chunk selectors. Keep the V3.8 schema/widget order and official V3.8X2 workflow files unchanged.
+- Carry the frozen RR-R5 group contract through the private runtime to a read-only, post-Queue Plan Inspector. Pending groups remain configured/unverified; accepted groups display backend-verified generated/reused status, effective Picture mapping, SHA and warnings.
+- Capture matching group-local routed conditioning in same-Queue Refine Context; Second Pass distinguishes verified Reference inheritance from prompt-only fallback. No cross-session reconstruction is claimed.
+- Local full CPU: `1524 passed / 1 skipped / 0 failed`. RR-R6 GPU/API integration passed 11 Queues, including Review Q1–Q3, Second Pass, and the Sage/Sol/Spectrum wrapper matrix. The subsequent real-browser B0–B5 Review, completion, and save/reload gate passed using a corrected Ref2V 8-step LoRA / eight-step workflow; this is not a six-step rerun. Subjective identity and long-form image quality remain ungraded.
+- V3.8X2 workflow JSON/ZIP and the V3.8 Sampler remain available. V3.9 `All` uses the V3.8 shared-reference path; changing to V3.9 `Custom` is a manual workflow change and does not automatically migrate an accepted Run or Take.
+- The planned separate V3.8X2 tag/Release and `release/3.8x2` maintenance branch have not been created. V3.9 workflow, commit, push, Release, and Registry publication remain pending.
+
 ## Experimental on main — Unified Timeline Video (2026-09-22)
 
-- Renamed the existing V3.8 video IMAGE input to `Timeline Video Frames` while preserving its internal key and saved links.
-- Added one appended optional `Video Reference Mode`: `Repeat Reference` remains the compatibility default; `Follow Timeline` selects the source interval belonging to each physical output group.
-- Follow mode excludes continuation-prefix frames from source consumption, records each physical slice in the plan, uses slice-specific Video VAE/cache identity, and continues without video reference after source exhaustion.
-- Kept Sampling, Seed, SIGMAS, Audio, masks, continuation grouping, Terminal Merge ownership, Run Storage schema, and the two official V3.8X2 workflows unchanged. Added separate Follow/Repeat comparison workflows.
-- Synchronized the lightweight runtime verifier and README public-surface wording with the already-exported ten-node V3.8X2 surface, including `H3ContinuumVideoAdapter`.
-- Acceptance: full CPU `1424 passed / 1 skipped / 0 failed`; browser save/reload PASS; Follow and Repeat `2 x 5 s` GPU runs PASS at 704x416/24fps with synchronized 10-second audio/video and no OOM, NaN, allocation failure, or crash.
-- This remains Experimental: it is soft H3 conditioning, not exact motion copying, and it does not reduce the RAM needed to hold a long decoded IMAGE batch.
+- Opt-in Follow Timeline / legacy-compatible Repeat Reference on the existing IMAGE input.
+- Per-physical-group reference selection; source-end fallback; distinct interval VAE keys and local prompt caches.
+- Local acceptance passed: full CPU `1424 passed / 1 skipped / 0 failed`, browser save/reload, and Follow/Repeat `2 × 5 s` GPU runs at 704×416/24fps with synchronized 10-second audio/video, mode separation, and no OOM/NaN/crash. This remains Experimental and is not a frame-perfect motion-copying or long-video RAM-optimization claim.
 
 ## Unreleased — Loader persistence repair (2026-09-21)
 

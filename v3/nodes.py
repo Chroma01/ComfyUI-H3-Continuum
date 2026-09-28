@@ -220,6 +220,12 @@ def _apply_review_decode_scope(
         terminal_merged=selected_terminal_merged,
         terminal_initial_pair=(start == 1),
     )
+    # Projection narrows the AV decode view, not the already-verified routing
+    # decision. Keep that Queue-local plan available to the public Inspector.
+    route_plan = assembly_plan.get("reference_routing_v1")
+    if isinstance(route_plan, dict):
+        scoped_plan = dict(scoped_plan)
+        scoped_plan["reference_routing_v1"] = route_plan
     scoped_video = [{"samples": entry["video"]} for entry in decode_entries]
     scoped_audio = [{"samples": entry["audio"]} for entry in decode_entries]
     scoped_result = dict(result)
@@ -528,6 +534,7 @@ class H3ContinuumSamplerV3:
         reference_encode_cache=False,
         continuation_transport="reference_context_v1",
         max_new_physical_groups=None,
+        reference_routing_request=None,
     ):
         if prompt_overrides is not None and not isinstance(prompt_overrides, dict):
             prompt_overrides = None
@@ -615,6 +622,7 @@ class H3ContinuumSamplerV3:
             reference_encode_cache=bool(reference_encode_cache),
             continuation_transport=str(continuation_transport),
             max_new_physical_groups=max_new_physical_groups,
+            reference_routing_request=reference_routing_request,
             _diagnostic_continuation_policy=advanced_values[
                 "_diagnostic_continuation_policy"
             ],
@@ -650,6 +658,13 @@ class H3ContinuumSamplerV3:
             ),
             terminal_merged=terminal_merged,
         )
+        if reference_routing_request is not None:
+            from .reference_plan_inspector import project_reference_plan
+            runtime = reference_routing_request.runtime
+            if runtime is None:
+                raise RuntimeError("Reference Routing completed without its runtime Plan")
+            assembly_plan = dict(assembly_plan)
+            assembly_plan["reference_routing_v1"] = project_reference_plan(runtime)
         video_latents = [{"samples": entry["video"]} for entry in decode_entries]
         audio_latents = [{"samples": entry["audio"]} for entry in decode_entries]
         if terminal_merged:
@@ -1027,6 +1042,7 @@ class H3ContinuumSamplerProduction(H3ContinuumSamplerV3):
         reference_image_4=None,
         reference_image_5=None,
         image_references=None,
+        _reference_routing_settings=None,
     ):
         runtime_started_at = time.perf_counter()
         from ..reference import prepare_reference_assets
@@ -1047,17 +1063,36 @@ class H3ContinuumSamplerProduction(H3ContinuumSamplerV3):
             )
         if take_requested and generation_mode != "Review Each Chunk":
             raise ValueError("Take selection requires Review Each Chunk")
-        reference_assets = prepare_reference_assets(
-            reference_image_1=reference_image_1,
-            reference_image_2=reference_image_2,
-            output_width=int(width),
-            output_height=int(height),
-            size_mode=reference_size,
-            reference_image_3=reference_image_3,
-            reference_image_4=reference_image_4,
-            reference_image_5=reference_image_5,
-            image_references=image_references,
-        )
+        reference_routing_request = None
+        if _reference_routing_settings is None:
+            reference_assets = prepare_reference_assets(
+                reference_image_1=reference_image_1,
+                reference_image_2=reference_image_2,
+                output_width=int(width),
+                output_height=int(height),
+                size_mode=reference_size,
+                reference_image_3=reference_image_3,
+                reference_image_4=reference_image_4,
+                reference_image_5=reference_image_5,
+                image_references=image_references,
+            )
+        else:
+            from .reference_runtime import ReferenceInputSet, ReferenceRoutingRequest
+            reference_assets = None
+            reference_routing_request = ReferenceRoutingRequest(
+                selectors_by_slot=dict(_reference_routing_settings),
+                inputs=ReferenceInputSet.from_inputs(
+                    reference_image_1=reference_image_1,
+                    reference_image_2=reference_image_2,
+                    reference_image_3=reference_image_3,
+                    reference_image_4=reference_image_4,
+                    reference_image_5=reference_image_5,
+                    image_references=image_references,
+                    output_width=int(width),
+                    output_height=int(height),
+                    size_mode=reference_size,
+                ),
+            )
         reference_audio_source, resolved_reference_audio_vae = resolve_reference_audio_input(
             reference_audio_1,
             reference_audio_vae,
@@ -1067,6 +1102,15 @@ class H3ContinuumSamplerProduction(H3ContinuumSamplerV3):
             marked = dict(assembly_plan)
             marked["_runtime_started_at"] = runtime_started_at
             return marked
+
+        def append_reference_plan(report, assembly_plan):
+            if reference_routing_request is None:
+                return str(report)
+            from .reference_plan_inspector import format_reference_plan
+            plan_view = assembly_plan.get("reference_routing_v1")
+            if not isinstance(plan_view, dict):
+                raise RuntimeError("Reference Routing output has no verified Plan")
+            return str(report).rstrip() + "\n" + format_reference_plan(plan_view)
 
         def execute():
             return super(H3ContinuumSamplerProduction, self).run(
@@ -1097,6 +1141,7 @@ class H3ContinuumSamplerProduction(H3ContinuumSamplerV3):
                 memory_attribution=bool(memory_attribution),
                 prompt_conditioning_cache=bool(prompt_conditioning_cache),
                 reference_encode_cache=bool(reference_encode_cache),
+                reference_routing_request=reference_routing_request,
                 continuation_transport=str(continuation_transport),
                 max_new_physical_groups=max_new_physical_groups,
                 advanced={
@@ -1134,7 +1179,7 @@ class H3ContinuumSamplerProduction(H3ContinuumSamplerV3):
                 video_latents,
                 audio_latents,
                 mark_runtime_start(assembly_plan),
-                str(result["report"]),
+                append_reference_plan(result["report"], assembly_plan),
             )
             if bool(capture_refine_context):
                 return (*outputs, refine_context)
@@ -1179,7 +1224,7 @@ class H3ContinuumSamplerProduction(H3ContinuumSamplerV3):
             else:
                 video_latents, audio_latents, assembly_plan, result = execute_outputs
             result = dict(result)
-            report = str(result["report"]) + "\n" + storage.summary(
+            report = append_reference_plan(result["report"], assembly_plan) + "\n" + storage.summary(
                 detailed=diagnostics == DIAGNOSTICS_FULL
             )
             warning = _partial_review_warning(

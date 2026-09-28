@@ -1,3 +1,5 @@
+from types import MappingProxyType
+
 import pytest
 import torch
 
@@ -131,6 +133,23 @@ def test_preflight_accepts_self_consistent_visual_audio_and_multiple_blocks():
     assert result["layout_audio_rows"] == result["actual_audio_rows"] == 16
     assert len(result["visual_blocks"]) == 3
     assert len(result["audio_blocks"]) == 2
+
+
+def test_preflight_accepts_frozen_second_pass_reference_mapping():
+    # RefineContext freezes First Pass metadata as MappingProxyType. Core
+    # PackedLayout accepts it, so the Continuum preflight must do the same.
+    ref = MappingProxyType({
+        "kind": "image", "latent_h": 42, "latent_w": 28,
+        "latent": torch.zeros(1, 24, 1, 42, 28),
+    })
+    payload = {"layout": _layout(refs=[ref]), "refs": [ref]}
+    normalize_condition_latents(payload)
+
+    result = preflight_packed_layout(payload, repair_stale=False)
+
+    assert result["status"] == "matched"
+    assert result["layout_visual_rows"] == result["actual_visual_rows"] == 294
+    assert result["repaired"] is False
 
 
 def test_preflight_repairs_only_a_stale_layout_from_current_payload():

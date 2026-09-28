@@ -9,6 +9,7 @@ without mutating the captured source context.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import copy
 from types import MappingProxyType
 from typing import Any
 
@@ -141,6 +142,7 @@ def make_refine_group(
     first_image: torch.Tensor | None = None,
     last_image: torch.Tensor | None = None,
     guide_images: Mapping[int, torch.Tensor] | None = None,
+    reference_routing_group_contract: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Capture one physical First Pass sampling group's effective conditioning."""
 
@@ -182,6 +184,15 @@ def make_refine_group(
     frozen_guides = _guide_image_map(guide_images)
     if frozen_guides:
         output["guide_images"] = frozen_guides
+    if reference_routing_group_contract is not None:
+        from .reference_storage_contract import canonical_sha256
+        descriptor = reference_routing_group_contract.get("descriptor")
+        digest = reference_routing_group_contract.get("sha256")
+        if not isinstance(descriptor, dict) or canonical_sha256(descriptor) != digest:
+            raise RefineContextError("refine group Reference contract SHA-256 is invalid")
+        if descriptor.get("logical_chunks") != list(chunks):
+            raise RefineContextError("refine group Reference contract has different logical chunks")
+        output["reference_routing_v1"] = copy.deepcopy(dict(reference_routing_group_contract))
     return output
 
 
@@ -307,6 +318,16 @@ def validate_refine_context(
             group.get("guide_images"),
             physical_frames=int(group["physical_frames"]),
         )
+        route_contract = group.get("reference_routing_v1")
+        if route_contract is not None:
+            from .reference_storage_contract import canonical_sha256
+            if not isinstance(route_contract, Mapping):
+                raise RefineContextError("refine group Reference contract is invalid")
+            descriptor = route_contract.get("descriptor")
+            if (not isinstance(descriptor, dict)
+                    or canonical_sha256(descriptor) != route_contract.get("sha256")
+                    or descriptor.get("logical_chunks") != list(logical_chunks)):
+                raise RefineContextError("refine group Reference contract differs from its content")
 
     if assembly_plan is not None:
         if not isinstance(assembly_plan, Mapping):
@@ -337,6 +358,21 @@ def validate_refine_context(
                     f"refine group {group_id} has no matching assembly-plan group"
                 )
             planned = plan_groups[group_id]
+            route_view = assembly_plan.get("reference_routing_v1")
+            if route_view is not None:
+                view_groups = route_view.get("groups") if isinstance(route_view, Mapping) else None
+                expected_route = (
+                    view_groups[group_id] if isinstance(view_groups, list)
+                    and group_id < len(view_groups) else None
+                )
+                captured_route = group.get("reference_routing_v1")
+                if (not isinstance(expected_route, Mapping)
+                        or not isinstance(captured_route, Mapping)
+                        or captured_route.get("sha256") != expected_route.get("contract_sha256")
+                        or captured_route.get("descriptor") != expected_route.get("descriptor")):
+                    raise RefineContextError(
+                        f"refine group {group_id} Reference route differs from First Pass Plan"
+                    )
             comparisons = (
                 ("logical_chunks", tuple(int(v) for v in group["logical_chunks"]),
                  tuple(int(v) for v in planned.get("logical_chunks", ()))),

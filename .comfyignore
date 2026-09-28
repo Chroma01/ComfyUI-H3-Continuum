@@ -24,15 +24,15 @@ MANIFEST.sha256
 .gitattributes
 pytest.ini
 
-# Ship only current V3.8X2 public contracts. Historical validation notes,
+# Ship current V3.9 and retained V3.8X2 public contracts. Historical validation notes,
 # version-specific design documents, and their screenshots stay in source.
 docs/*
 !docs/N2B_BRANCH_PROVENANCE_CONTRACT_V1.md
 !docs/V38_OPEN_INTEGRATION_CONTRACT.md
 !docs/V38_RELEASE_AND_MIGRATION.md
 
-# Ship the two official V3.8X2 distribution names. They contain the same graph;
-# the longer name makes the Decode Cache Helper connection explicit.
+# Ship the separate V3.9 and V3.8X2 workflows. The V3.8X2 standard ZIP also
+# contains V3.9; its helper-explicit ZIP remains the V3.8X2-only alias.
 # External custom-node dependencies are documented, not bundled.
 examples/*
 !examples/workflows/
@@ -41,10 +41,15 @@ examples/workflows/*
 !examples/workflows/MiniMax_H3_Continuum_V38X2.zip
 !examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json
 !examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip
+!examples/workflows/MiniMax_H3_Continuum_V39_Reference_Inline.json
+!examples/workflows/MiniMax_H3_Continuum_V39_Reference_Inline.zip
+!examples/workflows/MiniMax_H3_Continuum_V39.json
+!examples/workflows/MiniMax_H3_Continuum_V39.zip
+!examples/MiniMax_H3_Continuum_V39.json
+!examples/MiniMax_H3_Continuum_V38X2.json
 
 # Current loader migration instructions.
 !docs/LOADER_PERSISTENCE_REPAIR.md
 !docs/TIMELINE_VIDEO_EXPERIMENTAL.md
-
-# Local updater receipt; never distribute it as package content.
+!docs/V39_REFERENCE_INLINE.md
 .h3-timeline-experimental.json

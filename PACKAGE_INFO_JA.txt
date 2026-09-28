@@ -1,4 +1,14 @@
-ComfyUI-H3-Continuum V3.8X / package 3.8.1
+ComfyUI-H3-Continuum 3.9.0 / V3.8X2併存
+パッケージmetadata: 3.9.0（mainソース。新しいGitHub Release／Registry公開は未実施。過去のReleaseは維持）
+
+現行ソース:
+- 登録IDは計12件。V3.8X2の10件（旧Audio／Video Loader互換IDを含む）に、別IDのSampler V3.9とReference Images V3.9を追加
+- V3.9公式Workflowは無改変のユーザー指定MiniMax_H3_Continuum_V39.json／同名ZIP。32ノード／39リンク、画像Loader 1～6だけが新ヘルパーへ配線済み・初期Bypass。7～9は必要に応じて追加接続。V3.8X2標準ZIPにも両バージョンのJSONを同梱
+- V3.8X2公式WorkflowとSampler V3.8は別に維持。Reference配線、保存済みRun／TakeはV3.9へ自動移行しない
+- 初期V3.9 WorkflowはFirst Image＋Draft 0.30 MP、2×10秒、Generate Full Video（保存値はFull Run）。First Image Loaderは有効なので、Queue前に自分の画像ファイルを選ぶ。Reference-onlyならFirst ImageをOFFにしてManualへ切り替える。保存済み480×640はManual時だけ有効。Sequence Promptは空欄なので入力する
+- ComfyUI依存の宣言は>=0.32.0、現行の実生成・GPU検証基準は0.34.2。新テンプレートのブラウザー保存・再読込とGPU受入は別途必要
+
+以下は旧V3.8X / package 3.8.1の履歴記録です。現在の導入案内ではありません。
 
 MiniMax H3の5秒ChunkをAV latent contextで継続し、長尺映像として組み立てるComfyUIカスタムノードです。
 

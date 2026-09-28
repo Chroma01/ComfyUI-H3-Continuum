@@ -1,8 +1,16 @@
 # V3.8X Release and Migration Policy
 
+> Historical V3.8X / package 3.8.1 record. Current `main` uses package 3.9.0,
+> retains the V3.8X2 Sampler/workflow, and adds a separate V3.9 Sampler plus
+> Reference Images V3.9 helper. V3.8X2 registers ten IDs, including two
+> deprecated loader compatibility IDs; V3.9 registers twelve in total.
+> Use the dedicated V3.9 workflow for its new
+> Reference wiring. Old workflows and saved Runs/Takes are not automatically
+> converted. See the main README for the current installation path and gates.
+
 ## Supported release
 
-V3.8X is the current supported H3 Continuum product. Its package version is `3.8.1` and it exports seven Node IDs:
+The historical V3.8X package version `3.8.1` exported seven Node IDs:
 
 ```text
 H3ContinuumSamplerV38
@@ -18,7 +26,7 @@ The assembler, loader, and Second Pass IDs are retained while their V3.8 display
 
 ## Saved workflows from older releases
 
-Only the seven IDs listed above are exported by V3.8X, including the retained Finalize, loader, and Second Pass IDs. Other public Node IDs from V3.7 and earlier are not exported. ComfyUI can therefore show an unknown node when a saved workflow refers to an ID outside this list. This is an intentional support boundary, not a request to replace the unknown node with a superficially similar V3.8X node.
+Only the seven IDs listed above were exported by that historical V3.8X package, including the retained Finalize, loader, and Second Pass IDs. The current main source's separate V3.8X2/V3.9 surfaces are described above. ComfyUI can show an unknown node when a saved workflow refers to an ID outside the installed package's mappings. Do not replace it with a superficially similar node without checking its saved contract.
 
 - Use tag `v3.7.0` for V3.7 workflows.
 - Use tag `v3.6.0` for V3.6 workflows.

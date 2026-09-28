@@ -17,6 +17,7 @@ from ComfyUI_H3_Continuum_Join.run_storage import (
     _apply_nonce_contract,
     _fsync_file,
     _pid_exists_windows,
+    _manifest_sampling_identity,
     automatic_project_key,
     build_sampling_contract,
     resolve_run_storage_name,
@@ -36,6 +37,11 @@ from ComfyUI_H3_Continuum_Join.state import make_plan
 from ComfyUI_H3_Continuum_Join.v2.prompts import make_prompt_plan, prompt_hash
 from ComfyUI_H3_Continuum_Join.v2.session import make_chunk_entry
 from ComfyUI_H3_Continuum_Join.v3.nodes import _validate_regenerate_storage
+from ComfyUI_H3_Continuum_Join.v3.reference_routing import (
+    REFERENCE_SLOT_IDS, compile_reference_routing_schedule,
+)
+from ComfyUI_H3_Continuum_Join.v3.reference_runtime import ReferenceInputSet, ReferenceRoutingRuntime
+from ComfyUI_H3_Continuum_Join.v3.reference_storage_contract import build_reference_storage_plan
 
 
 class _Nested:
@@ -351,6 +357,7 @@ def _sampling_contract(
     reference_audio_contract=None,
     reference_audio_vae=None, prompt_hashes=None,
     chunks=3, reroll_from_chunk=2,
+    reference_storage_plan=None,
 ):
     default_hashes = [str(index) * 64 for index in range(1, int(chunks) + 1)]
     return build_sampling_contract(
@@ -384,6 +391,7 @@ def _sampling_contract(
         execution_semantics=execution_semantics,
         reference_audio_contract=reference_audio_contract,
         reference_audio_vae=reference_audio_vae,
+        reference_storage_plan=reference_storage_plan,
     )
 
 
@@ -1108,3 +1116,103 @@ def test_t2va_graph_contract_does_not_require_video_vae_route():
     )
     assert safe, reasons
     assert "video_vae" not in graph["routes"]
+
+
+def _routed_plan_for_storage(*, last_route="R1", terminal=False, terminal_prompt=None, policy=None):
+    count = 4 if terminal else 3
+    selectors = {slot: "off" for slot in REFERENCE_SLOT_IDS}
+    selectors["R1"] = "1-2" if last_route == "R4" else "all"
+    if last_route == "R4":
+        selectors["R4"] = "3" if not terminal else "3-4"
+    inputs = ReferenceInputSet(
+        (torch.full((1, 64, 64, 3), 0.1), None, None,
+         torch.full((1, 64, 64, 3), 0.4), *([None] * 5)),
+        96, 64, REFERENCE_SIZE_MATCH_OUTPUT,
+    )
+    runtime = ReferenceRoutingRuntime(
+        schedule=compile_reference_routing_schedule(
+            total_chunks=count, terminal_merge_enabled=terminal,
+            mode="Custom", selectors_by_slot=selectors,
+        ),
+        inputs=inputs,
+    )
+    return build_reference_storage_plan(
+        runtime=runtime, prompts=["person walks"] * count,
+        first_frame_hash="none", last_frame_hash="none",
+        terminal_prompt=terminal_prompt,
+        terminal_prompt_policy=policy,
+    )
+
+
+def test_routed_contract_keeps_earlier_chunk_hashes_when_only_last_route_changes():
+    original = _routed_plan_for_storage()
+    changed = _routed_plan_for_storage(last_route="R4")
+    model, clip, video_vae, sampler = _Model(), _Clip(), _VideoVAE(), _Sampler()
+    old, old_safe, _ = _sampling_contract(
+        model=model, clip=clip, video_vae=video_vae, sampler=sampler,
+        conditioning_mode="t2va", first_frame_hash="none",
+        reference_storage_plan=original, reroll_from_chunk=0,
+    )
+    new, new_safe, _ = _sampling_contract(
+        model=model, clip=clip, video_vae=video_vae, sampler=sampler,
+        conditioning_mode="t2va", first_frame_hash="none",
+        reference_storage_plan=changed, reroll_from_chunk=0,
+    )
+    assert old_safe and new_safe
+    assert old["global"] == new["global"]
+    assert old["global"]["reference_routing_contract_version"] == 1
+    assert "video_vae" in old["global"]
+    assert old["chunk_contract_hashes"][:2] == new["chunk_contract_hashes"][:2]
+    assert old["chunk_contract_hashes"][2] != new["chunk_contract_hashes"][2]
+    assert old["nonce_lineage_sha256"] != new["nonce_lineage_sha256"]
+    legacy, _, _ = _sampling_contract(conditioning_mode="t2va", first_frame_hash="none")
+    assert "reference_group_contracts" not in legacy
+    assert "reference_routing_contract_version" not in legacy["global"]
+
+
+def test_routed_terminal_prompt_policy_does_not_change_earlier_global_or_chunks():
+    shared = _routed_plan_for_storage(
+        terminal=True, terminal_prompt="shared", policy="shared_prompt_v1",
+    )
+    timeline = _routed_plan_for_storage(
+        terminal=True, terminal_prompt="timeline", policy="paired_timeline_v1",
+    )
+    semantics = {
+        "flf_execution": "terminal_merged_10s_seed_v2",
+        "terminal_seed_policy": "physical_group_seed_v2",
+        "terminal_prompt_policy": "shared_prompt_v1",
+    }
+    model, clip, video_vae, sampler = _Model(), _Clip(), _VideoVAE(), _Sampler()
+    old, _, _ = _sampling_contract(
+        model=model, clip=clip, video_vae=video_vae, sampler=sampler,
+        chunks=4, conditioning_mode="t2va", first_frame_hash="none",
+        reference_storage_plan=shared, execution_semantics=semantics,
+    )
+    semantics["terminal_prompt_policy"] = "paired_timeline_v1"
+    new, _, _ = _sampling_contract(
+        model=model, clip=clip, video_vae=video_vae, sampler=sampler,
+        chunks=4, conditioning_mode="t2va", first_frame_hash="none",
+        reference_storage_plan=timeline, execution_semantics=semantics,
+    )
+    assert old["global"] == new["global"]
+    assert "terminal_prompt_policy" not in old["global"]["execution_semantics"]
+    assert old["chunk_contract_hashes"][:2] == new["chunk_contract_hashes"][:2]
+    assert old["chunk_contract_hashes"][2:] != new["chunk_contract_hashes"][2:]
+
+
+def test_routed_manifest_rejects_corrupt_group_even_with_recomputed_root_hash():
+    plan = _routed_plan_for_storage()
+    contract, _, _ = _sampling_contract(
+        conditioning_mode="t2va", first_frame_hash="none",
+        reference_storage_plan=plan, reroll_from_chunk=0,
+    )
+    broken = copy.deepcopy(contract)
+    broken["reference_group_contracts"][1]["descriptor"]["logical_chunks"] = [2, 3]
+    revision_id, sha = revision_identity(broken)
+    manifest = {
+        "contract": broken, "contract_sha256": sha,
+        "sampling_revision_id": revision_id,
+        "run_storage_schema_version": 3,
+    }
+    with pytest.raises(RunStorageError, match="Reference group"):
+        _manifest_sampling_identity(manifest)

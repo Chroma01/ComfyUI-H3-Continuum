@@ -330,6 +330,7 @@ class H3ContinuumSamplerV2:
         continuation_transport="reference_context_v1",
         max_new_physical_groups=None,
         _diagnostic_continuation_policy=None,
+        reference_routing_request=None,
         **clip_prompt_inputs,
     ):
         (
@@ -369,7 +370,45 @@ class H3ContinuumSamplerV2:
                 for index in range(1, int(chunks) + 1)
             ],
         )
-        return run_sequence(
+        sequence_runner = run_sequence
+        if reference_routing_request is not None:
+            from .sequence import (
+                _terminal_flf_merge_enabled,
+                run_sequence_with_reference_routing,
+            )
+            from ..v3.reference_routing import compile_reference_routing_schedule
+            from ..v3.reference_runtime import (
+                ReferenceRoutingRequest,
+                ReferenceRoutingRuntime,
+            )
+            if not isinstance(reference_routing_request, ReferenceRoutingRequest):
+                raise ValueError("invalid private Reference Routing request")
+            routing_schedule = compile_reference_routing_schedule(
+                total_chunks=int(chunks),
+                terminal_merge_enabled=_terminal_flf_merge_enabled(
+                    multi_chunk_flf=bool(
+                        int(chunks) >= 2 and first_frame is not None and last_frame is not None
+                    ),
+                    chunks=int(chunks),
+                    chunk_seconds=float(chunk_seconds),
+                    prompt_hashes=list(prompt_plan["hashes"]),
+                    timeline_video_source=timeline_video_source,
+                ),
+                mode="Custom",
+                selectors_by_slot=reference_routing_request.selectors_by_slot,
+            )
+            if not routing_schedule.valid:
+                details = "; ".join(issue.message for issue in routing_schedule.issues)
+                raise ValueError(f"Reference Routing is invalid: {details}")
+            routing_runtime = ReferenceRoutingRuntime(
+                schedule=routing_schedule,
+                inputs=reference_routing_request.inputs,
+            )
+            reference_routing_request.runtime = routing_runtime
+            sequence_runner = lambda **values: run_sequence_with_reference_routing(
+                reference_routing_runtime=routing_runtime, **values
+            )
+        return sequence_runner(
             model=model,
             clip=clip,
             video_vae=video_vae,

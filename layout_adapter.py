@@ -10,6 +10,7 @@ of the target timeline. The older marked-keyframe form remains supported as an
 internal compatibility path, but the UI does not emit it.
 """
 from __future__ import annotations
+from collections.abc import Mapping
 import logging
 from typing import Any
 import torch
@@ -260,8 +261,8 @@ def preflight_packed_layout(payload,*,repair_stale=False):
     visual_blocks=[]; audio_blocks=[]; geometry_errors=[]
     visual_index=audio_index=0
     for keyframe in keyframes:
-        if not isinstance(keyframe,dict):
-            geometry_errors.append("keyframe entry is not a dict")
+        if not isinstance(keyframe,Mapping):
+            geometry_errors.append("keyframe entry is not a mapping")
             continue
         latent=keyframe.get("latent")
         if latent is not None:
@@ -294,8 +295,8 @@ def preflight_packed_layout(payload,*,repair_stale=False):
                 errors=geometry_errors,
             ))
     for ref in refs:
-        if not isinstance(ref,dict):
-            geometry_errors.append("reference entry is not a dict")
+        if not isinstance(ref,Mapping):
+            geometry_errors.append("reference entry is not a mapping")
             continue
         kind=str(ref.get("kind",""))
         if kind=="image":

@@ -7,6 +7,7 @@ happens after the sampling phase.
 """
 from __future__ import annotations
 import copy, hashlib, logging
+from contextvars import ContextVar
 from typing import Any
 import torch
 from ..branch_provenance import physical_groups
@@ -56,6 +57,13 @@ from .session import (
 LOG=logging.getLogger("h3_continuum_join")
 class SequenceRuntimeError(RuntimeError): pass
 
+# RR-R4 is internal until its public and saved-run contracts are defined.
+# A ContextVar keeps the established 41-keyword run_sequence signatures intact
+# and isolates concurrent queue calls without a mutable module-global router.
+_REFERENCE_ROUTING_RUNTIME: ContextVar[Any | None] = ContextVar(
+    "h3_continuum_reference_routing_runtime", default=None,
+)
+
 REFERENCE_CONTEXT_V1="reference_context_v1"
 MASKED_VIDEO_PREFIX_V1="masked_video_prefix_v1"
 MASKED_AV_PREFIX_22_V1="masked_av_prefix_22_v1"
@@ -84,7 +92,7 @@ def _check_decode_memory_budget(*,width,height,chunks,chunk_seconds):
 def _clone_entry_for_reuse(entry):
     entry=validate_chunk_entry(entry); result=dict(entry); result["plan"]=copy.deepcopy(entry["plan"]); result["reused"]=True; return result
 
-def _preserved_prefix(*,session,prompt_hashes,chunks,reroll_from_chunk,width,height,chunk_seconds,identity_hash,last_frame_hash):
+def _preserved_prefix(*,session,prompt_hashes,chunks,reroll_from_chunk,width,height,chunk_seconds,identity_hash,last_frame_hash,reference_storage_plan=None):
     if session is None: return [],[]
     notes=[]
     try: session=validate_session(session)
@@ -92,10 +100,27 @@ def _preserved_prefix(*,session,prompt_hashes,chunks,reroll_from_chunk,width,hei
     if int(session["width"])!=int(width) or int(session["height"])!=int(height): return [],["saved session resolution differs; generated a fresh run"]
     if abs(float(session["chunk_seconds"])-float(chunk_seconds))>1e-6: return [],["saved session chunk duration differs; generated a fresh run"]
     if str(session.get("identity_hash","none"))!=str(identity_hash): return [],["saved session identity differs; generated a fresh run"]
-    saved_last_frame_hash=(session.get("settings") or {}).get("last_frame_hash")
-    if str(saved_last_frame_hash or "none")!=str(last_frame_hash or "none"): return [],["saved session Last Frame differs; generated a fresh run"]
+    routed_limit=None
+    if reference_storage_plan is not None:
+        from ..v3.reference_storage_contract import (
+            ReferenceStorageContractError, compatible_session_prefix,
+        )
+        try:
+            routed_limit=compatible_session_prefix(
+                (session.get("settings") or {}).get("reference_routing_v1"),
+                reference_storage_plan,
+                saved_chunks=len(session["chunks"]),
+            )
+        except ReferenceStorageContractError as exc:
+            return [],[f"saved routed Session was ignored; generated a fresh run ({exc})"]
+        if routed_limit<len(session["chunks"]):
+            notes.append(f"routed Session reuse stopped after logical chunk {routed_limit}: Reference group changed")
+    else:
+        saved_last_frame_hash=(session.get("settings") or {}).get("last_frame_hash")
+        if str(saved_last_frame_hash or "none")!=str(last_frame_hash or "none"): return [],["saved session Last Frame differs; generated a fresh run"]
     if reroll_from_chunk<0 or reroll_from_chunk>chunks: raise SessionValidationError("reroll_from_chunk must be 0 or a valid one-based chunk index")
     limit=min(len(session["chunks"]),chunks)
+    if routed_limit is not None: limit=min(limit,routed_limit)
     if reroll_from_chunk>0: limit=min(limit,reroll_from_chunk-1)
     preserved=[]
     for index in range(limit):
@@ -448,7 +473,10 @@ def _attach_terminal_flf_keyframes(
     return conditioning
 
 def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,sigmas:torch.Tensor,first_frame:torch.Tensor|None,last_frame:torch.Tensor|None,prompt_plan:dict[str,Any],width:int,height:int,continuity:str,base_seed:int,audio_continuity:bool,exact_total_duration:bool,diagnostics_mode:str,reroll_from_chunk:int,reroll_nonce:int,strict_compatibility:bool,debug:bool,seam_correction:str=SEAM_CORRECTION_OFF,enable_preview:bool=True,session:dict[str,Any]|None=None,initial_state:dict[str,Any]|None=None,latent_only:bool=False,reference_assets=None,reference_audio_source=None,reference_audio_vae=None,driving_audio_source=None,driving_audio_vae=None,reference_video_source=None,timeline_video_source=None,guide_source=None,capture_refine_context:bool=False,memory_attribution:bool=False,prompt_conditioning_cache:bool=False,reference_encode_cache:bool=False,continuation_transport:str=REFERENCE_CONTEXT_V1,max_new_physical_groups:int|None=None,_memory_attribution_collector:Any=None,_diagnostic_continuation_policy:Any=None):
-    from ..conditioning import detect_conditioning_mode, conditioning_display_label
+    from ..conditioning import (
+        conditioning_display_label, conditioning_mode_from_presence,
+        detect_conditioning_mode,
+    )
     from ..run_storage import get_active_run_storage
     from ..v3.runtime_coordinator import (
         InternalRuntimeCoordinator,
@@ -458,8 +486,18 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
     from ..video_reference_modes import (
         FOLLOW_PLAN_KEY, FollowVideoSource, build_follow_group_conditioning,
     )
+    _reference_routing_runtime = _REFERENCE_ROUTING_RUNTIME.get()
     following_video = isinstance(reference_video_source, FollowVideoSource)
     storage_controller=get_active_run_storage()
+    if _reference_routing_runtime is not None:
+        from ..v3.reference_runtime import ReferenceRoutingRuntime
+        if not isinstance(_reference_routing_runtime, ReferenceRoutingRuntime):
+            raise SequenceRuntimeError("RR-R4 requires an internal ReferenceRoutingRuntime")
+        if any((reference_assets is not None, initial_state is not None)):
+            raise SequenceRuntimeError(
+                "RR-R4 internal routing cannot combine with legacy Reference assets, "
+                "or initial State"
+            )
     runtime_coordinator=InternalRuntimeCoordinator(
         storage_controller=storage_controller,
         input_session=session,
@@ -505,9 +543,13 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         runtime_coordinator.validate_initial_state_reroll(reroll_from_chunk)
     except RuntimeCoordinatorError as exc:
         raise SequenceRuntimeError(str(exc)) from exc
-    try: conditioning_mode=detect_conditioning_mode(first_frame=first_frame,last_frame=last_frame,reference_assets=reference_assets)
+    reference_mode_source=(
+        reference_assets if _reference_routing_runtime is None
+        else (_reference_routing_runtime if _reference_routing_runtime.has_selected_references else None)
+    )
+    try: conditioning_mode=detect_conditioning_mode(first_frame=first_frame,last_frame=last_frame,reference_assets=reference_mode_source)
     except ValueError as exc: raise SequenceRuntimeError(str(exc)) from exc
-    conditioning_display=conditioning_display_label(has_first=first_frame is not None,has_last=last_frame is not None,has_reference=reference_assets is not None)
+    conditioning_display=conditioning_display_label(has_first=first_frame is not None,has_last=last_frame is not None,has_reference=reference_mode_source is not None)
     reference_warning=""
     if reference_assets is not None:
         from ..reference import validate_reference_prompts
@@ -534,12 +576,42 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
     assets=prepare_identity_assets(video_vae,width=width,height=height,first_frame=first_frame,last_frame=last_frame,encode_latents=False)
     multi_chunk_flf=bool(chunks>=2 and first_frame is not None and last_frame is not None)
     terminal_merge_enabled=_terminal_flf_merge_enabled(multi_chunk_flf=multi_chunk_flf,chunks=chunks,chunk_seconds=chunk_seconds,prompt_hashes=prompt_hashes,timeline_video_source=timeline_video_source)
+    if _reference_routing_runtime is not None:
+        try:
+            _reference_routing_runtime.check_physical_contract(
+                chunks=chunks, terminal_merge_enabled=terminal_merge_enabled,
+            )
+        except ValueError as exc:
+            raise SequenceRuntimeError(str(exc)) from exc
     terminal_prompt=None
     terminal_prompt_policy=None
     if terminal_merge_enabled:
         terminal_prompt,terminal_prompt_policy=_terminal_pair_prompt(prompts,pair_start=chunks-2,chunk_seconds=chunk_seconds)
+    reference_storage_plan=None
+    if _reference_routing_runtime is not None and (storage_controller is not None or session is not None):
+        from ..v3.reference_storage_contract import (
+            ReferenceStorageContractError, build_reference_storage_plan,
+        )
+        try:
+            reference_storage_plan=build_reference_storage_plan(
+                runtime=_reference_routing_runtime,
+                prompts=prompts,
+                first_frame_hash=assets.first_frame_hash,
+                last_frame_hash=assets.last_frame_hash,
+                terminal_prompt=terminal_prompt,
+                terminal_prompt_policy=terminal_prompt_policy,
+            )
+        except (ReferenceStorageContractError, ValueError) as exc:
+            raise SequenceRuntimeError(f"RR-R5 Reference plan is invalid: {exc}") from exc
+        _reference_routing_runtime.storage_plan = reference_storage_plan
     from ..reference import combine_hybrid_visual_identity
-    visual_identity_hash=combine_hybrid_visual_identity(keyframe_identity_hash=assets.identity_hash,reference_assets=reference_assets,has_first=first_frame is not None,has_last=last_frame is not None)
+    if _reference_routing_runtime is not None:
+        from ..v3.reference_storage_contract import routed_session_identity
+    visual_identity_hash=(
+        routed_session_identity(assets.identity_hash)
+        if _reference_routing_runtime is not None else
+        combine_hybrid_visual_identity(keyframe_identity_hash=assets.identity_hash,reference_assets=reference_assets,has_first=first_frame is not None,has_last=last_frame is not None)
+    )
     sequence_identity_hash=combine_reference_audio_identity(visual_identity_hash,reference_audio_source)
     sequence_identity_hash=combine_driving_audio_identity(sequence_identity_hash,driving_audio_source)
     sequence_identity_hash=combine_reference_video_identity(sequence_identity_hash,reference_video_source)
@@ -551,7 +623,14 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
     current_model_fingerprint=model_fingerprint(model,extra_wrapper_keys=("h3_continuum_join.apply_model.v1",))
     if storage_controller is not None:
         runtime_coordinator.assert_storage_session_compatible()
-        stored_session=storage_controller.prepare(model=model,model_fingerprint_value=current_model_fingerprint,clip=clip,video_vae=video_vae,sampler=sampler,sigmas=sigmas,prompt_plan=plan,width=width,height=height,chunk_seconds=chunk_seconds,continuity=continuity,audio_continuity=audio_continuity,base_seed=base_seed,reroll_from_chunk=reroll_from_chunk,reroll_nonce=reroll_nonce,first_frame_hash=assets.first_frame_hash,last_frame_hash=assets.last_frame_hash,identity_hash=sequence_identity_hash,strict_compatibility=strict_compatibility,existing_session=session,reference_contract=reference_assets.contract if reference_assets is not None else None,conditioning_mode=conditioning_mode,reference_audio_contract=reference_audio_source.contract if reference_audio_source is not None else None,reference_audio_vae=reference_audio_vae,driving_audio_contract=driving_audio_source.contract if driving_audio_source is not None else None,driving_audio_vae=driving_audio_vae,reference_video_contract=reference_video_source.contract if reference_video_source is not None else None,timeline_video_contract=timeline_video_source.contract if timeline_video_source is not None else None,guide_contract=guide_source.contract if guide_source is not None else None,execution_semantics=_terminal_execution_semantics(merge_enabled=terminal_merge_enabled,prompt_policy=terminal_prompt_policy,continuation_transport=continuation_transport))
+        storage_conditioning_mode=(
+            conditioning_mode_from_presence(
+                has_first=first_frame is not None,
+                has_last=last_frame is not None,
+                has_reference=False,
+            ) if reference_storage_plan is not None else conditioning_mode
+        )
+        stored_session=storage_controller.prepare(model=model,model_fingerprint_value=current_model_fingerprint,clip=clip,video_vae=video_vae,sampler=sampler,sigmas=sigmas,prompt_plan=plan,width=width,height=height,chunk_seconds=chunk_seconds,continuity=continuity,audio_continuity=audio_continuity,base_seed=base_seed,reroll_from_chunk=reroll_from_chunk,reroll_nonce=reroll_nonce,first_frame_hash=assets.first_frame_hash,last_frame_hash=assets.last_frame_hash,identity_hash=sequence_identity_hash,strict_compatibility=strict_compatibility,existing_session=session,reference_contract=reference_assets.contract if reference_assets is not None else None,conditioning_mode=storage_conditioning_mode,reference_audio_contract=reference_audio_source.contract if reference_audio_source is not None else None,reference_audio_vae=reference_audio_vae,driving_audio_contract=driving_audio_source.contract if driving_audio_source is not None else None,driving_audio_vae=driving_audio_vae,reference_video_contract=reference_video_source.contract if reference_video_source is not None else None,timeline_video_contract=timeline_video_source.contract if timeline_video_source is not None else None,guide_contract=guide_source.contract if guide_source is not None else None,execution_semantics=_terminal_execution_semantics(merge_enabled=terminal_merge_enabled,prompt_policy=terminal_prompt_policy,continuation_transport=continuation_transport),reference_storage_plan=reference_storage_plan)
         reroll_nonce=storage_controller.effective_reroll_nonce
         review_execution=getattr(storage_controller,"review_execution",None)
         if review_execution is not None:
@@ -589,7 +668,7 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         except Exception as exc:
             adaptive_observer_unavailable=f"{type(exc).__name__}: {exc}"
     effective_reroll_from_chunk=0 if storage_controller is not None and session is not None and bool((session.get("settings") or {}).get("run_storage_validated_prefix")) else int(reroll_from_chunk)
-    preserved,reuse_notes=_preserved_prefix(session=session,prompt_hashes=prompt_hashes,chunks=chunks,reroll_from_chunk=effective_reroll_from_chunk,width=width,height=height,chunk_seconds=chunk_seconds,identity_hash=sequence_identity_hash,last_frame_hash=assets.last_frame_hash)
+    preserved,reuse_notes=_preserved_prefix(session=session,prompt_hashes=prompt_hashes,chunks=chunks,reroll_from_chunk=effective_reroll_from_chunk,width=width,height=height,chunk_seconds=chunk_seconds,identity_hash=sequence_identity_hash,last_frame_hash=assets.last_frame_hash,reference_storage_plan=reference_storage_plan)
     if _terminal_strategy_mismatch(session,merge_enabled=terminal_merge_enabled):
         preserved=[]
         reuse_notes.append("FLF chunk contract changed; regenerated the requested FLF sequence.")
@@ -607,6 +686,14 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
     if reference_assets is not None:
         reuse_notes.insert(0,f"Reference conditioning: {reference_assets.count} image(s), size={reference_assets.size_mode}; persistent across all chunks.")
         if reference_warning: reuse_notes.append(reference_warning)
+    if _reference_routing_runtime is not None:
+        reuse_notes.insert(0,
+            "V3.9 Custom Reference routing: group-local conditioning and "
+            "complete-group saved-prefix verification; the verified effective Plan "
+            "is available after Queue."
+            if reference_storage_plan is not None else
+            "V3.9 Custom Reference routing: group-local conditioning."
+        )
     if reference_audio_source is not None:
         if isinstance(reference_audio_source, ReferenceAudioBundle):
             reuse_notes.insert(0,f"Reference Audio conditioning: {reference_audio_source.count} ordered item(s); persistent across all chunks.")
@@ -680,14 +767,52 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         )
     except ExecutionPlanningError as exc:
         raise SequenceRuntimeError(str(exc)) from exc
+    if _reference_routing_runtime is not None:
+        _reference_routing_runtime.generated_groups = tuple(
+            group.physical_group for group in execution_plan.groups_to_generate
+        )
     if storage_controller is not None:
         # Queue-local planning result only.  No Run Storage schema or persisted
         # metadata is changed in R3.
         storage_controller.execution_plan=execution_plan
 
-    def follow_group_cache(group_prompt, include_last, start_frame, net_frames):
+    routing_warnings=[]
+
+    def follow_group_cache(group_prompt, include_last, start_frame, net_frames, physical_group=None):
         # A new prompt-cache dict per physical interval prevents equal-prompt
         # chunks from accidentally reusing another interval's Qwen conditioning.
+        if _reference_routing_runtime is not None:
+            from ..video_reference_modes import encode_follow_video_group
+            group_video, window = encode_follow_video_group(
+                video_vae, reference_video_source,
+                start_frame=int(start_frame), visible_frames=int(net_frames),
+                cache_enabled=reference_encode_cache,
+                cache_event=reference_encode_cache_events.append,
+            )
+            group_result=_reference_routing_runtime.prepare_group(
+                physical_group=int(physical_group), prompt=group_prompt,
+                clip=clip, video_vae=video_vae,
+                first_image=assets.first_image, last_image=assets.last_image,
+                include_last_image=bool(include_last),
+                reference_audio_assets=reference_audio_assets,
+                timeline_video_assets=group_video,
+                reference_encode_cache=reference_encode_cache,
+                cache_event=reference_encode_cache_events.append,
+                expected_group_contract=(reference_storage_plan.group_for(int(physical_group))
+                                         if reference_storage_plan is not None else None),
+                first_frame_hash=assets.first_frame_hash,
+                last_frame_hash=assets.last_frame_hash,
+                terminal_prompt_policy=None,
+            )
+            routing_warnings.extend(
+                f"RR-R4 Warning: group {physical_group}: {warning}"
+                for warning in group_result.warnings
+            )
+            sampling_reports.append(window.report())
+            key=_conditioning_cache_key(
+                group_prompt, include_last=include_last, reference_assets=None,
+            )
+            return {key: group_result.conditioning}, window.contract
         group_cache, window = build_follow_group_conditioning(
             reference_video_source,
             video_vae,
@@ -774,7 +899,7 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
                 )
             if memory_collector is not None:
                 capture_memory(memory_collector, "finish_phase", phase="conditioning_reference_video_vae")
-        if timeline_video_source is None and not following_video:
+        if timeline_video_source is None and not following_video and _reference_routing_runtime is None:
             if memory_collector is not None:
                 capture_memory(memory_collector, "start_phase", phase="conditioning_prompt_clip")
             planned_normal_indices=tuple(
@@ -872,13 +997,38 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
             if memory_collector is not None:
                 capture_memory(memory_collector, "finish_phase", phase="conditioning_timeline_video_vae")
         chunk_assets=assets
-        if timeline_video_source is not None:
+        if timeline_video_source is not None and _reference_routing_runtime is None:
             if memory_collector is not None:
                 capture_memory(memory_collector, "start_phase", phase="conditioning_prompt_clip")
             chunk_cache=_conditioning_cache(clip=clip,prompts=[prompt],assets=assets,final_has_last_frame=bool(last_frame is not None and is_final),reference_assets=reference_assets,reference_audio_assets=reference_audio_assets,timeline_video_assets=timeline_video_assets,prompt_conditioning_cache=prompt_conditioning_cache,prompt_cache_event=prompt_cache_events.append)
             if memory_collector is not None:
                 capture_memory(memory_collector, "finish_phase", phase="conditioning_prompt_clip")
                 capture_memory(memory_collector, "finish_phase", phase="conditioning")
+        if _reference_routing_runtime is not None and not following_video:
+            group_result=_reference_routing_runtime.prepare_group(
+                physical_group=sequence_index+1, prompt=prompt,
+                clip=clip, video_vae=video_vae,
+                first_image=assets.first_image, last_image=assets.last_image,
+                include_last_image=bool(last_frame is not None and is_final),
+                reference_audio_assets=reference_audio_assets,
+                timeline_video_assets=timeline_video_assets,
+                reference_encode_cache=reference_encode_cache,
+                cache_event=reference_encode_cache_events.append,
+                expected_group_contract=(reference_storage_plan.group_for(sequence_index+1)
+                                         if reference_storage_plan is not None else None),
+                first_frame_hash=assets.first_frame_hash,
+                last_frame_hash=assets.last_frame_hash,
+                terminal_prompt_policy=None,
+            )
+            routing_warnings.extend(
+                f"RR-R4 Warning: group {sequence_index+1}: {warning}"
+                for warning in group_result.warnings
+            )
+            group_key=_conditioning_cache_key(
+                prompt, include_last=bool(last_frame is not None and is_final),
+                reference_assets=None,
+            )
+            chunk_cache={group_key:group_result.conditioning}
         if previous_state is None:
             include_chunk_last=bool(last_frame is not None and is_final)
             conditioning_key=_conditioning_cache_key(prompt,include_last=include_chunk_last,reference_assets=reference_assets)
@@ -886,6 +1036,7 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
             if following_video:
                 chunk_cache, follow_slice_contract = follow_group_cache(
                     prompt, include_chunk_last, retained_frames, total_frames,
+                    physical_group=sequence_index+1,
                 )
             conditioning=attach_keyframes(chunk_cache[conditioning_key],frame_count=total_frames,first_latent=chunk_assets.first_latent,last_latent=chunk_assets.last_latent if include_chunk_last else None); clip_index=1; context_frames=0
             chunk_plan=make_plan(continuation=False,clip_index=clip_index,total_frames=total_frames,trim_frames=0,width=width,height=height,context_frames=5,state_capacity_frames=largest_context_capacity(total_frames),requested_extend_seconds=chunk_seconds,debug=debug); reason="initial clip"
@@ -896,6 +1047,7 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
             if following_video:
                 chunk_cache, follow_slice_contract = follow_group_cache(
                     prompt, include_chunk_last, retained_frames, shape.net_new_frames,
+                    physical_group=sequence_index+1,
                 )
             continuation_first_latent=None if continuation_transport in (MASKED_VIDEO_PREFIX_V1,MASKED_AV_PREFIX_22_V1,MASKED_AV_PREFIX_39_V1) else chunk_assets.first_latent
             base_conditioning=attach_keyframes(chunk_cache[conditioning_key],frame_count=shape.total_frames,first_latent=continuation_first_latent,last_latent=chunk_assets.last_latent if include_chunk_last else None)
@@ -1021,6 +1173,10 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
                     }
                     if guide_target is not None and guide_assets is not None
                     else None
+                ),
+                reference_routing_group_contract=(
+                    _reference_routing_runtime.group_contract_for(sequence_index + 1)
+                    if _reference_routing_runtime is not None else None
                 ),
             ))
             del source_video,_
@@ -1151,7 +1307,40 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         conditioning_key=_conditioning_cache_key(prompt,include_last=True,reference_assets=reference_assets)
         terminal_cache = cache
         terminal_follow_slice = None
-        if following_video:
+        if _reference_routing_runtime is not None:
+            terminal_video_assets=reference_video_assets
+            if following_video:
+                from ..video_reference_modes import encode_follow_video_group
+                terminal_video_assets, window=encode_follow_video_group(
+                    video_vae, reference_video_source,
+                    start_frame=int(retained_frames),
+                    visible_frames=physical_frames-physical_context_frames,
+                    cache_enabled=reference_encode_cache,
+                    cache_event=reference_encode_cache_events.append,
+                )
+                terminal_follow_slice=window.contract
+                sampling_reports.append(window.report())
+            group_result=_reference_routing_runtime.prepare_group(
+                physical_group=terminal_physical_group, prompt=prompt,
+                clip=clip, video_vae=video_vae,
+                first_image=assets.first_image, last_image=assets.last_image,
+                include_last_image=True,
+                reference_audio_assets=reference_audio_assets,
+                timeline_video_assets=terminal_video_assets,
+                reference_encode_cache=reference_encode_cache,
+                cache_event=reference_encode_cache_events.append,
+                expected_group_contract=(reference_storage_plan.group_for(terminal_physical_group)
+                                         if reference_storage_plan is not None else None),
+                first_frame_hash=assets.first_frame_hash,
+                last_frame_hash=assets.last_frame_hash,
+                terminal_prompt_policy=terminal_prompt_policy,
+            )
+            routing_warnings.extend(
+                f"RR-R4 Warning: group {terminal_physical_group}: {warning}"
+                for warning in group_result.warnings
+            )
+            terminal_cache={conditioning_key:group_result.conditioning}
+        elif following_video:
             terminal_cache, terminal_follow_slice = follow_group_cache(
                 prompt, True, retained_frames,
                 physical_frames - physical_context_frames,
@@ -1302,6 +1491,10 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
                     if guide_target is not None and guide_assets is not None
                     else None
                 ),
+                reference_routing_group_contract=(
+                    _reference_routing_runtime.group_contract_for(terminal_physical_group)
+                    if _reference_routing_runtime is not None else None
+                ),
             ))
             del source_video,_
         if memory_collector is not None:
@@ -1443,6 +1636,27 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         raise SequenceRuntimeError(f"internal sequence length mismatch: expected {chunks}, got {len(entries)}")
     if not entries:
         raise SequenceRuntimeError("physical review execution returned an empty prefix")
+    if _reference_routing_runtime is not None:
+        from ..v3.reference_storage_contract import (
+            ReferenceStorageContractError, build_reference_storage_plan,
+            session_routing_settings,
+        )
+        if reference_storage_plan is None:
+            try:
+                reference_storage_plan=build_reference_storage_plan(
+                    runtime=_reference_routing_runtime,
+                    prompts=prompts,
+                    first_frame_hash=assets.first_frame_hash,
+                    last_frame_hash=assets.last_frame_hash,
+                    terminal_prompt=terminal_prompt,
+                    terminal_prompt_policy=terminal_prompt_policy,
+                    through_chunk=len(entries),
+                )
+            except (ReferenceStorageContractError, ValueError) as exc:
+                raise SequenceRuntimeError(f"RR-R5 accepted Session evidence is invalid: {exc}") from exc
+        routed_session_settings=session_routing_settings(reference_storage_plan,len(entries))
+        _reference_routing_runtime.storage_plan = reference_storage_plan
+        _reference_routing_runtime.accepted_chunks = len(entries)
     if latent_only:
         last_state=entry_to_state(entries[-1]); parent_id=session.get("session_id") if session is not None else None
         settings={"continuity":continuity,"audio_continuity":bool(audio_continuity),"exact_total_duration":False,"prompt_mode":plan["mode"],"conditioning_mode":conditioning_mode,"base_seed":int(base_seed),"reroll_nonce":int(reroll_nonce),"diagnostics_mode":diagnostics_mode,"initial_state_source":initial_state is not None,"latent_first":True,"first_frame_hash":assets.first_frame_hash,"last_frame_hash":assets.last_frame_hash,"reference_contract":reference_assets.contract if reference_assets is not None else None}
@@ -1453,8 +1667,9 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         if reference_video_source is not None: settings["reference_video_contract"]=reference_video_source.contract
         if timeline_video_source is not None: settings["timeline_video_contract"]=timeline_video_source.contract
         if guide_source is not None: settings["guide_contract"]=dict(guide_source.contract)
+        if reference_storage_plan is not None: settings["reference_routing_v1"]=routed_session_settings
         new_session=make_session(chunks=entries,width=width,height=height,chunk_seconds=chunk_seconds,identity_hash=sequence_identity_hash,model_fingerprint_value=current_model_fingerprint,parent_session_id=parent_id,reroll_from_chunk=int(reroll_from_chunk),settings=settings)
-        report_lines=[f"H3 Continuum V3 {PACKAGE_VERSION}",f"Conditioning mode: {conditioning_display}.",prompt_plan_report(plan),"Decode: external ComfyUI Core VAE nodes; full raw AV chunks retained.",accelerators,"Execution: conditioning precomputed; single call-local MODEL clone per chunk; no internal VAE decode.",*reuse_notes]
+        report_lines=[f"H3 Continuum V3 {PACKAGE_VERSION}",f"Conditioning mode: {conditioning_display}.",prompt_plan_report(plan),"Decode: external ComfyUI Core VAE nodes; full raw AV chunks retained.",accelerators,"Execution: conditioning precomputed; single call-local MODEL clone per chunk; no internal VAE decode.",*reuse_notes,*routing_warnings]
         if max_new_physical_groups is not None:
             report_lines.append(
                 "Physical review execution: "
@@ -1512,9 +1727,10 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
     if multi_chunk_flf: settings["flf_execution"]=FLF_STRATEGY
     if continuation_transport!=REFERENCE_CONTEXT_V1: settings["continuation_transport"]=continuation_transport
     if guide_source is not None: settings["guide_contract"]=dict(guide_source.contract)
+    if reference_storage_plan is not None: settings["reference_routing_v1"]=routed_session_settings
     new_session=make_session(chunks=entries,width=width,height=height,chunk_seconds=chunk_seconds,identity_hash=sequence_identity_hash,model_fingerprint_value=current_model_fingerprint,parent_session_id=parent_id,reroll_from_chunk=int(reroll_from_chunk),settings=settings)
     decoded_gib=float(images.shape[0])*float(width)*float(height)*3.0*4.0/(1024.0**3)
-    report_lines=[f"H3 Continuum V2 {PACKAGE_VERSION}",prompt_plan_report(plan),f"Seam correction: {seam_correction}.",accelerators,"Execution: conditioning precomputed; single call-local MODEL clone per chunk; decode deferred until sampling completed.",*reuse_notes]
+    report_lines=[f"H3 Continuum V2 {PACKAGE_VERSION}",prompt_plan_report(plan),f"Seam correction: {seam_correction}.",accelerators,"Execution: conditioning precomputed; single call-local MODEL clone per chunk; decode deferred until sampling completed.",*reuse_notes,*routing_warnings]
     if diagnostics_mode!=DIAGNOSTICS_OFF: report_lines.extend([f"Decode RAM estimate: {decode_estimate_gib:.2f} GiB including transient headroom"+(f"; available at start {available_ram_gib:.2f} GiB." if available_ram_gib is not None else "."),*sampling_reports,*decode_reports])
     if duration_report: report_lines.append(duration_report)
     report_lines.extend([session_summary(new_session),f"Output: {images.shape[0]} frames ({images.shape[0]/FPS:.3f}s), audio samples={audio['waveform'].shape[-1]}, decoded tensor≈{decoded_gib:.2f} GiB."])
@@ -1573,3 +1789,13 @@ def run_sequence(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampler:Any,si
             "_diagnostic_continuation_policy":_diagnostic_continuation_policy,
         },
     )
+
+
+def run_sequence_with_reference_routing(*, reference_routing_runtime, **sequence_kwargs):
+    """RR-R4-only caller; do not expose through the V3.8 public node."""
+
+    token = _REFERENCE_ROUTING_RUNTIME.set(reference_routing_runtime)
+    try:
+        return run_sequence(**sequence_kwargs)
+    finally:
+        _REFERENCE_ROUTING_RUNTIME.reset(token)

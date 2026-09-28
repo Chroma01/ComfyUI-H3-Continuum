@@ -1,9 +1,9 @@
 # AGENTS.md
 
 ## Scope
-MiniMax H3 Continuum V3.8 for ComfyUI. Treat the accepted V3.7 Production engine and the accepted V3.8 GPU Gates as the current execution baseline. V3.8 supports its approved current public surface; pre-V3.8 public Node IDs and saved workflows are distributed through their historical Release/tag and are not V3.8 compatibility requirements. Experimental controls must not change current Production behavior. Still Image Guide remains Experimental / Production HOLD.
+MiniMax H3 Continuum for ComfyUI. Current `main` is package 3.9.0: it keeps V3.8X2 and adds a separate V3.9 Sampler and Reference Images V3.9 helper. This source publication is not a new GitHub Release or Registry publication. Treat the accepted V3.7 Production engine and V3.8 GPU Gates as protected execution baselines. Pre-V3.8 public Node IDs and saved workflows remain historical Release/tag contracts, not automatic V3.9 migrations. Experimental controls must not change Production behavior. Still Image Guide remains Experimental / Production HOLD.
 
-Current release-hygiene baseline: O1 and AUDIO-R1 are PASS; the public surface is seven nodes; Sampling Contract is v5; Run Storage is v3; State, Session, Assembly, Driving Audio, and Second Pass/O1 contracts are protected. Release / Registry readiness remains HOLD until package staging is rerun for the latest working tree.
+Current release-hygiene baseline: O1 and AUDIO-R1 are PASS; the original V3.8 launch had seven IDs, V3.8X2 has ten including deprecated loader compatibility IDs, and V3.9 registers twelve in total. Sampling Contract v5, Run Storage v3, State, Session, Assembly, Driving Audio, and Second Pass/O1 remain protected. V3.9 browser/default-template GPU acceptance and Release / Registry readiness remain HOLD.
 
 ## Non-negotiable rules
 - Follow ComfyUI Core behavior for user-facing validation. Continuum-only prompt restrictions, model allowlists, compatibility gates, and policy-based execution stops are prohibited.
@@ -43,7 +43,7 @@ Current release-hygiene baseline: O1 and AUDIO-R1 are PASS; the public surface i
 - `Advanced` contains Second Pass, Selective/Temporal Refine, external integration, and diagnostics. Experimental or development-only nodes do not become public merely because their code and tests are retained.
 - Do not build an all-in-one node pack. Keep external Upscaler, TensorRT, FBC, Sol-Attn, Spectrum, Director, Prompt Planner, Save/Encoder, and Core or external VAE Decode outside Continuum unless an explicit integration contract is approved.
 - Do not grow the Main Sampler with unbounded sockets or serialized widgets. Prefer stable latent/assembly/refine/run contracts and external adapters.
-- V3.8 is the current supported product. V3.7 and earlier remain obtainable from historical GitHub Release/tag rather than being carried as public V3.8 Node-ID compatibility.
+- V3.8X2 remains available as a separate workflow and Sampler alongside V3.9 on `main`. V3.7 and earlier remain obtainable from historical GitHub Release/tag rather than being carried as automatic V3.9 Node-ID compatibility.
 - A saved workflow that references a Node ID not exported by V3.8 may load as an unknown node. State this explicitly in the V3.8 README, Release Notes, and migration note, and direct users to the corresponding historical Release/tag. Do not restore old registrations solely to hide this intentional support boundary.
 - The accepted V3.8 launch surface is seven searchable nodes: Sampler V3.8, Reference Audios, Finalize, Load Image, Load Audio, Load Video, and Second Pass. AUDIO-R1 is the approved one-node modular-input exception; existing six node IDs and schemas remain compatible.
 - Public-surface cleanup changes export mappings only. Do not physically delete legacy classes/modules while current V3.8 imports or inherits them, and do not exclude runtime-imported legacy modules from the package archive.
@@ -57,9 +57,13 @@ Current release-hygiene baseline: O1 and AUDIO-R1 are PASS; the public surface i
 - Hi-Res Fix is not part of the new standard workflow. Preserve its historical implementation until cleanup is approved; use Second Pass as the external latent-processor bridge.
 - Keep P1a First Block Cache and P2 boundary-aware Sol-Attn `Deferred`. Keep A5 and A8b `HOLD` under their recorded release contracts. Issue #13 reporter-exact R3 remains the highest Continuation Quality investigation when its required workflow is available.
 
+## H3 completion review handoff
+
+- User decision (2026-09-16): do not send implementation or Gate reports to `H3情報チェック` automatically, ask for handoff approval, or wait for a reply. Send only when the user explicitly requests it again.
+
 ## A8b and A5 HOLD release contracts
 
-- 2026-09-05 explicit user exception ("許可、許可。"): Issue13 R3B may run one isolated Video-only weak tapered context-noise A/B experiment before reporter-exact R3. This waives only the reporter-exact/independence prerequisite for that diagnostic. Keep Production/source runtime unchanged, Audio/masks/depth/Seed/SIGMAS/grouping unchanged, default OFF bit-exact, and pass CPU/Shadow/Replay before GPU. Restore clean exported prefix after the diagnostic perturbation. No combined interventions, A5 work, public controls, or Production promotion are authorized. General A8b and Release HOLD remain. Do not automatically send cross-task audit reports; sending requires a fresh explicit user request.
+- 2026-09-05 explicit user exception ("許可、許可。"): Issue13 R3B may run one isolated Video-only weak tapered context-noise A/B experiment before reporter-exact R3. This waives only the reporter-exact/independence prerequisite for that diagnostic. Keep Production/source runtime unchanged, Audio/masks/depth/Seed/SIGMAS/grouping unchanged, default OFF bit-exact, and pass CPU/Shadow/Replay before GPU. Restore clean exported prefix after the diagnostic perturbation. No combined interventions, A5 work, public controls, or Production promotion are authorized. General A8b and Release HOLD remain; GPU-audit sharing is limited to the fixed H3情報チェック task.
 
 - A8a is the accepted read-only baseline: full pytest `1041`, Manifest `242/242`, every observer record has `execution_applied=false`, and Production/Sampling/Run Storage/State/Session/Assembly parity is preserved.
 - Keep A8b execution policy on HOLD until one intervention type is specified and approved. Do not change context, transport, mask, latent, or conditioning in combination. Seed, SIGMAS, and physical grouping remain unchanged unless separately approved.
@@ -101,8 +105,8 @@ GPU checks must cover Sage only, Sage+Sol, Sage+Spectrum, and Sage+Sol+Spectrum 
 - New official workflows use Core LoadAudio and Core LoadVideo -> H3ContinuumVideoAdapter. The adapter has no Enable/file/upload UI and reuses the existing frame-rate conversion. Preserve the original Audio/Video IDs as deprecated compatibility nodes; never infer lost filenames or saved OFF states.
 - The approved export exception adds H3ContinuumVideoAdapter to the existing nine-node mapping. Do not change Main Sampler, Sampling, external wrappers, Decode Cache or Run Storage semantics for this repair.
 
-## User-approved Timeline Video experiment (2026-09-22)
+## User-approved Timeline Video experiment (2026-09-21)
 
-- Append one optional `Video Reference Mode` to V38. Missing mode remains `Repeat Reference`; `Follow Timeline` is opt-in and uses each physical group's visible output range without consuming continuation context twice.
-- Preserve grouping, Seed, SIGMAS, Audio, masks, Run Storage schema, Terminal Merge ownership, and the two official V3.8X2 workflow files. Experimental Follow/Repeat templates remain separate comparison assets.
-- Local acceptance passed: full CPU `1424 passed / 1 skipped`, browser save/reload, Follow/Repeat GPU functional runs, A/B mode separation, and Manifest integrity. Keep the feature Experimental; do not describe it as exact motion copying or a long-input RAM optimization.
+- This ZIP adds one optional appended Video Reference Mode to V38. Missing mode stays Repeat Reference. Follow Timeline is opt-in and uses the existing physical visible range; do not change grouping, seed, audio or masks.
+- Keep current public workflow files unchanged. Separate Experimental Follow/Repeat templates are used until browser and GPU acceptance.
+- CPU module/patch-fixture tests do not constitute a full ComfyUI or GPU gate. H3 information-check handoff remains pending.

@@ -100,6 +100,8 @@ def test_run_storage_off_normalizes_widgets_reload_and_queued_inputs(tmp_path):
     script = f"""
     const RUN_STORAGE_WIDGET = "run_storage";
     const V38_NODE_CLASS = "H3ContinuumSamplerV38";
+    const V39_NODE_CLASS = "H3ContinuumSamplerV39";
+    const isModernSamplerClass = (name) => name === V38_NODE_CLASS || name === V39_NODE_CLASS;
 const REGENERATE_WIDGET = "reroll_from_chunk";
 const REROLL_NONCE_WIDGET = "reroll_nonce";
 const LEGACY_RUN_NAME_WIDGET = "run_name";

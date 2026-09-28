@@ -11,8 +11,8 @@ WORKFLOW_PATH = ROOT / "examples" / "workflows" / "MiniMax_H3_Continuum_V38X2.js
 
 # User-approved loader migration (2026-09-21); non-loader graph values are protected.
 WORKFLOW_SHA256 = "1b2212b7511fac0b63dfa6e9f006cd8644c72d08c6945ab0e4ed0e722c97a730"
-ZIP_SHA256 = "8f839a955859bffa0d9cf0b15e91ee484dd911aca5ae31f1787debd56afdc7da"
 ZIP_WORKFLOW_NAME = "MiniMax_H3_Continuum_V38X2.json"
+V39_WORKFLOW_NAME = "MiniMax_H3_Continuum_V39.json"
 EXTERNAL_PACKAGES = {
     "comfyui-spectrum-minimax-h3",
     "rgthree-comfy",
@@ -72,15 +72,17 @@ def test_v38_public_workflow_declares_external_dependencies_and_is_reloadable():
     assert int(workflow["last_link_id"]) >= max(int(link[0]) for link in workflow["links"])
 
 
-def test_v38_public_workflow_and_zip_preserve_supplied_bytes():
+def test_v38_public_workflow_and_combined_zip_preserve_workflow_bytes():
     payload = WORKFLOW_PATH.read_bytes()
     archive_path = WORKFLOW_PATH.with_suffix(".zip")
     assert hashlib.sha256(payload).hexdigest() == WORKFLOW_SHA256
-    assert hashlib.sha256(archive_path.read_bytes()).hexdigest() == ZIP_SHA256
     with ZipFile(archive_path) as archive:
-        assert archive.namelist() == [ZIP_WORKFLOW_NAME]
+        assert archive.namelist() == [ZIP_WORKFLOW_NAME, V39_WORKFLOW_NAME]
         assert archive.testzip() is None
         assert archive.read(ZIP_WORKFLOW_NAME) == payload
+        assert archive.read(V39_WORKFLOW_NAME) == (
+            WORKFLOW_PATH.with_name(V39_WORKFLOW_NAME).read_bytes()
+        )
 
 
 def test_v38x2_official_names_are_the_same_graph_with_matching_zips():
@@ -89,12 +91,10 @@ def test_v38x2_official_names_are_the_same_graph_with_matching_zips():
         "MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json"
     )
     assert explicit_path.read_bytes() == standard_payload
-    for workflow_path in (WORKFLOW_PATH, explicit_path):
-        archive_path = workflow_path.with_suffix(".zip")
-        with ZipFile(archive_path) as archive:
-            assert archive.namelist() == [workflow_path.name]
-            assert archive.testzip() is None
-            assert archive.read(workflow_path.name) == standard_payload
+    with ZipFile(explicit_path.with_suffix(".zip")) as archive:
+        assert archive.namelist() == [explicit_path.name]
+        assert archive.testzip() is None
+        assert archive.read(explicit_path.name) == standard_payload
 
 
 def test_v38_public_workflow_preserves_sampler_widget_positions():
