@@ -8,6 +8,12 @@
 
 *V3.8X2の画像も比較用に残しています。画像内の「CURRENT MAIN」は作成当時の表記で、現在の`main`はV3.9です。V3.8 SamplerとV3.8X2 Workflowは利用できますが、Reference配線はV3.9へ自動変換されません。*
 
+## main更新：Review表示の復元修正（2026-10-01）
+
+別のWorkflowタブへ切り替えて戻ると、保存済みTakeが残っていてもReview操作が消える問題を修正しました。Workflowの復元完了後に履歴を取得し、古い画面の非同期結果は反映しません。実際に生成設定を変えた場合のReview／Take適用ガードは維持し、元の設定に戻すと操作が復帰します。
+
+カスタムノードを`main`から更新後、ブラウザーを更新して新しいJavaScriptを読み込んでください。確認済み：Frontend回帰60/60、関連CPU試験108件、Chromeのタブ5往復とBase Seed変更／復元。Take管理データは不変です。Sampling、Run Storage契約、V3.8X2／V3.9のWorkflowファイルと過去Releaseは変更していません。この修正のGPU継続生成は未検証です。[詳細と検証範囲](docs/REVIEW_RESTORATION_REPAIR.md)。
+
 ## 最初に：V3.9とV3.8X2
 
 ComfyUIの **Templates → ComfyUI-H3-Continuum** には、今回選んだ[V3.9公式Workflow](examples/workflows/MiniMax_H3_Continuum_V39.json)と、別の[V3.8X2 Workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json)を2件表示します。[V3.8X2 Workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip)には、**V3.8X2とV3.9の両JSON**を同梱しました。[V3.9単独ZIP](examples/workflows/MiniMax_H3_Continuum_V39.zip)も残します。いずれもWorkflow用ZIPで、カスタムノード本体のインストーラーではありません。V3.8 Samplerは残るので既存のV3.8X2 Workflowは使えます。ただしV3.9へReference配線や保存済みRun／Takeは自動移行しません。旧Workflowを保存しておき、新しい作業ではV3.9専用Workflowを開いてください。

@@ -8,6 +8,12 @@
 
 *This V3.8X2 card is retained for comparison. Its “CURRENT MAIN” label describes the time it was made; V3.9 is current now. The V3.8 Sampler and V3.8X2 workflow remain available, but their Reference wiring is not automatically converted to V3.9.*
 
+## Review restoration fix on main (2026-10-01)
+
+Switching to another workflow and back could hide Review actions even though saved Takes still existed. This frontend repair waits for workflow restoration before reading history and ignores stale results from previous graphs. Real generation-setting changes still disable Review/Take application; restoring the original settings re-enables the actions.
+
+Update the custom node from `main`, then refresh the browser to load the new JavaScript. Validation: 60/60 frontend regression cases, 108 focused CPU tests, five Chrome tab round trips, and a Chrome Base Seed edit/restore test; saved Take metadata stayed unchanged. Sampling, Run Storage contracts, V3.8X2/V3.9 workflow files and historical Releases are unchanged. GPU continuation was not tested for this repair. [Details and verification limits](docs/REVIEW_RESTORATION_REPAIR.md).
+
 ## Start here: V3.9 and the retained V3.8X2 workflow
 
 The ComfyUI **Templates → ComfyUI-H3-Continuum** gallery offers two separate entries: the user-selected [V3.9 workflow](examples/workflows/MiniMax_H3_Continuum_V39.json) and [V3.8X2 workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json). The [V3.8X2 workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip) contains **both unchanged JSON workflows** for one-download setup; the [V3.9 ZIP](examples/workflows/MiniMax_H3_Continuum_V39.zip) contains only V3.9. These are workflow archives, not custom-node installers. The V3.8 Sampler remains available, so existing V3.8X2 workflows still load. V3.9 does not automatically convert their Reference connections or saved Runs/Takes: preserve the old workflow and open the dedicated V3.9 graph for new work.
