@@ -1,4 +1,18 @@
-# ComfyUI-H3-Continuum 3.9.1 — V3.9
+# ComfyUI-H3-Continuum 3.9.2 — V3.9
+
+## 3.9.2 — Issue #30 Frontend hotfix（2026-10-13）
+
+ReviewとReference Imagesの不要なUI処理を削減します。
+
+- Review比較基準がない場合、上流設定snapshotの作成を省略。
+- Reference選択時のSampler通知を1回へ整理。native値の即時更新と元widget callbackを維持。
+- Referenceノードの目標寸法と実寸が同じ場合、不要なサイズ変更を省略。
+
+比較基準がある場合の監視と、Take／Queue時の最新設定確認を維持します。Sampling、保存済みRun／Take、公開Node ID、公式Workflowのbytesは変更しません。引き続きV3.9ノードを使用してください。
+
+Frontend修正で**CPU／JavaScript回帰1703件成功・2件スキップ**、独立したInspector再configure問題の**2条件を期待失敗として記録**しました。Coreのオフライン登録・計画確認と隔離Chromium検証も通過しています。このパッケージの実ComfyUIブラウザー確認は[PACKAGE_VALIDATION.txt](PACKAGE_VALIDATION.txt)に記録します。モバイルでのフリーズ解消は未確認です。Reference表の再構築と、比較基準がある場合のReview走査は残ります。今回のhotfixで新たなGPU生成は行っていません。
+
+更新後は**ブラウザーを強制再読込（Ctrl+F5）**してください。表示するパッケージ番号も更新する場合は、通常の手順でComfyUIを再起動してください。3.9.1のRun／Takeは、このUI修正のために移行する必要はありません。固定版は[GitHub Releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases)を参照してください。Registry公開は別作業です。
 
 ## 3.9.1で変わった点（2026-10-04）
 
@@ -75,9 +89,9 @@ ComfyUIの **Templates → ComfyUI-H3-Continuum** には、今回選んだ[V3.9�
 
 ヘルパーの `All chunks` は接続画像を全チャンクに、`Per chunk` は画像×チャンクの表で指定します。このテンプレートは`Per chunk`で全チェックOFFから始まるため、Loaderを有効にした後、使用したいチャンクにもチェックしてください。空欄があっても番号はずれず、Image 1は常に`@R1`、Image 9は`@R9`です。Sequence Promptにはチャンクごとの動作を短く書き、そのチャンクで使う画像の`@R`タグを付けます。内部の`<Picture N>`番号はgroupごとに自動変換されます。使わないタグは警告しますが生成を止めません。まず短いチャンクと縮小済み画像で試してください。入力元画像はSamplerのReference Image Size設定より前にRAMを使うことがあります。
 
-V3.9.1は`main`の現行ソースです。バージョンを固定したソースは[GitHub Releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases)から取得してください。ComfyUI Registryへの公開は別の作業です。過去のReleaseとtagも残します。設定済み1024×1024のReference-only GPU/APIテストは通っていますが、無改変の公式テンプレート初期設定とブラウザー保存・再読込は別の受入項目です。古い環境を厳密に再現するには対応する過去のRelease／tagとWorkflowを使用してください。現行mainにもV3.8 Samplerを残し、V3.8X2 Workflowを使えるようにしています。
+V3.9.2は`main`の現行ソースです。バージョンを固定したソースは[GitHub Releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases)から取得してください。ComfyUI Registryへの公開は別の作業です。過去のReleaseとtagも残します。設定済み1024×1024のReference-only GPU/APIテストは通っていますが、無改変の公式テンプレート初期設定とブラウザー保存・再読込は別の受入項目です。古い環境を厳密に再現するには対応する過去のRelease／tagとWorkflowを使用してください。現行mainにもV3.8 Samplerを残し、V3.8X2 Workflowを使えるようにしています。
 
-`pyproject.toml`の宣言上はComfyUI `>=0.32.0`ですが、以前の実生成・GPU検証はComfyUI `0.34.2`、上記の限定したFixedキャッシュ比較は`0.38.0`で行いました。最低宣言版でV3.9の実機動作を確認済みという意味ではありません。最新の記録済みWindows CPU試験は`1696 passed / 1 skipped / 0 failed`、以前の別環境Linux再実行報告は`1534 passed / 3 skipped / 0 failed`で、新しいキャッシュ／外部INT試験は含みません。これらは無改変の公式テンプレートの実ブラウザー保存・再読込やGPU受入を代替しません。
+`pyproject.toml`の宣言上はComfyUI `>=0.32.0`ですが、以前の実生成・GPU検証はComfyUI `0.34.2`、上記の限定したFixedキャッシュ比較は`0.38.0`で行いました。最低宣言版でV3.9の実機動作を確認済みという意味ではありません。以前のWindows CPU試験は`1696 passed / 1 skipped / 0 failed`、以前の別環境Linux再実行報告は`1534 passed / 3 skipped / 0 failed`で、新しいキャッシュ／外部INT試験は含みません。これらは無改変の公式テンプレートの実ブラウザー保存・再読込やGPU受入を代替しません。
 
 ## V3.9 Reference Images
 

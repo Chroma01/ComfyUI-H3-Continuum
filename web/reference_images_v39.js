@@ -107,8 +107,10 @@ export function configureV39ReferenceImages(node) {
         panelHeight = height;
         panel.style.height = `${height}px`;
         const computedHeight = Number(node.computeSize?.()[1]);
-        if (Number.isFinite(computedHeight) && typeof node.setSize === "function") {
-            node.setSize([Number(node.size?.[0]) || 340, computedHeight]);
+        const width = Number(node.size?.[0]) || 340;
+        if (Number.isFinite(computedHeight) && typeof node.setSize === "function"
+            && (Number(node.size?.[0]) !== width || Number(node.size?.[1]) !== computedHeight)) {
+            node.setSize([width, computedHeight]);
         }
     };
     let page = 0;
@@ -116,9 +118,8 @@ export function configureV39ReferenceImages(node) {
     const setSelection = (slot, selection) => {
         const target = selectors[slot - 1];
         target.value = [...selection].sort((a, b) => a - b).join(",") || "off";
+        // The wrapped native callback owns invalidation and the immediate refresh.
         target.callback?.(target.value);
-        invalidate(node);
-        refresh();
     };
     const refresh = () => {
         const { count, known } = destination(node);

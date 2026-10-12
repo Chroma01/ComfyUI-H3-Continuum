@@ -1,8 +1,14 @@
 # Public source status
 
-Updated: 2026-10-04 (Japan time).
+Updated: 2026-10-13 (Japan time).
 
-## Package 3.9.1
+## Package 3.9.2 — Issue #30 frontend hotfix
+
+This package includes three minimal frontend changes: skip Review snapshots without a comparison baseline, notify connected Samplers once per Reference selection, and skip unchanged node dimensions when resizing. Review baseline monitoring, synchronous Take/Queue checks and generation/storage contracts are retained; package metadata is 3.9.2.
+
+CPU/JavaScript regression checks passed 1,703 cases, with 2 skips and 2 explicit expected failures for the separate Inspector reconfigure bug. Offline twelve-node/runtime checks, isolated Chromium checks and the actual Core/frontend/LiteGraph desktop smoke passed without GPU generation. The live smoke covers native assignment graph serialization/reload and upstream edit/restore using synthetic nodes; UI file-save and stored-Take acceptance remain separate. DOM rebuilds remain; real ComfyUI browser save/reload, mobile freeze resolution and full workflow acceptance are still pending. No delayed update timer is added. See GitHub Releases for the published version; Registry publication is separate.
+
+## Previous package 3.9.1 — generation stability history
 
 This patch stabilizes V3.9 generation and Review without adding LoRA Plan or V4.0. Public V3.9 node IDs and official workflows remain unchanged. V3.8X2 stays available as a separate workflow; historical releases and tags remain available.
 

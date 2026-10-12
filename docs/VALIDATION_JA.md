@@ -1,6 +1,6 @@
-# H3 Continuum 3.9.1 — 検証手順と受入範囲
+# H3 Continuum 3.9.2 — 検証手順と受入範囲
 
-現行版はパッケージ3.9.1、公開12ノードです。引き続きV3.9ノードを使用します。
+現行版はパッケージ3.9.2、公開12ノードです。引き続きV3.9ノードを使用します。
 旧版の検証手順は末尾に履歴として残しています。
 
 ## CPU・登録確認
@@ -19,12 +19,25 @@ pytestが実Coreを必要とするケースまで実行したかは、結果の�
 Coreがないstandalone環境では、実Core依存18件を明示的にスキップします。
 Core内部の依存エラーや計算エラーをスキップで隠す設計ではありません。
 
-記録済みの結果は環境別です。実Coreの全CPUは1,696成功・1スキップ、公開CIは
+3.9.2のFrontend修正の実Core CPUは1703成功・2スキップ・2期待失敗です。
+期待失敗は、独立したInspector再configure問題の2条件を追跡します。
+公開候補の最終試験・CI・実画面の記録はPACKAGE_VALIDATION.txtを参照してください。
+
+以前の3.9.1の結果は環境別です。実Coreの全CPUは1,696成功・1スキップ、公開CIは
 1,676成功・21スキップです。CIの21件は実Core依存18件と既存環境制約3件です。
 詳細・対象コミットは[PACKAGE_VALIDATION.txt](../PACKAGE_VALIDATION.txt)を参照し、
 異なる環境の件数を単純合算しないでください。
 
-## 実ブラウザー受入
+## Issue #30の限定ブラウザー確認
+
+GPU生成を行わず、分離した検証WorkflowでReference単体・Sampler単体・接続時を
+比較します。無操作、パン／ズーム、連続チェック、All／Off、複数helper／Sampler、
+接続変更、Chunks縮小・復元、native値の保存・再読込を確認します。
+Review比較基準がある場合は上流widget／接続／Bypassの変更と元に戻す操作、
+最新設定でのTake／Queueガードを確認します。Inspector再configure問題は別件です。
+実モバイルの解消確認、既存実Runの採用・生成確認とは区別して記録します。
+
+## 実ブラウザー受入（全体の確認項目）
 
 生成中のワークフローを再起動・置換せず、実行中と待機中のキューが空の状態で
 検証用Workflowを使用します。元Workflowと採用済みTakeを先に保存してください。
@@ -42,7 +55,7 @@ Canvasの表示だけ、API登録だけ、DOM代替のJSテストだけで、保
 実ブラウザーPASSとはしません。検証用Workflowの合格も、無改変公式Workflowの
 初期設定でのGPU受入とは区別します。
 
-## 修正対象のGPU Gate
+## 以前の3.9.1生成修正のGPU Gate
 
 - R1／Review Second Pass: audio-only／mixed keyframes、partial prefix、
   中央Chunk単独、complete sequenceを確認します。出力group自身のconditioning、
@@ -53,7 +66,7 @@ Canvasの表示だけ、API登録だけ、DOM代替のJSテストだけで、保
   Exact ON／OFFとも一度だけ切り出すことを確認します。
 - 保存済みTakeのJSON／raw、動画と音声の尺、CUDA／OOM／NaN、残留キューも記録します。
 
-対象修正のGPU確認は記録済みですが、ブラウザー受入、無改変公式Workflow全体、
+以前の3.9.1対象修正のGPU確認は記録済みですが、ブラウザー受入、無改変公式Workflow全体、
 全アクセラレータ構成や総合画質の受入まで済んだとは扱いません。
 任意LATENT拡大の二重輪郭は[Issue #27](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues/27)
 として分けて扱います。
@@ -66,15 +79,15 @@ Canvasの表示だけ、API登録だけ、DOM代替のJSテストだけで、保
 同一VAEオブジェクトの重みを直接変更した場合は、Reference Encode Cacheを
 明示的にクリアするか、VAEを再読込してください。
 
-GitHub ReleaseとRegistry公開は別作業です。公開済みv3.9.1 tagは保持し、後続の
-文書訂正はmainで参照してください。
+GitHub ReleaseとRegistry公開は別作業です。公開版はGitHub Releasesで確認し、
+過去のv3.9.1 tagも保持します。3.9.1からのUI hotfixではRun／Takeの移行は不要です。
 
 ---
 
 ## 履歴：V2専用の旧検証手順
 
 以下は当時の記録です。V1／V2ノード数、`strict_compatibility`、旧Session再開手順を
-3.9.1の現行仕様や受入結果として使用しないでください。
+3.9.2の現行仕様や受入結果として使用しないでください。
 
 # H3 Continuum Join 2.0 — 実機検証
 

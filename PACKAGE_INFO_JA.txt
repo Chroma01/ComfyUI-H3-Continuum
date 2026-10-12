@@ -1,3 +1,32 @@
+ComfyUI-H3-Continuum 3.9.2 / Issue #30 Frontend hotfix
+パッケージmetadata: 3.9.2（2026-10-13）。公開登録は12ノード。
+
+今回の修正:
+- Review比較基準なしの上流snapshotを省略。
+- Reference選択時のSampler通知を1回へ整理。native値と元callbackを維持。
+- ノード全体の目標寸法と実寸が同じならsetSizeを省略。
+- 基準ありの監視、Take／Queue時の最新確認、V3.9の公開仕様・保存契約を維持。
+
+検証:
+Frontend修正の実Core CPUは1703成功／2スキップ／2期待失敗。
+期待失敗は独立したInspector再configure問題の2条件です。
+既存Review Queue JS 62条件と外部INT JS 22条件、Coreの登録・計画確認は成功。
+隔離Chromiumで基準なしsnapshotと通知・同寸法resizeの削減を確認しました。
+公開候補の最終試験と実ComfyUI画面の結果はPACKAGE_VALIDATION.txtを参照。
+モバイルのフリーズ解消は未確認。DOM再構築・基準ありReview走査とInspector
+既知問題は残ります。今回の新規GPU生成はなく、以前のGPU結果とは区別します。
+
+更新:
+ブラウザーを強制再読込してください。表示するpackage番号も更新する場合は
+通常の手順でComfyUIを再起動してください。引き続きV3.9ノードを使用します。
+3.9.1のRun／Takeを今回のUI修正のために移行する必要はありません。
+公式Workflow JSON／ZIPのbytesを保持。Experimental LoRA／V4.0は含みません。
+固定版はGitHub Releasesを参照し、Registry公開は別作業です。
+
+======================================================================
+履歴：3.9.1安定化修正の記録（以下の件数・GPU結果は当時のもの）
+======================================================================
+
 ComfyUI-H3-Continuum 3.9.1 / V3.9安定化修正・V3.8X2併存
 パッケージmetadata: 3.9.1（2026-10-04）
 

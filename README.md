@@ -1,4 +1,18 @@
-# ComfyUI-H3-Continuum 3.9.1 — V3.9
+# ComfyUI-H3-Continuum 3.9.2 — V3.9
+
+## 3.9.2 — Issue #30 frontend hotfix (2026-10-13)
+
+This hotfix reduces unnecessary Review and Reference Images UI work:
+
+- Skip upstream Review settings snapshots when no comparison baseline exists.
+- Notify connected Samplers once per Reference selection, preserving immediate native values and the original widget callback.
+- Skip Reference node resizing when its target dimensions already match its actual dimensions.
+
+Review monitoring with a baseline and fresh Take/Queue checks remain in place. Sampling, saved Runs/Takes, public node IDs and official workflow bytes are unchanged. Keep using the V3.9 nodes.
+
+The frontend repair passed **1,703 CPU/JavaScript regression tests, 2 skipped**, with **2 explicit expected failures** for the independent Reference Plan Inspector bug after repeated Sampler configuration. Offline Core registration/planning and isolated Chromium checks passed. Real ComfyUI browser checks for this package are recorded in [PACKAGE_VALIDATION.txt](PACKAGE_VALIDATION.txt); mobile freeze resolution is unconfirmed. Reference table rebuilding and Review snapshots with a baseline remain. No new GPU generation is part of this hotfix's validation.
+
+After updating, **hard-refresh the browser (Ctrl+F5)** to load the JavaScript. Restart ComfyUI normally to update the displayed package version. A 3.9.1 Run/Take does not require migration for this UI hotfix. Versioned downloads are listed in [GitHub Releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases); Registry publication is separate.
 
 ## 3.9.1 — what changed (2026-10-04)
 
@@ -75,9 +89,9 @@ The selected V3.9 template has 32 nodes. Image loaders 1–6 are wired to the ne
 
 In the helper, `All chunks` uses connected images throughout; `Per chunk` provides an image-by-chunk table. The template starts in `Per chunk` with all assignments off: after enabling a loader, tick the chunks that should use it. Slot numbers never shift: Image 1 is `@R1` and Image 9 is `@R9`, even when intervening slots are empty. In Sequence Prompt, describe the action for each chunk and use `@R` tags only for active References; their actual `<Picture N>` numbers are resolved per group. Unused tags warn without stopping generation. Start with short chunks and pre-resized images: source images may consume RAM before the Sampler's Reference Image Size setting applies.
 
-V3.9.1 is the current source version on `main`. Download versioned source from [GitHub Releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases); ComfyUI Registry publication is separate. Historical Releases and tags remain available. Configured 1024×1024 Reference-only GPU/API runs succeeded, but the unchanged default template and browser save/reload remain separate acceptance gates. For a reproducible older environment, use the matching historical Release/tag and workflow; the retained V3.8 Sampler on current `main` specifically supports V3.8X2 workflows.
+V3.9.2 is the current source version on `main`. Download versioned source from [GitHub Releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases); ComfyUI Registry publication is separate. Historical Releases and tags remain available. Configured 1024×1024 Reference-only GPU/API runs succeeded, but the unchanged default template and browser save/reload remain separate acceptance gates. For a reproducible older environment, use the matching historical Release/tag and workflow; the retained V3.8 Sampler on current `main` specifically supports V3.8X2 workflows.
 
-`pyproject.toml` declares ComfyUI `>=0.32.0`; earlier real-generation/GPU validation used ComfyUI `0.34.2`, and the scoped Fixed cache comparison above used `0.38.0`. The minimum declaration does not establish V3.9 runtime acceptance on 0.32.0. The latest recorded Windows CPU run is `1696 passed / 1 skipped / 0 failed`; the earlier separate Linux rerun report records `1534 passed / 3 skipped / 0 failed` and does not include the new cache or external INT tests. Neither replaces browser save/reload or GPU acceptance for the unchanged official template.
+`pyproject.toml` declares ComfyUI `>=0.32.0`; earlier real-generation/GPU validation used ComfyUI `0.34.2`, and the scoped Fixed cache comparison above used `0.38.0`. The minimum declaration does not establish V3.9 runtime acceptance on 0.32.0. The previous Windows CPU run is `1696 passed / 1 skipped / 0 failed`; the earlier separate Linux rerun report records `1534 passed / 3 skipped / 0 failed` and does not include the new cache or external INT tests. Neither replaces browser save/reload or GPU acceptance for the unchanged official template.
 
 ## V3.9 Reference Images
 

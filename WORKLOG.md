@@ -1,5 +1,15 @@
 # Public development log
 
+## 2026-10-13 — Issue #30 frontend hotfix, package 3.9.2
+
+- Limit production changes to baseline-free Review snapshot skipping, one Reference selection notification per connected Sampler, and dimension checks before resizing the Reference helper. Align package metadata and current public guidance with 3.9.2; retain 3.9.1 records as history.
+- Keep Review drawing-time upstream monitoring when a baseline exists and fresh synchronous Take/Queue checks. Preserve native callbacks, immediate saved assignment values, public widget/socket order and official workflow bytes.
+- Add frontend regression coverage for upstream widget/link edits, rapid Reference selections, All/Off with future assignments, helper reconfiguration and independent helpers/Samplers. Track the independent Inspector reconfigure bug at 2 and 100 passes with explicit expected failures; one-pass refresh must succeed.
+- Browser checks use isolated Chromium DOM and graph fixtures without generation. Full ComfyUI canvas, mobile performance and live workflow acceptance remain separate checks.
+- Validation: 1,703 CPU/JavaScript regression cases passed, 2 skipped and 2 expected failures for the independent Inspector bug; zero CUDA initialization attempts. Offline runtime planning and twelve-node registration passed. In isolated Chromium, 600 baseline-free draw callbacks made zero snapshots (previously 600); 30 connected Reference checks notified the Sampler 30 times (previously 60), with zero same-dimension resize calls (previously 30). DOM rebuilds remain, and mobile freeze resolution is unconfirmed.
+
+- Final 3.9.2 candidate CPU gate passed 1,703 cases with 2 skips and 2 explicit Inspector expected failures. The actual Core/frontend/LiteGraph browser smoke passed checkbox interactions, Prompt/link/Bypass edit/restore and native assignment graph reload without submitting a prompt. This desktop headless/model-free check is separate from UI file-save, mobile hardware and stored-Take acceptance.
+
 ## 2026-10-04 — V3.9 stability patch, package 3.9.1
 
 - Preserve Second Pass audio/mixed-keyframe conditions and inherit the conditioning and References belonging to the selected Review output.

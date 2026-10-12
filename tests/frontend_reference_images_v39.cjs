@@ -24,8 +24,11 @@ const {
     configureV39ReferenceImages, refreshV39ReferenceImagesForSampler,
     connectedV39LegacyReferenceInputs, pruneV39LegacyReferenceInputs,
 } = sandbox.v39;
+const nativeCalls = [];
+let resizeCalls = 0;
 const selectors = Array.from({ length: 9 }, (_, i) => ({
     name: `reference_r${i + 1}_chunks`, value: 'off', type: 'text', options: {},
+    callback(...args) { nativeCalls.push({ receiver: this, args }); return 'native-result'; },
 }));
 const mode = { name: 'reference_use', value: 'All chunks', type: 'combo', options: {} };
 const helper = {
@@ -36,13 +39,15 @@ const helper = {
     outputs: [{ name: 'reference_images', links: [10] }],
     addDOMWidget(_name, _type, host, options) { this.host = host; this.panel = host.children[0]; this.domOptions = options; this.display = { options: {} }; return this.display; },
     computeSize() { return [this.size[0], 310 + this.display.computeSize(this.size[0])[1]]; },
-    setSize(size) { this.size = size; },
+    setSize(size) { resizeCalls++; this.size = size; },
     setDirtyCanvas() {},
 };
 const chunks = { name: 'chunks', value: 6 };
 const sampler = {
     id: 2, graph, comfyClass: 'H3ContinuumSamplerV39',
     widgets: [chunks], inputs: [{ name: 'reference_images', link: 10 }],
+    refreshes: 0,
+    __h3ContinuumIntuitiveUxRefresh() { this.refreshes++; },
     __h3ContinuumReferencePlan: 'verified', setDirtyCanvas() {},
 };
 graph.nodes.set(1, helper); graph.nodes.set(2, sampler);
@@ -72,7 +77,14 @@ function click(slot, chunk) {
     const box = visit(helper.panel, (item) => item.tag === 'input'
         && item['aria-label'] === `Image ${slot}, Chunk ${chunk}`);
     assert(box, `missing Image ${slot} / Chunk ${chunk}`);
+    const before = { notifications: sampler.refreshes, native: nativeCalls.length, sizes: resizeCalls, width: helper.size[0] };
     box.checked = !box.checked; box.onchange();
+    assert.equal(sampler.refreshes, before.notifications + 1, 'one synchronous Sampler notification per checkbox');
+    assert.equal(nativeCalls.length, before.native + 1, 'preserve the native callback exactly once');
+    assert.equal(nativeCalls.at(-1).receiver, selectors[slot - 1]);
+    assert.equal(nativeCalls.at(-1).args[0], selectors[slot - 1].value);
+    assert.equal(resizeCalls, before.sizes, 'selection changes must not resize an unchanged layout');
+    assert.equal(helper.size[0], before.width, 'keep the manually chosen width');
 }
 for (const chunk of [1, 3, 6]) click(1, chunk);
 assert.equal(selectors[0].value, '1,3,6');
@@ -80,6 +92,28 @@ assert.equal(sampler.__h3ContinuumReferencePlan, null);
 chunks.value = 3; refreshV39ReferenceImagesForSampler(sampler);
 assert.match(helper.panel.children.find((item) => item.textContent.startsWith('Image 1 →')).textContent, /saved beyond range: 6/);
 assert.equal(selectors[0].value, '1,3,6');
+function action(label) {
+    const row = visit(helper.panel, (item) => item.tag === 'tr'
+        && item.children[0]?.textContent === 'Image 1 · @R1');
+    const button = visit(row, (item) => item.tag === 'button' && item.textContent === label);
+    assert(button && !button.disabled);
+    const before = { notifications: sampler.refreshes, native: nativeCalls.length, sizes: resizeCalls };
+    button.onclick();
+    assert.equal(sampler.refreshes, before.notifications + 1, 'one notification per All / Off');
+    assert.equal(nativeCalls.length, before.native + 1);
+    assert.equal(resizeCalls, before.sizes);
+}
+action('All');
+assert.equal(selectors[0].value, '1,2,3,6', 'All preserves saved chunks beyond the current range');
+action('Off');
+assert.equal(selectors[0].value, '6', 'Off preserves saved chunks beyond the current range');
+selectors[0].value = '1,3,6';
+const nativeBefore = nativeCalls.length;
+const refreshBefore = sampler.refreshes;
+assert.equal(selectors[0].callback('1,3,6', 'native-edit'), 'native-result');
+assert.equal(nativeCalls.length, nativeBefore + 1);
+assert.equal(nativeCalls.at(-1).args[1], 'native-edit');
+assert.equal(sampler.refreshes, refreshBefore + 1);
 chunks.value = 6; refreshV39ReferenceImagesForSampler(sampler);
 assert.equal(selectors[0].value, '1,3,6');
 mode.value = 'All chunks'; mode.callback('All chunks');
@@ -92,6 +126,51 @@ chunks.value = 16;
 helper.__h3ReferenceImagesRefresh();
 assert.equal(helper.display.computeSize(440)[1], 368);
 assert.equal(helper.panel.style.height, '360px');
+const stableSizes = resizeCalls;
+const wrappedCallback = selectors[0].callback;
+for (let i = 0; i < 100; i++) configureV39ReferenceImages(helper);
+assert.equal(selectors[0].callback, wrappedCallback, 'helper reconfiguration must not stack callbacks');
+assert.equal(resizeCalls, stableSizes);
+helper.size[0] = 620;
+click(1, 2);
+assert.equal(helper.size[0], 620);
+// Check another connected Sampler independently of the manually chosen width.
+helper.size[0] = 440;
+const secondSampler = { ...sampler, id: 3, refreshes: 0, widgets: [{ name: 'chunks', value: 16 }] };
+graph.nodes.set(3, secondSampler);
+graph.links[11] = { origin_id: 1, target_id: 3 };
+helper.outputs[0].links.push(11);
+click(1, 3);
+assert.equal(secondSampler.refreshes, 1, 'each connected Sampler receives the selection');
+assert.equal(secondSampler.__h3ContinuumReferencePlan, null);
+const separateSampler = { ...sampler, id: 5, refreshes: 0, widgets: [{ name: 'chunks', value: 16 }],
+    __h3ContinuumReferencePlan: 'verified' };
+const separateHelper = {
+    id: 4, graph, comfyClass: helper.comfyClass, size: [440, 500],
+    widgets: [{ name: 'reference_use', value: 'Per chunk', options: {} },
+        ...Array.from({ length: 9 }, (_, i) => ({ name: `reference_r${i + 1}_chunks`, value: 'off', options: {} }))],
+    inputs: helper.inputs.map((input) => ({ ...input })),
+    outputs: [{ name: 'reference_images', links: [12] }],
+    addDOMWidget: helper.addDOMWidget, computeSize: helper.computeSize,
+    setSize: helper.setSize, setDirtyCanvas() {},
+};
+graph.nodes.set(4, separateHelper); graph.nodes.set(5, separateSampler);
+graph.links[12] = { origin_id: 4, target_id: 5 };
+configureV39ReferenceImages(separateHelper);
+const firstBefore = sampler.refreshes;
+click(1, 4);
+const separateBox = visit(separateHelper.panel, (item) => item.tag === 'input'
+    && item['aria-label'] === 'Image 1, Chunk 5');
+separateBox.checked = true; separateBox.onchange();
+assert.equal(sampler.refreshes, firstBefore + 1);
+assert.equal(separateSampler.refreshes, 1, 'independent helpers must not cancel each other');
+assert.equal(separateHelper.widgets[1].value, '5');
+assert.equal(separateSampler.__h3ContinuumReferencePlan, null);
+delete graph.links[12]; separateHelper.outputs[0].links = [];
+separateHelper.onConnectionsChange();
+const detachedRefreshes = separateSampler.refreshes;
+separateHelper.widgets[1].value = '6'; separateHelper.widgets[1].callback('6');
+assert.equal(separateSampler.refreshes, detachedRefreshes, 'disconnected Samplers are not notified');
 const oldSampler = {
     comfyClass: 'H3ContinuumSamplerV39',
     __h3ContinuumReferencePlan: 'old plan',

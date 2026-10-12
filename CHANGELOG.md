@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.9.2 — Issue #30 frontend hotfix (2026-10-13)
+
+- Skip upstream Review settings snapshots when no comparison baseline exists. Keep drawing-time edit detection and synchronous Queue/Take checks for reviewed settings.
+- Notify connected Samplers once per Reference selection through the native callback, and skip `setSize()` when node dimensions are unchanged. Native assignment values still update synchronously; saved workflow and generation contracts are unchanged.
+- Track the separate Reference Plan Inspector refresh failure after repeated Sampler configuration as an expected regression failure. No delayed update timer or new animation-frame scheduling is introduced.
+- Bump package metadata to 3.9.2 while keeping V3.9 node IDs and existing generation/storage contracts. Native values and Review safety guards remain synchronous. Mobile freeze resolution is unconfirmed; Reference table rebuilding and snapshots with a Review baseline remain.
+
 ## 3.9.1 — stability fixes (2026-10-04)
 
 - Preserve audio-only and mixed Second Pass keyframes while spatially adapting only video.

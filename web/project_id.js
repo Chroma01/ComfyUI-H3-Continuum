@@ -1507,8 +1507,9 @@ function reviewSettingsSnapshot(node) {
 
 function reviewSettingsChanged(node) {
     const baseline = node.__h3ContinuumReviewedSettings;
+    if (baseline == null) return false;
     const current = reviewSettingsSnapshot(node);
-    return baseline != null && current != null && current !== baseline;
+    return current != null && current !== baseline;
 }
 
 function rememberReviewSettings(node, requestedSettings) {

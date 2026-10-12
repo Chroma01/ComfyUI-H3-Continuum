@@ -1,3 +1,73 @@
+ComfyUI-H3-Continuum 3.9.2 / Issue #30 frontend hotfix - 2026-10-13
+
+Package metadata: 3.9.2. Public registration: twelve nodes. Continue using
+V3.9 nodes; V3.8X2 remains a separate workflow.
+
+Repair scope
+- Skip upstream Review settings snapshots only without a comparison baseline.
+- Notify each connected Sampler once per Reference selection, preserving
+  synchronous native values and the original widget callback.
+- Skip setSize when the complete Reference node target dimensions equal
+  its actual dimensions. Height-style same-value assignment remains.
+- Retain Review monitoring with a baseline and fresh Take/Queue checks.
+- Keep Sampling Contract v6 / Graph Contract v4, Run Storage v3, public IDs,
+  widget/socket order and official workflow bytes.
+
+Validation scopes (do not add counts from different environments)
+- Frontend repair with real Core, CPU: 1703 passed / 2 skipped / 2 xfailed.
+  The two explicit expected failures track one independent Inspector bug:
+  stale verified text after 2 or 100 Sampler configure passes.
+- Skips: Windows private-commit metric and absent historical V3.5 workflow.
+- Existing Review Queue JavaScript: 62/62 passed; external INT: 22/22 passed.
+- Offline native PackedLayout, Fixed 3x5s planning and twelve-node registration
+  passed. CUDA initialization attempts: zero.
+- Isolated desktop Chromium, actual frontend JS/DOM with graph/API fixtures:
+  600 baseline-free draw callbacks: snapshots 600 -> 0. With a baseline,
+  snapshots remain 600. Thirty connected checks: notifications 60 -> 30,
+  unchanged-dimension setSize calls 30 -> 0. Table rebuilding remains.
+- Release-candidate CPU/metadata and real-ComfyUI browser results are recorded
+  below after final preparation. Standalone GitHub Actions is a separate gate.
+
+Remaining limits
+Mobile freeze resolution is unconfirmed. Review snapshots with a baseline,
+Reference table rebuilding and the independent Inspector display bug remain.
+No new GPU generation was run for this frontend hotfix. Earlier 3.9.1 GPU
+results are historical evidence, not 3.9.2 GPU validation. Full official
+workflow generation and all accelerators remain outside this repair gate.
+
+Updating and publication
+Hard-refresh the browser after updating JavaScript. Restart ComfyUI normally
+if the displayed package version also needs refreshing. 3.9.1 Runs/Takes
+require no migration for this UI hotfix. Users upgrading from pre-v6 code
+must still follow the older v5 history instructions below.
+GitHub Release/tag and Registry publication are distinct; old tags are kept.
+Current publication status is listed in GitHub Releases. Registry publication
+is not part of this hotfix task.
+
+Final 3.9.2 candidate validation - 2026-10-13
+- Real-Core CPU regression: 1703 passed / 2 skipped / 2 xfailed; no unexpected
+  failures; zero CUDA initialization attempts. The independent Inspector
+  reconfigure bug remains explicitly tracked.
+- Actual ComfyUI 0.38.0 / frontend 1.53.6 / Chromium 151.0.7922.173 smoke:
+  physical checkbox interactions, Prompt/link/Bypass edit detection and
+  restoration, Chunks shrink/restore, pan/zoom, native assignment graph
+  serialization and app.loadGraphData reload passed.
+- Before/after frontend JS responses used the actual Core/frontend/LiteGraph
+  with additive instrumentation. Baseline-free 600 draw callbacks: 600 -> 0
+  snapshots. With a baseline: 600 -> 600. One checkbox: 2 -> 1 Sampler
+  notifications; same-dimension resize: 1 -> 0.
+- Scope: desktop headless browser, synthetic connected image/string nodes,
+  model-free CPU server and graph reload. UI file-save, real stored Take
+  adoption, mobile hardware and full official workflow acceptance remain
+  separate. No POST /prompt, generation or GPU execution occurred.
+- GitHub Actions status must be read from the published candidate commit;
+  the real-Core count above is not a claim that Core cases ran in standalone CI.
+
+======================================================================
+Historical 3.9.1 stability validation - 2026-10-04
+The original record below describes that package, its tests and publication.
+======================================================================
+
 ComfyUI-H3-Continuum 3.9.1 / V3.9 stability validation - 2026-10-04
 
 Current package metadata: 3.9.1. Public registration: twelve nodes.
