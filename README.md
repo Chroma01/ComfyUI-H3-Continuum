@@ -1,4 +1,14 @@
 # ComfyUI-H3-Continuum 3.9.3 — V3.9
+
+**Latest package: 3.9.3.** Use the fixed-version GitHub downloads below. Registry publication is verified separately.
+
+| Version | Release | Custom-node ZIP | SHA-256 checksum |
+| --- | --- | --- | --- |
+| 3.9.3 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.3) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/ComfyUI-H3-Continuum-v3.9.3.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/SHA256SUMS.txt) |
+| 3.9.2 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.2) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/ComfyUI-H3-Continuum-v3.9.2.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/SHA256SUMS.txt) |
+
+The original [3.9.2 GitHub source archive](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/archive/refs/tags/v3.9.2.zip) remains available from its unchanged tag. This custom-node package ZIP is distinct from the official workflow ZIPs.
+
 <img width="1026" height="756" alt="{56C36D94-39EC-4484-9495-5648A1F486F3}" src="https://github.com/user-attachments/assets/ad9bd73f-1ac2-4925-80dd-55a5d3231431" />
 
 
@@ -15,7 +25,7 @@ Choose where Continuum writes its temporary decoded frames and Finalize buffer. 
 
 Update the custom node package, restart ComfyUI to load the backend, and hard-refresh the browser. Later changes to this storage setting take effect without a restart. Blank settings retain the ComfyUI temp directory for Finalize and `H3_DECODE_CACHE_TEMP_DIR` (or OS temp) for Decode Cache. A selected folder takes precedence over that cache environment variable.
 
-The storage changes preserve frame dtype, video/audio assembly and generation identity. Validation and remaining platform limits are recorded in [PACKAGE_VALIDATION.txt](PACKAGE_VALIDATION.txt). Screenshots will be added from the implemented settings screen. GitHub Release/tag and Registry publication are separate from this source update.
+The storage changes preserve frame dtype, video/audio assembly and generation identity. Validation and remaining platform limits are recorded in [PACKAGE_VALIDATION.txt](PACKAGE_VALIDATION.txt). The implemented settings screenshot appears at the top of this README. GitHub Release and Registry publication status are listed above; neither follows automatically from a source update.
 
 If the panel reports HTTP 404, inspect the ComfyUI startup log. An old process can keep the chosen address/port occupied, so the updated process fails to start while its new JavaScript is already visible. Stop the obsolete instance or choose another port, then start the updated backend. **Refresh** retrieves storage status; it does not restart ComfyUI. Failed reads now show the HTTP result and keep mutations disabled until status is available.
 

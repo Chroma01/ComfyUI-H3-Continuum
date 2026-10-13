@@ -1,6 +1,16 @@
 ComfyUI-H3-Continuum 3.9.3 / 一時ストレージ設定
 パッケージmetadata: 3.9.3（2026-10-13）。公開登録は12ノード。
 
+**最新版パッケージは3.9.3です。** 固定版のGitHub配布は下表を参照してください。Registryの公開状態は別に確認します。
+
+| バージョン | Release | カスタムノード本体ZIP | SHA-256チェックサム |
+| --- | --- | --- | --- |
+| 3.9.3 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.3) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/ComfyUI-H3-Continuum-v3.9.3.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/SHA256SUMS.txt) |
+| 3.9.2 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.2) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/ComfyUI-H3-Continuum-v3.9.2.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/SHA256SUMS.txt) |
+
+元の[3.9.2 Source ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/archive/refs/tags/v3.9.2.zip)は従来のタグから取得できます。本体ZIPと公式Workflow ZIPは別の配布物です。
+
+
 設定 → H3Continuum → Storage → 一時ストレージを管理 から、サーバー側の
 保存先を指定できます。FinalizeとDecode Cacheが対象で、空欄なら従来どおり。
 現在・以前の保存先、論理ファイル量、空き容量、使用中／削除可能な量を表示し、

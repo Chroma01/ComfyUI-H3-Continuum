@@ -39,3 +39,10 @@
 - Reconcile PACKAGE_VALIDATION.txt, PACKAGE_INFO_JA.txt and docs/VALIDATION_JA.md with package 3.9.1, the actual CPU/CI scopes, v5 migration and Release status. Retain the original V3.9.0/V2 text under explicit historical sections. Documentation corrections follow the fixed v3.9.1 release tag on main; runtime and official workflow bytes are unchanged.
 
 Earlier product behavior is described in CHANGELOG.md and the historical Release/tag versions. This log contains public engineering summaries rather than private operational records.
+
+
+## 2026-10-13 — Prepare 3.9.3 versioned downloads
+
+- Add 3.9.3 and retained 3.9.2 Release, custom-node ZIP and checksum links to the current English/Japanese guides. Update the installation heading to 3.9.3 and retain the implemented settings screenshot and historical validation records.
+- Refresh Registry then development manifests from saved bytes. The existing release-metadata/public-surface CPU gate passes 8 tests with zero CUDA initialization attempts; all 25 tracked JSON/ZIP assets retain their bytes.
+- Product code, package metadata, public schemas and saved-data contracts are unchanged. GitHub Release/asset and Registry publication are verified separately; no new GPU, long-form performance or physical SSD-write validation is claimed.

@@ -3,6 +3,19 @@ ComfyUI-H3-Continuum 3.9.3 / temporary storage - 2026-10-13
 Package metadata: 3.9.3. Public registration: twelve nodes. Existing V3.9
 and separate V3.8X2 workflows remain supported without schema migration.
 
+Release artifacts and integrity (2026-10-13)
+**Latest package: 3.9.3.** Use the fixed-version GitHub downloads below. Registry publication is verified separately.
+
+| Version | Release | Custom-node ZIP | SHA-256 checksum |
+| --- | --- | --- | --- |
+| 3.9.3 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.3) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/ComfyUI-H3-Continuum-v3.9.3.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/SHA256SUMS.txt) |
+| 3.9.2 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.2) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/ComfyUI-H3-Continuum-v3.9.2.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/SHA256SUMS.txt) |
+
+The original [3.9.2 GitHub source archive](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/archive/refs/tags/v3.9.2.zip) remains available from its unchanged tag. This custom-node package ZIP is distinct from the official workflow ZIPs.
+
+Historical validation counts below retain their original version and scope.
+No new GPU, long-form performance or physical SSD-write validation is claimed.
+
 Scope
 - Server-owned scratch path for Finalize and Decode Cache. Blank inherits
   existing defaults; selected storage never silently falls back to OS temp.

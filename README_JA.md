@@ -1,5 +1,14 @@
 # ComfyUI-H3-Continuum 3.9.3 — V3.9
 
+**最新版パッケージは3.9.3です。** 固定版のGitHub配布は下表を参照してください。Registryの公開状態は別に確認します。
+
+| バージョン | Release | カスタムノード本体ZIP | SHA-256チェックサム |
+| --- | --- | --- | --- |
+| 3.9.3 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.3) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/ComfyUI-H3-Continuum-v3.9.3.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/SHA256SUMS.txt) |
+| 3.9.2 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.2) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/ComfyUI-H3-Continuum-v3.9.2.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/SHA256SUMS.txt) |
+
+元の[3.9.2 Source ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/archive/refs/tags/v3.9.2.zip)は従来のタグから取得できます。本体ZIPと公式Workflow ZIPは別の配布物です。
+
 ## 3.9.3 — 一時ストレージの保存先設定（2026-10-13）
 
 未圧縮フレームなどの一時データを、指定したストレージへ保存できるようになりました。**設定 → H3Continuum → Storage → 一時ストレージを管理**を開き、**ComfyUIサーバー側**の絶対パスを入力するかストレージ候補を選択して、検証・保存してください。空欄なら従来の保存先を使用します。ワークフローの変更は不要で、V3.9ノードと3.9.1／3.9.2のワークフローを引き続き使用できます。
@@ -13,7 +22,7 @@
 
 更新時はカスタムノードを更新し、ComfyUIを再起動してブラウザーを強制再読込してください。その後の保存先設定の変更には再起動は不要です。空欄時はFinalizeがComfyUIのtemp、Decode Cacheが既存の`H3_DECODE_CACHE_TEMP_DIR`指定またはOSのtempを使います。フォルダーを指定した場合、その指定がキャッシュ用環境変数より優先します。
 
-映像のdtype、動画・音声の結合計算、生成条件の識別は維持します。[実装仕様](docs/TEMPORARY_STORAGE_JA.md)と[検証記録](PACKAGE_VALIDATION.txt)も参照してください。設定画面のスクリーンショットは、実装後の実画面を受領してから追加します。GitHub Release／tag・Registry公開は今回のソース更新とは別です。
+映像のdtype、動画・音声の結合計算、生成条件の識別は維持します。[実装仕様](docs/TEMPORARY_STORAGE_JA.md)と[検証記録](PACKAGE_VALIDATION.txt)も参照してください。設定画面のスクリーンショットは[英語README](README.md)の冒頭にあります。Releaseの公開状態は上表を参照してください。Registry公開は別に確認します。
 
 画面にHTTP 404が出る場合は、ComfyUI起動ログを確認してください。旧プロセスが同じアドレス・ポートを占有していると、更新後の起動が失敗し、新しい画面だけが表示される場合があります。残っている旧環境を終了するか別のポートを選んで、新しいComfyUIを起動してください。**Refresh（更新）**は保存先の状態を再取得するボタンで、ComfyUIの再起動ではありません。取得失敗時はHTTP結果と対応方法を表示し、状態を取得できるまで保存・削除を無効にします。
 
