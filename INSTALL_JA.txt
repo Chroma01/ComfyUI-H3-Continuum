@@ -1,13 +1,16 @@
-ComfyUI-H3-Continuum 3.9.3 — V3.9 / V3.8X2 インストール
+ComfyUI-H3-Continuum 3.9.4 — V3.9 / V3.8X2 インストール
 
-**最新版パッケージは3.9.3です。** 固定版のGitHub配布は下表を参照してください。Registryの公開状態は別に確認します。
+**最新版パッケージは3.9.4です。** 固定版のGitHub配布は下表を参照してください。Registryの公開状態は別に確認します。
 
 | バージョン | Release | カスタムノード本体ZIP | SHA-256チェックサム |
 | --- | --- | --- | --- |
+| 3.9.4 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.4) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.4/ComfyUI-H3-Continuum-v3.9.4.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.4/SHA256SUMS.txt) |
 | 3.9.3 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.3) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/ComfyUI-H3-Continuum-v3.9.3.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/SHA256SUMS.txt) |
 | 3.9.2 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.2) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/ComfyUI-H3-Continuum-v3.9.2.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/SHA256SUMS.txt) |
 
 元の[3.9.2 Source ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/archive/refs/tags/v3.9.2.zip)は従来のタグから取得できます。本体ZIPと公式Workflow ZIPは別の配布物です。
+
+3.9.4はRegistry配布の梱包修正版です。ManagerでH3 Continuumを検索し、3.9.4を選択するか、comfy-cliで `comfy node install comfyui-h3-continuum@3.9.4` を使用できます。Registryの検査状態とManagerの一覧反映は別に確認してください。生成・保存動作は3.9.3と共通です。
 
 3.9.3は一時ストレージの保存先設定と状態表示・未使用削除を追加した版です。V3.9ノードと3.9.1／3.9.2のWorkflowはそのまま使用できます。旧v5 Takeと履歴は読めますが、新しいv6生成の前半には再利用できません。新規Full VideoまたはStart again from Chunk 1で開始してください。新しいGitHub Release／Registry公開は別工程で、過去のRelease／tagは残します。V3.8X2 WorkflowをV3.9へ自動変換せず、別々のWorkflowとして保存してください。保存済みRun／Takeも自動移行しません。
 

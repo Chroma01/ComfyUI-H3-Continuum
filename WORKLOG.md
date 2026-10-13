@@ -1,5 +1,12 @@
 # Public development log
 
+## 2026-10-14 — package 3.9.4 Registry packaging repair
+
+- Reconcile the actual Registry ZIP with its declared Manifest: include the Review restoration guide and exclude prompt-authoring source files.
+- Add an exact archive file-set, CRC and hash gate before Registry upload using the same pinned publishing CLI. Preserve runtime code, public node IDs, workflows and saved data.
+- Publish 3.9.4 as a separate version; keep prior GitHub tags and assets unchanged. Registry scan approval and real Manager installation remain independent of upload success.
+
+
 ## 2026-10-13 - 3.9.3 storage panel failure handling
 
 - Reproduce the initial panel failure with an empty HTTP 404. Startup logs identified a stale process retaining the configured address/port while the updated backend failed to bind; the new frontend could still be served from updated files.

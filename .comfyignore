@@ -66,3 +66,7 @@ examples/workflows/*
 
 # Current temporary storage controls and lifecycle contract.
 !docs/TEMPORARY_STORAGE_JA.md
+
+# Keep the Registry payload aligned with its declared Manifest.
+!docs/REVIEW_RESTORATION_REPAIR.md
+write-h3-v39-reference-prompts/

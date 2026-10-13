@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-comfy-registry-v3.9.3
+  group: publish-comfy-registry-v3.9.4
   cancel-in-progress: false
 
 jobs:
@@ -15,26 +15,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Check out verified v3.9.3 release
+      - name: Check out v3.9.4 release
         uses: actions/checkout@v4
         with:
-          ref: v3.9.3
+          ref: v3.9.4
           persist-credentials: false
-      - name: Set up validation Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Verify release identity and package hashes
+      - name: Verify release identity and source hashes
         shell: bash
         run: |
-          test "$(git rev-parse HEAD)" = "c9aaf7f07e6e11c56f3ecc7c0a88cf50786597f0"
+          test "$(git describe --tags --exact-match HEAD)" = "v3.9.4"
           python - <<'PY'
           import hashlib
           import pathlib
           import tomllib
           root = pathlib.Path(".")
           metadata = tomllib.loads((root / "pyproject.toml").read_text())
-          assert metadata["project"]["version"] == "3.9.3"
+          assert metadata["project"]["version"] == "3.9.4"
           assert metadata["tool"]["comfy"]["PublisherId"] == "ukr8b3g-cmyk"
           for name in ("REGISTRY_MANIFEST.sha256", "MANIFEST.sha256"):
               rows = (root / name).read_text().splitlines()
@@ -42,14 +42,38 @@ jobs:
                   expected, path = row.split("  ", 1)
                   assert hashlib.sha256((root / path).read_bytes()).hexdigest() == expected, path
               print(name, len(rows), "matched")
+          print("Release commit:", __import__("subprocess").check_output(["git", "rev-parse", "HEAD"], text=True).strip())
           PY
-      - name: Verify publishing key is configured
+      - name: Install publishing CLI
+        run: python -m pip install comfy-cli==1.22.0
+      - name: Build Registry package
+        shell: bash
+        run: |
+          comfy --skip-prompt --no-enable-telemetry env
+          comfy node pack
+      - name: Verify actual Registry ZIP before publication
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import pathlib
+          import zipfile
+          rows = pathlib.Path("REGISTRY_MANIFEST.sha256").read_text().splitlines()
+          declared = dict(row.split("  ", 1)[::-1] for row in rows)
+          with zipfile.ZipFile("node.zip") as archive:
+              assert archive.testzip() is None, "ZIP CRC failure"
+              actual = {entry.filename for entry in archive.infolist() if not entry.is_dir()}
+              expected = set(declared) | {"REGISTRY_MANIFEST.sha256"}
+              assert actual == expected, {"missing": sorted(expected - actual), "extra": sorted(actual - expected)}
+              for path, digest in declared.items():
+                  assert hashlib.sha256(archive.read(path)).hexdigest() == digest, path
+              assert archive.read("REGISTRY_MANIFEST.sha256") == pathlib.Path("REGISTRY_MANIFEST.sha256").read_bytes()
+          print("Registry ZIP: exact file set and", len(declared), "hashes matched")
+          PY
+      - name: Publish verified package
         env:
           REGISTRY_ACCESS_TOKEN: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
         shell: bash
-        run: test -n "$REGISTRY_ACCESS_TOKEN"
-      - name: Publish verified package
-        uses: Comfy-Org/publish-node-action@d2366e7abb6ab16f3bb03e3520ae25c8cf749bc9
-        with:
-          skip_checkout: "true"
-          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+        run: |
+          test -n "$REGISTRY_ACCESS_TOKEN"
+          comfy node publish --token "$REGISTRY_ACCESS_TOKEN"

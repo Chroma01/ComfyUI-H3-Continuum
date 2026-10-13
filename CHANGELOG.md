@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.9.4 — Registry packaging repair (2026-10-14)
+
+Include the declared Review restoration guide and exclude repository-only prompt-authoring files from the Registry ZIP. The publishing workflow now builds the actual package and checks its exact file set, CRC and every Registry Manifest hash before uploading. Runtime behavior, twelve public node IDs, workflows and saved Runs/Takes are unchanged. GitHub Releases 3.9.3 and 3.9.2 remain available.
+
 ## 3.9.3 — temporary storage settings (2026-10-13)
 
 - Add a server-owned scratch folder setting for both Finalize and Decode Cache, with storage candidates, logical file sizes, free space and conservative unused-file cleanup.
