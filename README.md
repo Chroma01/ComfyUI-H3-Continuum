@@ -1,4 +1,6 @@
 # ComfyUI-H3-Continuum 3.9.3 — V3.9
+<img width="1026" height="756" alt="{56C36D94-39EC-4484-9495-5648A1F486F3}" src="https://github.com/user-attachments/assets/ad9bd73f-1ac2-4925-80dd-55a5d3231431" />
+
 
 ## 3.9.3 — choose temporary storage (2026-10-13)
 
