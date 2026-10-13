@@ -1,0 +1,55 @@
+name: Publish to Comfy Registry
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-comfy-registry-v3.9.3
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out verified v3.9.3 release
+        uses: actions/checkout@v4
+        with:
+          ref: v3.9.3
+          persist-credentials: false
+      - name: Set up validation Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify release identity and package hashes
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "c9aaf7f07e6e11c56f3ecc7c0a88cf50786597f0"
+          python - <<'PY'
+          import hashlib
+          import pathlib
+          import tomllib
+          root = pathlib.Path(".")
+          metadata = tomllib.loads((root / "pyproject.toml").read_text())
+          assert metadata["project"]["version"] == "3.9.3"
+          assert metadata["tool"]["comfy"]["PublisherId"] == "ukr8b3g-cmyk"
+          for name in ("REGISTRY_MANIFEST.sha256", "MANIFEST.sha256"):
+              rows = (root / name).read_text().splitlines()
+              for row in rows:
+                  expected, path = row.split("  ", 1)
+                  assert hashlib.sha256((root / path).read_bytes()).hexdigest() == expected, path
+              print(name, len(rows), "matched")
+          PY
+      - name: Verify publishing key is configured
+        env:
+          REGISTRY_ACCESS_TOKEN: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+        shell: bash
+        run: test -n "$REGISTRY_ACCESS_TOKEN"
+      - name: Publish verified package
+        uses: Comfy-Org/publish-node-action@d2366e7abb6ab16f3bb03e3520ae25c8cf749bc9
+        with:
+          skip_checkout: "true"
+          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
