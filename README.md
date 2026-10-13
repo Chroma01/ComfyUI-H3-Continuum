@@ -15,6 +15,8 @@ Update the custom node package, restart ComfyUI to load the backend, and hard-re
 
 The storage changes preserve frame dtype, video/audio assembly and generation identity. Validation and remaining platform limits are recorded in [PACKAGE_VALIDATION.txt](PACKAGE_VALIDATION.txt). Screenshots will be added from the implemented settings screen. GitHub Release/tag and Registry publication are separate from this source update.
 
+If the panel reports HTTP 404, inspect the ComfyUI startup log. An old process can keep the chosen address/port occupied, so the updated process fails to start while its new JavaScript is already visible. Stop the obsolete instance or choose another port, then start the updated backend. **Refresh** retrieves storage status; it does not restart ComfyUI. Failed reads now show the HTTP result and keep mutations disabled until status is available.
+
 ## 3.9.2 — Issue #30 frontend hotfix (2026-10-13)
 
 This hotfix reduces unnecessary Review and Reference Images UI work:

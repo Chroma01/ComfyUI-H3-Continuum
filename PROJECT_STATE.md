@@ -6,6 +6,8 @@ Updated: 2026-10-13 (Japan time).
 
 The current source adds a server-side scratch folder setting for Finalize and Decode Cache, storage usage/free-space reporting and conservative unused-file cleanup. Manual buffer capacity checks retain the existing Auto policy. Node schemas, official workflow bytes, generation identity and saved Runs/Takes are preserved.
 
+Frontend follow-up improves missing/empty-response diagnostics and storage candidate initialization. The Core request address/profile handling is retained, and no automatic mutation retries are added.
+
 The new setting is available under Settings → H3Continuum → Storage. Validation and platform limitations are recorded in PACKAGE_VALIDATION.txt. Source publication does not imply a new GitHub Release/tag or Registry publication.
 
 ## Previous package 3.9.2 — Issue #30 frontend hotfix

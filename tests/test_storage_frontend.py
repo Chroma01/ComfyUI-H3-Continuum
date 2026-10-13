@@ -11,3 +11,4 @@ def test_storage_settings_frontend_lifecycle():
                             capture_output=True, timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "100 reopen cycles passed" in result.stdout
+    assert "Empty/invalid HTTP responses, recovery, and no POST replay passed" in result.stdout

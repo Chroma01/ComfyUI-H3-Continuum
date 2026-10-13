@@ -7,6 +7,7 @@
 - Protect unknown owners, live processes and mapped outputs during cleanup, including outputs whose helper has already been removed. Track new cache directories for dead-process recovery.
 - Add manual RAM and Disk-backed capacity checks and account for discoverable Linux cgroup memory limits. Keep Auto's 4 GiB threshold and reserve, existing node controls, frame dtype and generation/storage identities.
 - Keep V3.9 and V3.8X2 workflows and public node schemas unchanged. No new GPU generation is claimed for this storage update; see PACKAGE_VALIDATION.txt for CPU/browser/platform coverage.
+- Follow-up: report missing/empty/invalid storage responses with HTTP status and recovery guidance. Keep storage candidates visible at a usable width and mutations disabled until status is available. Preserve Core address/profile handling and never replay a mutating request.
 
 ## 3.9.2 — Issue #30 frontend hotfix (2026-10-13)
 

@@ -1,5 +1,11 @@
 # Public development log
 
+## 2026-10-13 - 3.9.3 storage panel failure handling
+
+- Reproduce the initial panel failure with an empty HTTP 404. Startup logs identified a stale process retaining the configured address/port while the updated backend failed to bind; the new frontend could still be served from updated files.
+- Keep Core's request address, base path and user/auth handling. Add explicit HTTP/invalid-response guidance, an initialized full-width storage candidate field, safe disabled mutation controls and manual recovery without reloading the page. Do not retry save or cleanup automatically.
+- Keep the backend and generation contracts unchanged. Core 0.39.0 CPU regression passed 1,740 cases with 2 skips and 2 existing expected Inspector failures; CUDA attempts were zero. The frontend 1.53.10 browser gate passed empty-response diagnostics, manual recovery, save and cleanup at an alternate host/port. See PACKAGE_VALIDATION.txt for scope.
+
 ## 2026-10-13 — package 3.9.3 temporary storage
 
 - Re-review the scratch storage proposal against actual Finalize, Decode Cache and Core settings lifecycles. Implement server-side settings with revision checks, queue coordination, immutable directory identities and no silent disk fallback.

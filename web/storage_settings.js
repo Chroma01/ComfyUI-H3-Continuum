@@ -15,6 +15,11 @@ const words = {
         note: "This is the server's storage, not the browser device. File sizes are logical sizes, not SSD write totals. Moving to another folder on the same physical disk does not reduce its writes.",
         modes: "Keep choosing Auto / RAM / Disk-backed in Finalize, and Auto / RAM / Off in Decode Cache Helper. They are independent. Deleting a cache can require decoding and writing it again.",
         memory: "Available CPU RAM", last: "Last Finalize allocation", never: "No Finalize allocation in this process yet",
+        noVolumes: "No storage candidates found. Enter an absolute server folder above.",
+        unavailable: "Storage service unavailable (HTTP {status}). The old ComfyUI process may still be running, or the updated process failed to start. Check the startup log for a port already in use.",
+        invalidResponse: "Empty or invalid storage response (HTTP {status}). Click Refresh to retry; if it persists, check the ComfyUI startup log.",
+        networkError: "Cannot reach ComfyUI at the current address. Click Refresh to retry.",
+        unloaded: "Storage data unavailable — click Refresh",
     },
     ja: {
         title: "H3 Continuum — 一時ストレージ", open: "一時ストレージを管理", close: "閉じる",
@@ -29,6 +34,11 @@ const words = {
         note: "対象はブラウザー端末ではなくComfyUIサーバーです。表示容量はファイルの論理サイズで、SSDの累計書き込み量ではありません。同じ物理ディスク内の移動では、そのディスクへの書き込みは減りません。",
         modes: "使用方式は従来どおりFinalizeのAuto／RAM／Disk-backedと、Decode Cache HelperのAuto／RAM／Offで選びます。両者は独立しています。キャッシュ削除後は再デコード・再書き込みが必要になる場合があります。",
         memory: "利用可能なCPU RAM", last: "直近のFinalize確保", never: "このプロセスではまだFinalizeを実行していません",
+        noVolumes: "候補を取得できません。上の欄にサーバー側の絶対パスを入力できます。",
+        unavailable: "一時ストレージ機能に接続できません（HTTP {status}）。旧ComfyUIが残っているか、更新後の起動に失敗した可能性があります。起動ログのポート使用中エラーを確認してください。",
+        invalidResponse: "一時ストレージの応答が空か、不正な形式です（HTTP {status}）。更新で再取得し、続く場合はComfyUI起動ログを確認してください。",
+        networkError: "現在のアドレスでComfyUIへ接続できません。更新で再取得してください。",
+        unloaded: "保存先の状態を取得できません — 更新で再取得",
     },
 };
 
@@ -53,11 +63,31 @@ function element(tag, text, parent) {
 }
 
 async function request(operation, body) {
-    const response = await api.fetchApi(`/h3-continuum/storage/${operation}`, body === undefined
+    const path = `/h3-continuum/storage/${operation}`;
+    const options = body === undefined
         ? { cache: "no-store" }
-        : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const value = await response.json();
-    if (!response.ok) throw new Error(value.error || `HTTP ${response.status}`);
+        : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+    const t = language();
+    let response;
+    try {
+        // Core retains the UI address, base path and user/auth handling.
+        // Never replay a save or cleanup after an empty/failed response:
+        // it may already have run on the server.
+        response = await api.fetchApi(path, options);
+    } catch {
+        throw new Error(t.networkError);
+    }
+    let value;
+    try { value = JSON.parse(await response.text()); } catch { /* Report HTTP status instead of a JSON parser exception. */ }
+    if (!response.ok) {
+        const fallback = response.status === 404 ? t.unavailable : `HTTP ${response.status}`;
+        throw new Error(typeof value?.error === "string" ? value.error : fallback.replace("{status}", response.status));
+    }
+    if (!value || typeof value !== "object" || Array.isArray(value)
+        || (operation === "status" && (typeof value.path !== "string" || !Number.isInteger(value.revision)
+            || !Array.isArray(value.roots) || !Array.isArray(value.volumes) || !value.memory))) {
+        throw new Error(t.invalidResponse.replace("{status}", response.status));
+    }
     return value;
 }
 
@@ -82,8 +112,11 @@ export function openStorageDialog(event) {
     const input = element("input", null, label);
     input.type = "text"; input.placeholder = t.default; input.setAttribute("aria-label", t.path);
     Object.assign(input.style, { display: "block", width: "100%", margin: "8px 0", padding: "8px", boxSizing: "border-box" });
-    const select = element("select", null, dialog);
-    select.setAttribute("aria-label", t.volumes); select.style.maxWidth = "100%";
+    const volumeLabel = element("label", t.volumes, dialog);
+    const select = element("select", null, volumeLabel);
+    select.setAttribute("aria-label", t.volumes);
+    Object.assign(select.style, { display: "block", width: "100%", minHeight: "34px", margin: "8px 0", boxSizing: "border-box" });
+    const placeholder = element("option", t.loading, select); placeholder.value = "";
     const actions = element("div", null, dialog);
     Object.assign(actions.style, { display: "flex", gap: "8px", flexWrap: "wrap", margin: "12px 0" });
     const buttons = {};
@@ -102,15 +135,15 @@ export function openStorageDialog(event) {
     function controls() {
         for (const name of ["validate", "save", "cleanup"]) buttons[name].disabled = pending || !state || state.busy || state.read_only;
         buttons.refresh.disabled = pending;
-        input.disabled = pending || !!state?.read_only;
-        select.disabled = input.disabled;
+        input.disabled = pending || !state || !!state.read_only;
+        select.disabled = input.disabled || !state?.volumes?.length;
         notice.textContent = state?.read_only ? t.readonly : state?.busy ? t.busy : "";
     }
     function render(value) {
         state = value;
         if (!dirty) input.value = value.path;
         select.replaceChildren();
-        const option = element("option", t.volumes, select); option.value = "";
+        const option = element("option", value.volumes.length ? t.volumes : t.noVolumes, select); option.value = "";
         for (const volume of value.volumes) {
             const option = element("option", `${volume.path} (${t.free}: ${size(volume.free_bytes)})`, select);
             option.value = volume.path;
@@ -131,8 +164,17 @@ export function openStorageDialog(event) {
         }
     }
     async function refresh() {
-        const value = await request("status");
-        if (!closed) render(value);
+        try {
+            const value = await request("status");
+            if (!closed) render(value);
+        } catch (error) {
+            if (!closed) {
+                state = null;
+                select.replaceChildren();
+                const option = element("option", t.unloaded, select); option.value = "";
+            }
+            throw error;
+        }
     }
     async function perform(action) {
         if (pending) return;

@@ -39,6 +39,26 @@ Candidate validation
   result is a separate gate from these local Linux checks. The browser
   gate is headless desktop Chromium, not mobile hardware or GPU generation.
 
+3.9.3 frontend follow-up
+- Empty HTTP 404 reproduced the reported parser error and empty selector.
+  User startup logs identified the failed updated process binding to a port
+  already held by an older process. Starting the updated backend on an
+  available port restored status and controls in the user's environment.
+- Improve HTTP/invalid-response diagnostics, initialized candidate labels,
+  full-width layout and manual recovery. Preserve Core URL/auth/profile
+  handling; no automatic retries or replay of mutating requests.
+- Targeted CPU/JavaScript/HTTP regression: 59 passed / 2 existing expected
+  Inspector failures. Full Core 0.39.0 CPU regression: 1740 passed /
+  2 skipped / 2 existing Inspector expected failures; CUDA attempts zero.
+- Core 0.39.0 / frontend 1.53.10 static assets / Chromium smoke passed on
+  an alternate loopback host and port: initial empty-404 reproduction,
+  explicit HTTP 404/403/empty-200 errors, initialized full-width selector,
+  Refresh recovery without page reload, and actual settings save/cleanup.
+  No page errors, prompt submissions or automatic mutation replay.
+  This used Linux CPU dependencies; it is separate from Windows/GPU quality
+  validation. Core registration/planning and compileall also passed.
+- Source/Registry hashes and unchanged workflow bytes are checked again.
+
 Limits and update
 No GPU generation, long-form throughput, physical SSD write measurement or
 mobile hardware validation was performed for this storage change. Memory

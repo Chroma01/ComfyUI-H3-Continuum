@@ -22,11 +22,20 @@ let definition;
 globalThis.__app = { ui: { settings: { getSettingValue: () => "en", addSetting: d => { definition = d; } } }, registerExtension: d => d.setup() };
 const api = globalThis.__api = new EventTarget();
 const requests = [];
+let responseMode = "normal";
 let state = { path: "", revision: 0, busy: false, read_only: false, memory: { available_bytes: 8 * 1024 ** 3 }, roots: [], volumes: [], last_backend: null };
 api.fetchApi = async (path, options) => {
     const action = path.split("/").at(-1);
     const body = options.body ? JSON.parse(options.body) : undefined;
-    requests.push({ action, body });
+    requests.push({ action, body, path, options });
+    if (responseMode === "network") throw new TypeError("fetch failed");
+    if (responseMode === "both404") return new Response("", { status: 404 });
+    if (responseMode === "empty200") return new Response("", { status: 200 });
+    if (responseMode === "empty403") return new Response("", { status: 403 });
+    if (responseMode === "empty500") return new Response("", { status: 500 });
+    if (responseMode === "html") return new Response("<!doctype html><title>ComfyUI</title>", { status: 200 });
+    if (responseMode === "schema") return Response.json({});
+    if (responseMode === "cleanupEmpty" && action === "cleanup") return new Response("", { status: 200 });
     let value = structuredClone(state), ok = true;
     if (action === "settings") { assert.equal(body.revision, state.revision); state = { ...state, path: body.path, revision: state.revision + 1 }; value = state; }
     if (action === "validate") {
@@ -34,8 +43,9 @@ api.fetchApi = async (path, options) => {
         value = ok ? { path: body.path, roots: [{ free_bytes: 10 * 1024 ** 3 }] } : { error: "absolute path required" };
     }
     if (action === "cleanup") { assert.deepEqual(body, {}); value = { roots: [] }; }
-    return { ok, status: ok ? 200 : 400, json: async () => value };
+    return Response.json(value, { status: ok ? 200 : 400 });
 };
+
 const source = fs.readFileSync(new URL("../web/storage_settings.js", import.meta.url), "utf8")
     .replace('import { app } from "../../scripts/app.js";', "const app = globalThis.__app;")
     .replace('import { api } from "../../scripts/api.js";', "const api = globalThis.__api;")
@@ -87,4 +97,32 @@ assert.equal(control("Save").disabled, true);
 assert.equal(control("Delete unused temporary files").disabled, true);
 assert.equal(connected("input")[0].disabled, true);
 control("Close").click();
+state.read_only = false;
+for (const [mode, text, count] of [["both404", "HTTP 404", 1], ["empty403", "HTTP 403", 1],
+    ["empty500", "HTTP 500", 1], ["empty200", "HTTP 200", 1], ["html", "HTTP 200", 1],
+    ["schema", "HTTP 200", 1], ["network", "current address", 1]]) {
+    responseMode = mode;
+    const before = requests.length;
+    launch.click(); await settle();
+    assert.equal(requests.length - before, count, mode);
+    assert.ok(all.some(x => x.isConnected && x.attributes.role === "status" && x.textContent.includes(text)), mode);
+    assert.equal(connected("input")[0].disabled, true, "no mutations with unavailable status");
+    assert.equal(control("Save").disabled, true);
+    assert.equal(connected("select")[0].disabled, true);
+    assert.ok(connected("select")[0].children[0].textContent.includes("Refresh"));
+    assert.equal(control("Refresh").disabled, false, "manual recovery stays available");
+    responseMode = "normal";
+    control("Refresh").click(); await settle();
+    assert.equal(control("Save").disabled, false, "recover without reloading the browser");
+    control("Close").click();
+}
+// A successful save/cleanup with an empty response must never be replayed.
+responseMode = "normal"; launch.click(); await settle();
+responseMode = "cleanupEmpty";
+const beforeCleanup = requests.length;
+control("Delete unused temporary files").click(); await settle();
+assert.equal(requests.length - beforeCleanup, 1, "never retry a mutating request");
+assert.ok(all.some(x => x.isConnected && x.attributes.role === "status" && x.textContent.includes("HTTP 200")));
+control("Close").click();
 console.log("Temporary storage frontend: settings nesting, deduplication, errors, save, busy/read-only gates, cleanup, and 100 reopen cycles passed");
+console.log("Empty/invalid HTTP responses, recovery, and no POST replay passed");
