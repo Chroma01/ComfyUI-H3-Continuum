@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import queue
 import re
+import stat
 import sys
 import threading
 import time
@@ -257,6 +258,8 @@ def _root_lock(root: Path):
             return
 
         lock_path = root / _LOCK_FILE_NAME
+        if lock_path.is_symlink():
+            raise FileBackedPoCError("file-backed lock must not be a symbolic link")
         try:
             with lock_path.open("a+b") as handle:
                 handle.seek(0, os.SEEK_END)
@@ -372,11 +375,18 @@ class StorageLifetimeManager:
     ):
         self.root = Path(root).expanduser().resolve()
         self.root.mkdir(parents=True, exist_ok=True)
+        info = self.root.stat()
+        self._root_identity = (info.st_dev, info.st_ino)
         self._tracked: dict[str, _TrackedStorage] = {}
         self._pending: dict[str, tuple[Path, ...]] = {}
         self._abandoned: queue.SimpleQueue[BackingRecord] = queue.SimpleQueue()
         self._lock = threading.RLock()
         self._allocation_hook = allocation_hook
+
+    def _check_root_identity(self):
+        info = self.root.stat()
+        if self.root.resolve() != self.root or (info.st_dev, info.st_ino) != self._root_identity:
+            raise FileBackedPoCError("file-backed storage directory changed or was unmounted")
 
     def allocate(
         self,
@@ -384,6 +394,7 @@ class StorageLifetimeManager:
         *,
         dtype: torch.dtype = torch.float32,
     ) -> FileBackedAllocation:
+        self._check_root_identity()
         with _root_lock(self.root):
             with self._lock:
                 self._drain_abandoned_locked()
@@ -485,6 +496,7 @@ class StorageLifetimeManager:
             raise
 
     def _register(self, record: BackingRecord, tensor: torch.Tensor) -> None:
+        self._check_root_identity()
         with _root_lock(self.root):
             with self._lock:
                 if record.allocation_id in self._tracked:
@@ -517,6 +529,7 @@ class StorageLifetimeManager:
                 self._pending[record.allocation_id] = paths
 
     def collect_ready(self) -> CollectionResult:
+        self._check_root_identity()
         with _root_lock(self.root):
             with self._lock:
                 self._drain_abandoned_locked()
@@ -590,6 +603,77 @@ def get_process_lifetime_manager(
             manager = StorageLifetimeManager(resolved)
             _PROCESS_MANAGERS[key] = manager
         return manager
+
+
+def inspect_managed_files(root, *, cleanup=False):
+    """Inspect known files without GC; UI cleanup protects every unknown owner.
+
+    Unlike the standalone recovery probe, leave orphan/partial files alone.
+    Only a validated pair and an expired tracked storage or a known dead owner
+    authorize deletion. Never construct a manager just to inspect a directory.
+    """
+    root = Path(root)
+    result = {"files": [], "removed_files": 0, "removed_bytes": 0, "errors": []}
+    def regular_known(path):
+        try:
+            info = path.lstat()
+            return (_known_path(root, path) and stat.S_ISREG(info.st_mode)
+                    and not (getattr(info, "st_file_attributes", 0) & 0x400))
+        except OSError:
+            return False
+
+    if not root.exists() or root.resolve() != root:
+        return result
+    key = os.path.normcase(str(root))
+    with (_root_lock(root) if cleanup else _thread_lock_for_root(root)):
+        with _PROCESS_MANAGERS_GUARD:
+            manager = _PROCESS_MANAGERS.get(key)
+        states = {}
+        if manager is not None:
+            with manager._lock:
+                for allocation_id, tracked in manager._tracked.items():
+                    try:
+                        states[allocation_id] = tracked.expired()
+                    except Exception:
+                        states[allocation_id] = False
+        seen = set()
+        for metadata in root.glob(f"{FILE_PREFIX}*.json"):
+            pair = [metadata.with_suffix(".bin"), metadata]
+            state = "unknown"
+            payload = {}
+            try:
+                if not regular_known(metadata) or metadata.stat().st_size > 65536:
+                    continue
+                payload = json.loads(metadata.read_text(encoding="utf-8"))
+                valid, data = _valid_sidecar(metadata, payload)
+                if valid and regular_known(data) and data.stat().st_size == payload["nbytes"]:
+                    expired = states.get(payload["allocation_id"])
+                    if expired is True:
+                        state = "deletable"
+                    elif expired is False or _same_live_process(payload["owner_pid"], payload["owner_create_time"]):
+                        state = "in_use"
+                    elif payload["owner_create_time"] is not None:
+                        state = "deletable"
+                if cleanup and state == "deletable":
+                    for path in pair:
+                        size = path.stat().st_size
+                        if _unlink_known(root, path):
+                            result["removed_files"] += 1
+                            result["removed_bytes"] += size
+                    if manager is not None:
+                        with manager._lock:
+                            manager._tracked.pop(payload["allocation_id"], None)
+                    continue
+            except (OSError, ValueError, TypeError, AttributeError) as exc:
+                result["errors"].append(str(exc))
+            for path in pair:
+                if path not in seen and regular_known(path):
+                    seen.add(path)
+                    result["files"].append({"bytes": path.stat().st_size, "state": state})
+        for path in root.glob(f"{FILE_PREFIX}*"):
+            if path not in seen and regular_known(path):
+                result["files"].append({"bytes": path.stat().st_size, "state": "unknown"})
+    return result
 
 
 def _sidecar_age(metadata_path: Path, payload: dict[str, Any], now: float) -> float:

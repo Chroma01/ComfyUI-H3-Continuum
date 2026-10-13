@@ -20,8 +20,23 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
-          python -m pip install -r requirements.txt numpy safetensors pytest psutil opencv-python-headless Pillow
+          python -m pip install -r requirements.txt numpy safetensors pytest psutil opencv-python-headless Pillow aiohttp
       - name: Compile Python
         run: python -m compileall -q .
       - name: Run tests
         run: python -m pytest -q -p no:cacheprovider
+
+  windows-storage:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install CPU storage test dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+          python -m pip install numpy safetensors pytest psutil aiohttp
+      - name: Windows file-backed and temporary storage regressions
+        run: python -m pytest -q -p no:cacheprovider tests/test_temporary_storage.py tests/test_storage_api.py tests/test_p20_file_backed_tensor_poc.py tests/test_p22_file_backed_buffer.py tests/decode_cache

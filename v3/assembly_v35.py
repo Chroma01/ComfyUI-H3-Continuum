@@ -36,7 +36,9 @@ from .file_backed_buffer import (
     allocate_file_backed_image,
     format_auto_buffer_decision,
     select_auto_buffer_backend,
+    preflight_manual_buffer,
 )
+from .. import storage_settings
 from .plan import FPS, validate_assembly_plan, REVIEW_AUDIO_PROJECTION_KEY
 
 
@@ -619,6 +621,7 @@ def _assemble_decoded_chunks_v35_core(
     resolved_backend = buffer_backend
     resolved_backing_root = backing_root
     auto_decision_report = None
+    final_image_bytes = math.prod(shape) * first_image.element_size()
     if buffer_backend == BUFFER_BACKEND_AUTO:
         final_image_bytes = (
             math.prod(shape) * first_image.element_size()
@@ -630,6 +633,8 @@ def _assemble_decoded_chunks_v35_core(
         resolved_backend = decision.selected_backend
         resolved_backing_root = decision.backing_root
         auto_decision_report = format_auto_buffer_decision(decision)
+    else:
+        preflight_manual_buffer(buffer_backend, final_image_bytes, backing_root)
 
     allocation: Any
     if resolved_backend == BUFFER_BACKEND_RAM:
@@ -641,6 +646,11 @@ def _assemble_decoded_chunks_v35_core(
             backing_root=resolved_backing_root,
         )
     with allocation:
+        settings = storage_settings.get_manager()
+        if settings is not None:
+            from .file_backed_buffer import resolve_backing_root
+            settings.record_backend(resolved_backend, final_image_bytes,
+                                    resolve_backing_root(resolved_backing_root) if resolved_backend == BUFFER_BACKEND_DISK else None)
         # The file exists at this point, so an ESC received immediately before
         # assembly exercises the same unpublished cleanup path as a mid-copy
         # cancellation.
@@ -675,6 +685,7 @@ def _assemble_decoded_chunks_v35_core(
     return result_images, result_audio, report
 
 
+@storage_settings.storage_operation
 def assemble_decoded_chunks_v35(
     *,
     images: list[Any],

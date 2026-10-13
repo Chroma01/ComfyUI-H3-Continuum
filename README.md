@@ -1,4 +1,19 @@
-# ComfyUI-H3-Continuum 3.9.2 — V3.9
+# ComfyUI-H3-Continuum 3.9.3 — V3.9
+
+## 3.9.3 — choose temporary storage (2026-10-13)
+
+Choose where Continuum writes its temporary decoded frames and Finalize buffer. Open **Settings → H3Continuum → Storage → Manage temporary storage**. Enter an absolute folder on the **ComfyUI server**, or choose a server storage candidate, then validate and save. Leave it blank to keep the existing locations. No workflow changes are required; continue using the V3.9 nodes and your 3.9.1 / 3.9.2 workflows.
+
+- The selected folder applies to **both Finalize and Decode Cache Helper**. It contains a dedicated `h3-continuum-scratch` directory. Saved Runs/Takes and finished videos keep their existing locations.
+- The panel shows current and previous locations, temporary file sizes, free space, and files in use or eligible for deletion. **Delete unused temporary files** protects live outputs, Tensor views, active processes and files whose ownership cannot be verified. Deleting a cache can require decoding and writing it again.
+- Save or clean only when the running and pending queues are empty. New files use the new location; existing outputs remain valid at their old locations. A missing selected drive does not silently redirect writes to your original SSD. Shared storage controls are read-only in multi-user mode.
+- Mode selection stays in the existing nodes: **Finalize: Auto / RAM / Disk-backed**; **Decode Cache Helper: Auto / RAM / Off**. Auto keeps its conservative 4 GiB final-IMAGE threshold and RAM reserve. Manual RAM now checks available memory before allocation; manual Disk-backed checks free space. These checks cannot guarantee against OOM, changing disk usage or a drive disconnect during execution. No new VRAM storage mode is added.
+
+**Moving storage changes where writes occur, not their total volume.** With only one physical drive, moving to another folder or partition on that drive does not divert its writes. A separate SSD is usually the faster alternative; an HDD can be used but may slow decoding, assembly and saving. If sufficient CPU RAM is available, RAM modes can avoid these scratch writes, but memory pressure can cause paging or OOM. Turning Decode Cache Off does not turn off Finalize's Disk-backed buffer. File-size displays are logical sizes, not physical disk allocation or cumulative SSD writes. Local filesystems are supported; network shares are outside this feature's supported scope.
+
+Update the custom node package, restart ComfyUI to load the backend, and hard-refresh the browser. Later changes to this storage setting take effect without a restart. Blank settings retain the ComfyUI temp directory for Finalize and `H3_DECODE_CACHE_TEMP_DIR` (or OS temp) for Decode Cache. A selected folder takes precedence over that cache environment variable.
+
+The storage changes preserve frame dtype, video/audio assembly and generation identity. Validation and remaining platform limits are recorded in [PACKAGE_VALIDATION.txt](PACKAGE_VALIDATION.txt). Screenshots will be added from the implemented settings screen. GitHub Release/tag and Registry publication are separate from this source update.
 
 ## 3.9.2 — Issue #30 frontend hotfix (2026-10-13)
 
@@ -89,7 +104,7 @@ The selected V3.9 template has 32 nodes. Image loaders 1–6 are wired to the ne
 
 In the helper, `All chunks` uses connected images throughout; `Per chunk` provides an image-by-chunk table. The template starts in `Per chunk` with all assignments off: after enabling a loader, tick the chunks that should use it. Slot numbers never shift: Image 1 is `@R1` and Image 9 is `@R9`, even when intervening slots are empty. In Sequence Prompt, describe the action for each chunk and use `@R` tags only for active References; their actual `<Picture N>` numbers are resolved per group. Unused tags warn without stopping generation. Start with short chunks and pre-resized images: source images may consume RAM before the Sampler's Reference Image Size setting applies.
 
-V3.9.2 is the current source version on `main`. Download versioned source from [GitHub Releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases); ComfyUI Registry publication is separate. Historical Releases and tags remain available. Configured 1024×1024 Reference-only GPU/API runs succeeded, but the unchanged default template and browser save/reload remain separate acceptance gates. For a reproducible older environment, use the matching historical Release/tag and workflow; the retained V3.8 Sampler on current `main` specifically supports V3.8X2 workflows.
+V3.9.3 is the current source version on `main`. Download versioned source from [GitHub Releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases); ComfyUI Registry publication is separate. Historical Releases and tags remain available. Configured 1024×1024 Reference-only GPU/API runs succeeded, but the unchanged default template and browser save/reload remain separate acceptance gates. For a reproducible older environment, use the matching historical Release/tag and workflow; the retained V3.8 Sampler on current `main` specifically supports V3.8X2 workflows.
 
 `pyproject.toml` declares ComfyUI `>=0.32.0`; earlier real-generation/GPU validation used ComfyUI `0.34.2`, and the scoped Fixed cache comparison above used `0.38.0`. The minimum declaration does not establish V3.9 runtime acceptance on 0.32.0. The previous Windows CPU run is `1696 passed / 1 skipped / 0 failed`; the earlier separate Linux rerun report records `1534 passed / 3 skipped / 0 failed` and does not include the new cache or external INT tests. Neither replaces browser save/reload or GPU acceptance for the unchanged official template.
 

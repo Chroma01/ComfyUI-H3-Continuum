@@ -13,6 +13,9 @@ if __package__:
     from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
     from .temporal import run_temporal_self_test
     from .version import PACKAGE_VERSION
+    from .storage_api import register_routes
+
+    register_routes()
 
     try:
         run_temporal_self_test()

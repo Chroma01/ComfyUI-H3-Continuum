@@ -85,7 +85,7 @@ class H3DecodeCacheHelper:
 
     def decode(self, cache_mode, ram_budget_mb, disk_budget_gb, reset_token,
                video_samples=None, video_vae=None, audio_samples=None, audio_vae=None):
-        with self._lock:
+        with self.service.store.operation(), self._lock:
             mode = self._scalar(cache_mode, "cache_mode")
             ram = int(self._scalar(ram_budget_mb, "ram_budget_mb"))
             disk = int(self._scalar(disk_budget_gb, "disk_budget_gb"))

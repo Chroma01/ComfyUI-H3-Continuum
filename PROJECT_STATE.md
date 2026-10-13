@@ -2,7 +2,13 @@
 
 Updated: 2026-10-13 (Japan time).
 
-## Package 3.9.2 — Issue #30 frontend hotfix
+## Package 3.9.3 — temporary storage settings
+
+The current source adds a server-side scratch folder setting for Finalize and Decode Cache, storage usage/free-space reporting and conservative unused-file cleanup. Manual buffer capacity checks retain the existing Auto policy. Node schemas, official workflow bytes, generation identity and saved Runs/Takes are preserved.
+
+The new setting is available under Settings → H3Continuum → Storage. Validation and platform limitations are recorded in PACKAGE_VALIDATION.txt. Source publication does not imply a new GitHub Release/tag or Registry publication.
+
+## Previous package 3.9.2 — Issue #30 frontend hotfix
 
 This package includes three minimal frontend changes: skip Review snapshots without a comparison baseline, notify connected Samplers once per Reference selection, and skip unchanged node dimensions when resizing. Review baseline monitoring, synchronous Take/Queue checks and generation/storage contracts are retained; package metadata is 3.9.2.
 

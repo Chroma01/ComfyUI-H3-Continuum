@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.9.3 — temporary storage settings (2026-10-13)
+
+- Add a server-owned scratch folder setting for both Finalize and Decode Cache, with storage candidates, logical file sizes, free space and conservative unused-file cleanup.
+- Apply changes to new files while keeping existing outputs and aliases valid. Preserve blank/default paths and explicit internal overrides; never fall back silently to the original disk when a selected drive is unavailable.
+- Protect unknown owners, live processes and mapped outputs during cleanup, including outputs whose helper has already been removed. Track new cache directories for dead-process recovery.
+- Add manual RAM and Disk-backed capacity checks and account for discoverable Linux cgroup memory limits. Keep Auto's 4 GiB threshold and reserve, existing node controls, frame dtype and generation/storage identities.
+- Keep V3.9 and V3.8X2 workflows and public node schemas unchanged. No new GPU generation is claimed for this storage update; see PACKAGE_VALIDATION.txt for CPU/browser/platform coverage.
+
 ## 3.9.2 — Issue #30 frontend hotfix (2026-10-13)
 
 - Skip upstream Review settings snapshots when no comparison baseline exists. Keep drawing-time edit detection and synchronous Queue/Take checks for reviewed settings.

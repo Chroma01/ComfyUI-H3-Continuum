@@ -63,3 +63,6 @@ examples/workflows/*
 !docs/TIMELINE_VIDEO_EXPERIMENTAL.md
 !docs/V39_REFERENCE_INLINE.md
 .h3-timeline-experimental.json
+
+# Current temporary storage controls and lifecycle contract.
+!docs/TEMPORARY_STORAGE_JA.md

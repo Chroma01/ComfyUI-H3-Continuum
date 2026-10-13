@@ -1,4 +1,19 @@
-# ComfyUI-H3-Continuum 3.9.2 — V3.9
+# ComfyUI-H3-Continuum 3.9.3 — V3.9
+
+## 3.9.3 — 一時ストレージの保存先設定（2026-10-13）
+
+未圧縮フレームなどの一時データを、指定したストレージへ保存できるようになりました。**設定 → H3Continuum → Storage → 一時ストレージを管理**を開き、**ComfyUIサーバー側**の絶対パスを入力するかストレージ候補を選択して、検証・保存してください。空欄なら従来の保存先を使用します。ワークフローの変更は不要で、V3.9ノードと3.9.1／3.9.2のワークフローを引き続き使用できます。
+
+- **FinalizeとDecode Cache Helperの両方**が対象です。指定先の`h3-continuum-scratch`専用領域へ保存します。Run／Takeや完成動画の保存先は別です。
+- 現在・以前の保存先、一時ファイル量、空き容量、使用中／削除可能な容量を表示します。**未使用の一時ファイルを削除**は、参照中の出力・Tensorのview・生存プロセス・所有者不明のファイルを保護します。キャッシュ削除後は再デコード・再書き込みが必要になる場合があります。
+- 保存・削除は実行中と待機中のQueueが空のときに行います。新しいファイルから保存先を切り替え、既存出力は元の場所で保持します。指定先が使えない場合、元のSSDへ黙って戻しません。マルチユーザー運用では共有保存先のUIは閲覧のみです。
+- 使用方式は既存ノードで選びます。**Finalize：Auto／RAM／Disk-backed、Decode Cache Helper：Auto／RAM／Off**。Autoの4 GiB境界とRAM安全余裕は維持します。手動RAMは確保前に空きメモリを、手動Disk-backedは空き容量を確認します。ただし、実行中のメモリ・容量変動やドライブ切断まで防ぐ保証はありません。VRAMを保存領域にする機能は追加していません。
+
+**保存先変更は書き込み先を変える機能で、総書き込み量を減らすものではありません。** 物理ストレージが1台なら、同じ機器の別フォルダー・別パーティションへ移しても書き込みを逃がせません。別のSSDは速度を保ちやすく、HDDも使用できますがDecode・結合・保存が遅くなる場合があります。十分なCPU RAMがあればRAM方式で一時書き込みを避けられますが、余裕がなければページファイルへの書き込みやOOMが起こり得ます。CacheをOffにするだけではFinalizeのDisk-backedを無効にしません。容量表示は論理ファイルサイズであり、物理占有量やSSDの累計書き込み量ではありません。対応先はローカルファイルシステムで、ネットワーク共有は正式対応外です。
+
+更新時はカスタムノードを更新し、ComfyUIを再起動してブラウザーを強制再読込してください。その後の保存先設定の変更には再起動は不要です。空欄時はFinalizeがComfyUIのtemp、Decode Cacheが既存の`H3_DECODE_CACHE_TEMP_DIR`指定またはOSのtempを使います。フォルダーを指定した場合、その指定がキャッシュ用環境変数より優先します。
+
+映像のdtype、動画・音声の結合計算、生成条件の識別は維持します。[実装仕様](docs/TEMPORARY_STORAGE_JA.md)と[検証記録](PACKAGE_VALIDATION.txt)も参照してください。設定画面のスクリーンショットは、実装後の実画面を受領してから追加します。GitHub Release／tag・Registry公開は今回のソース更新とは別です。
 
 ## 3.9.2 — Issue #30 Frontend hotfix（2026-10-13）
 
@@ -89,7 +104,7 @@ ComfyUIの **Templates → ComfyUI-H3-Continuum** には、今回選んだ[V3.9�
 
 ヘルパーの `All chunks` は接続画像を全チャンクに、`Per chunk` は画像×チャンクの表で指定します。このテンプレートは`Per chunk`で全チェックOFFから始まるため、Loaderを有効にした後、使用したいチャンクにもチェックしてください。空欄があっても番号はずれず、Image 1は常に`@R1`、Image 9は`@R9`です。Sequence Promptにはチャンクごとの動作を短く書き、そのチャンクで使う画像の`@R`タグを付けます。内部の`<Picture N>`番号はgroupごとに自動変換されます。使わないタグは警告しますが生成を止めません。まず短いチャンクと縮小済み画像で試してください。入力元画像はSamplerのReference Image Size設定より前にRAMを使うことがあります。
 
-V3.9.2は`main`の現行ソースです。バージョンを固定したソースは[GitHub Releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases)から取得してください。ComfyUI Registryへの公開は別の作業です。過去のReleaseとtagも残します。設定済み1024×1024のReference-only GPU/APIテストは通っていますが、無改変の公式テンプレート初期設定とブラウザー保存・再読込は別の受入項目です。古い環境を厳密に再現するには対応する過去のRelease／tagとWorkflowを使用してください。現行mainにもV3.8 Samplerを残し、V3.8X2 Workflowを使えるようにしています。
+V3.9.3は`main`の現行ソースです。バージョンを固定したソースは[GitHub Releases](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases)から取得してください。ComfyUI Registryへの公開は別の作業です。過去のReleaseとtagも残します。設定済み1024×1024のReference-only GPU/APIテストは通っていますが、無改変の公式テンプレート初期設定とブラウザー保存・再読込は別の受入項目です。古い環境を厳密に再現するには対応する過去のRelease／tagとWorkflowを使用してください。現行mainにもV3.8 Samplerを残し、V3.8X2 Workflowを使えるようにしています。
 
 `pyproject.toml`の宣言上はComfyUI `>=0.32.0`ですが、以前の実生成・GPU検証はComfyUI `0.34.2`、上記の限定したFixedキャッシュ比較は`0.38.0`で行いました。最低宣言版でV3.9の実機動作を確認済みという意味ではありません。以前のWindows CPU試験は`1696 passed / 1 skipped / 0 failed`、以前の別環境Linux再実行報告は`1534 passed / 3 skipped / 0 failed`で、新しいキャッシュ／外部INT試験は含みません。これらは無改変の公式テンプレートの実ブラウザー保存・再読込やGPU受入を代替しません。
 

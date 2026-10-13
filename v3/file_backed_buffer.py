@@ -17,10 +17,13 @@ import threading
 
 import torch
 
+from ..storage_memory import system_memory_bytes
+from .. import storage_settings
+
 from ..tools.p20_file_backed_tensor_poc import (
     FileBackedAllocation,
     StorageLifetimeManager,
-    cleanup_stale_files,
+    inspect_managed_files,
     get_process_lifetime_manager,
 )
 
@@ -65,13 +68,7 @@ class AutoBufferDecision:
 
 
 def _system_memory_bytes() -> tuple[int | None, int | None]:
-    try:
-        import psutil
-
-        counters = psutil.virtual_memory()
-        return int(counters.available), int(counters.total)
-    except Exception:
-        return None, None
+    return system_memory_bytes()
 
 
 def _existing_disk_anchor(path: Path) -> Path:
@@ -84,7 +81,27 @@ def _existing_disk_anchor(path: Path) -> Path:
 
 
 def _disk_free_bytes(path: Path) -> int:
+    manager = storage_settings.get_manager()
+    if manager is not None:
+        manager.verify_final_root(path)
     return int(shutil.disk_usage(_existing_disk_anchor(path)).free)
+
+
+def preflight_manual_buffer(backend, final_image_bytes, backing_root=None):
+    if backend == BUFFER_BACKEND_RAM:
+        available, total = _system_memory_bytes()
+        if available is None or total is None:
+            raise RuntimeError("RAM buffer safety check unavailable; use Auto or Disk-backed, or restore memory counters")
+        reserve = max(AUTO_RAM_RESERVE_MIN_BYTES, int(total * AUTO_RAM_RESERVE_FRACTION))
+        if available < final_image_bytes + reserve:
+            raise RuntimeError(f"RAM buffer needs {final_image_bytes} bytes plus {reserve} bytes reserve; "
+                               f"only {available} bytes are available. Select Auto or Disk-backed.")
+    elif backend == BUFFER_BACKEND_DISK:
+        root = resolve_backing_root(backing_root)
+        free = _disk_free_bytes(root)
+        if free < final_image_bytes + AUTO_DISK_RESERVE_BYTES:
+            raise RuntimeError(f"Disk-backed buffer needs {final_image_bytes + AUTO_DISK_RESERVE_BYTES} bytes "
+                               f"including reserve; {free} bytes are free at {root}")
 
 
 def select_auto_buffer_backend(
@@ -201,7 +218,9 @@ def resolve_backing_root(
         if value is None or not str(value).strip():
             raise RuntimeError("ComfyUI returned an empty temporary directory")
         base = Path(value)
-    return (base.expanduser().resolve() / _BACKING_DIRECTORY_NAME).resolve()
+    default = (base.expanduser().resolve() / _BACKING_DIRECTORY_NAME).resolve()
+    manager = storage_settings.get_manager()
+    return manager.resolve("finalize", default, verify=False) if manager else default
 
 
 def get_file_backed_image_manager(
@@ -210,15 +229,21 @@ def get_file_backed_image_manager(
     """Return the accepted process-global manager for one resolved root."""
 
     root = resolve_backing_root(backing_root)
+    settings = storage_settings.get_manager()
+    if settings is not None:
+        settings.verify_final_root(root)
     key = os.path.normcase(str(root))
     with _CLEANED_ROOTS_LOCK:
         if key not in _CLEANED_ROOTS:
-            # The P2-0 root lock prevents cleanup from observing an allocation
-            # between its data-file and sidecar publication.  A live owner is
-            # always retained; only prior abnormal-exit artifacts are removed.
-            cleanup_stale_files(root, grace_seconds=0.0)
+            # Production startup and the UI share conservative ownership rules.
+            # The standalone recovery probe can still inspect legacy orphans;
+            # an unknown production file is never deleted by its name alone.
+            inspect_managed_files(root, cleanup=True)
             _CLEANED_ROOTS.add(key)
-    return get_process_lifetime_manager(root)
+    manager = get_process_lifetime_manager(root)
+    if settings is not None:
+        settings.record_root("finalize", root)
+    return manager
 
 
 def allocate_file_backed_image(

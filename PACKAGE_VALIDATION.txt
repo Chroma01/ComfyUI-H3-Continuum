@@ -1,3 +1,59 @@
+ComfyUI-H3-Continuum 3.9.3 / temporary storage - 2026-10-13
+
+Package metadata: 3.9.3. Public registration: twelve nodes. Existing V3.9
+and separate V3.8X2 workflows remain supported without schema migration.
+
+Scope
+- Server-owned scratch path for Finalize and Decode Cache. Blank inherits
+  existing defaults; selected storage never silently falls back to OS temp.
+- Settings panel: locations, logical bytes, free capacity, explicit refresh
+  and conservative unused-file cleanup. No periodic filesystem polling.
+- Protect live Tensor/storage aliases, cache mappings, active processes,
+  unknown owners, unregistered files and directory/link substitutions.
+- Atomic settings/revision checks and queue/operation coordination. New
+  files use the selected destination; existing outputs retain their paths.
+- Manual RAM and Disk-backed preflight; discoverable cgroup memory limits.
+  Auto's 4 GiB threshold and reserve, dtype and generation contracts remain.
+
+Candidate validation
+- Real ComfyUI Core 0.38.0 CPU regression: 1740 passed / 2 skipped /
+  2 expected failures; zero unexpected failures and CUDA initializations.
+  Expected failures still track the independent Inspector reconfigure bug.
+  Skips: Windows private-commit metric and absent historical V3.5 workflow.
+- New storage regression gate: 37 cases, including real small Tensor/view
+  mappings, lost/changed roots, failed writes/deletes, ownerless/link
+  protection, detached helper leases, abrupt subprocess exit, two-process
+  settings conflict, HTTP queue/read-only guards, and frontend lifecycle.
+- tools/validate.ps1: compileall and Core runtime verification passed using
+  a CPU-only Python adapter; full pytest was run separately as above.
+  Native PackedLayout, Fixed 3x5s planning and twelve-node registration pass.
+- Actual Core 0.38.0 / frontend 1.53.6 / Chromium 151 smoke passed: real
+  settings navigation, invalid-path rejection, validation/save/cleanup,
+  ten modal reopens without polling/duplicate requests, page reload with
+  persisted settings, native synthetic graph serialization/reload, and
+  Japanese controls at a narrow viewport. No page errors or prompt submits.
+  The separate production-JS fixture covers 100 reopen cycles.
+- All 25 tracked JSON/ZIP assets, including official workflows, retain
+  their pre-change bytes. Source and Registry payload hashes are verified.
+- Windows-focused storage/file-backed/cache CI is configured; its hosted
+  result is a separate gate from these local Linux checks. The browser
+  gate is headless desktop Chromium, not mobile hardware or GPU generation.
+
+Limits and update
+No GPU generation, long-form throughput, physical SSD write measurement or
+mobile hardware validation was performed for this storage change. Memory
+and capacity checks do not reserve resources or prevent all OOM/I/O faults.
+External drives must remain connected while outputs refer to them. Unknown
+legacy cache files remain protected. Multi-user UI mutations are disabled.
+The existing Inspector reconfigure expected failures remain independent.
+Update custom nodes, restart ComfyUI normally, then hard-refresh the browser.
+Changing the saved scratch setting afterwards requires no restart. Source
+publication is separate from a GitHub Release/tag or Registry publication.
+
+======================================================================
+Historical 3.9.2 validation (counts and scope below belong to that version)
+======================================================================
+
 ComfyUI-H3-Continuum 3.9.2 / Issue #30 frontend hotfix - 2026-10-13
 
 Package metadata: 3.9.2. Public registration: twelve nodes. Continue using

@@ -1,5 +1,12 @@
 # Public development log
 
+## 2026-10-13 — package 3.9.3 temporary storage
+
+- Re-review the scratch storage proposal against actual Finalize, Decode Cache and Core settings lifecycles. Implement server-side settings with revision checks, queue coordination, immutable directory identities and no silent disk fallback.
+- Add read-only status and explicit cleanup paths. Preserve live aliases and unknown owners; track detached helper disk entries using only metadata and weak leases.
+- Add a ComfyUI settings panel without draw-loop scans or periodic polling. Keep existing workflow controls and node registration.
+- Add CPU, real HTTP and filesystem regressions plus a Windows-focused CI storage gate. The real-Core CPU candidate passed 1,740 cases with 2 skips and the 2 existing Inspector expected failures, without CUDA initialization. Standard compile/runtime and actual Core/frontend settings save/reload/cleanup checks passed. All 25 JSON/ZIP assets retain their bytes; see PACKAGE_VALIDATION.txt for scope and platform limits.
+
 ## 2026-10-13 — Issue #30 frontend hotfix, package 3.9.2
 
 - Limit production changes to baseline-free Review snapshot skipping, one Reference selection notification per connected Sampler, and dimension checks before resizing the Reference helper. Align package metadata and current public guidance with 3.9.2; retain 3.9.1 records as history.
