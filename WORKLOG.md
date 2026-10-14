@@ -2,6 +2,8 @@
 
 ## 2026-10-15 — package 3.9.5 / Issue #31 publication
 
+Main Linux/Windows CI passed. Correct the tag-presence probe to branch on the API exit status: a missing-ref error body must not be treated as an existing commit SHA. Product code and accepted GPU signatures are unchanged.
+
 Consolidate the Attention fix and finite Spectrum binding adapter on the exact 3.9.4 public source tree. Add a separate audited upstream Spectrum 0.2.29 profile without changing existing local-provider identities. Keep old unsafe history, public node IDs, contracts and all official workflows. CPU/GPU and publication checks are recorded separately in docs/ISSUE31_SAMPLING_SIGNATURES.md.
 
 ## 2026-10-14 — Issue #31 Phase 1, unpublished
