@@ -1,0 +1,226 @@
+"""Finite identity for the audited Spectrum H3 bindings.
+
+This adapter recognizes explicit audited provider source sets. Unknown providers and
+runtime extensions stay non-reusable. It never imports or executes Spectrum.
+"""
+from __future__ import annotations
+
+import dataclasses
+import hashlib
+import inspect
+import json
+import marshal
+import math
+import sys
+import types
+from pathlib import Path
+
+# Populated from the actual provider reviewed in Issue #31, not its version label.
+SUPPORTED_SOURCE = {'__init__.py': '5836c39245d3538dfba8008e8809ade0a2f64a4f0cb9a8c3e95c6d78bd520e6e', 'backend_history.py': '2caf80b561a582281d42e17e8a14473496ebd079e1709f8d10a8c4fb90758463', 'comfy_compiler_compat.py': 'd61918c61adc9354e8dcc1da59112df473a62302b5ac2f66c292e80f80d1a0c4', 'config.py': 'b375b26ecbea1d1aa7c7eb25290ea0d1beebb537268c6591957e621e0601ed18', 'er_sde_ksampler_contract.py': '9c7cf3311593135a784d3b2f658d5a0f14cc2e436b65e8dad940696a802f0730', 'er_sde_offline_replay_safety.py': 'bb5591a6fc61be654164962c60c21bdc987f854548115fe0d2dd2646623292d3', 'er_sde_policy.py': '55e4728d1a09c0df76957b9f79a469b154078d6131587dd42084e2c50ede8af1', 'er_sde_stochastic.py': '9b265193af890986a12a364fddc4c083acce27601bdd5a082d3c3a70b0676006', 'experiments.py': '7c29591b74e2a2a97ed331dc024a18da92d327b1d3677ab99831a244da465a17', 'external_patch_compat.py': '076f9af35820d87c57ed7c31b5996bbcf223e606d51da9c272eb7aeaacf7b036', 'external_patch_hardening.py': '136169c29df6eae177cfae42d8629a3b46cc9c548540501272336139c51734a3', 'external_patch_visual_reference.py': 'd554da56ddbac1b8fcb25fa030184e78d459c0c581bfceac5f1b89559f4d3fc6', 'forecast.py': '8e5aaa82044cf977f985abd6a2bf800818f130c72f0dcb7e7323b18ab5c0fa9c', 'generic_correction.py': '7d5fd8213b7339dec70e13fb76e516de26c3b5d5339b4a43a1ab641451c8d111', 'generic_correction_calibration.py': '0bcbbde2fdea70afb6f0dd16463687b1ddbc9443ae8ad7f55c8b39d315591253', 'generic_correction_controller.py': 'b5671f62da37e5801d96aeb7f6497ef2305646c567b72f0171342c3732f8c1e2', 'generic_correction_core.py': '30e0de1319d03eaceb98da0aa78e17ff8dddde6370f287a9680badcdf8ed5716', 'generic_correction_evaluator.py': '11942a1991d71a652ede6482de84a120a198990a2f480576924aeb414c720587', 'generic_correction_research.py': 'b32dc00353aaf255c91e1359da79e1e2e3c481c68a140ad6ec4c24752681a121', 'generic_correction_runtime.py': 'b974b831584f005d99ca96c8abd8b79d98a20dbf927246bf7af8c095211c7e4e', 'generic_correction_topology.py': '89c5e6091d81d3e1ac90046647194f50362a8ef1da8c7df96a852a6bb02cd5ff', 'generic_correction_worker.py': '4cc4bac719b2b7e47cfb6f813ce74448e4e9b02165d0732767adfad942701845', 'minimax_h3.py': 'cc85ab228a1816744538887bd5d4f5b8a075e0221bbc04798041022143e3b466', 'model_aware.py': '9463453fe3786935a6c8691c3457976d74708177f4106a910dd4b781f95990f1', 'nodes.py': '9d45b50f93cc1b5ac19760a6e19a07c03aee37c644f886bbf16eec53091bd447', 'objective_media.py': 'f071ab4c3a16524b70dd7c89db40907f7636f42f7fd3630cb86daf371343c01f', 'objective_media_bounded.py': '170001bc7647e151ab3847ec832136e49abdd2e8fdb9fbe818ce19c7bd2d846b', 'objective_media_nodes.py': '761b9887d9c078f50da1efa3f5e5c49e7e1d982423804a1b6763ca9434837d2c', 'postrun_safety.py': '9340c9a6c1b0cf20f351226f96f2a6dd0aeac773ceebd1e2b375346437a711e9', 'refdelta_interop.py': 'db2cc28a4028ca78dd1a2461210886b58a959e39e09bc9e0c510423ce9c27606', 'refinement_compat.py': 'c1d40cea15c22e04a624b9df40a8d9092969b93e11a2dc99f4f5de765694449f', 'replay_calibration.py': '8e8a415d6561d6aad21be9ab21cffdc54e36b8e21fa6fef18c739b0fd55adbf9', 'replay_calibration_provenance.py': '54dc9d036f5d4fd3373e2736673f91cae71347c8a5d48351c9aa111af5cc04cd', 'replay_calibration_validation.py': '6aea41fee0339e8087be4659ef4610eb13a47cddcb6fc454c0a973526ee80bb8', 'replay_component_shadow.py': '3a2098865f2b0ec8ee15462c4e4c614b46f523a8fa5394b995b88a48f9974ae9', 'replay_generic_correction_gate.py': '5bbf3c71ec1a7abedef75edcf52e372ad8c7a87d0caf97027105565d712cf597', 'replay_shadow_composition.py': 'fb376cc70186a6d2ff6bff2880244cf35d2f209e2c7ffa4987a438b7c5a73cb7', 'replay_spectral_alpha_shadow.py': '2a3549877777ec317e805c0db321efc01fce451cef39c5df15f780cfda29e9b4', 'replay_spectral_mixture_shadow.py': '53a18d20129bbd74e6675675fa18be3f555000a13a306a101eeea7a1468fdaa1', 'replay_trust_shadow.py': '4f956f9e045c0cd12daba64c03c738171f15e6ebccf995be647bd8a9f7d61cef', 'rollback.py': '60f04164c0c54a337c2e5b27131b931252362ba6ecf3beb24eea0f760291b07c', 'runtime.py': 'e4b1071e5339336d469a0ad35ec24b7ae327c5a240485fc1f962ad4e776aa451', 'sampling.py': '48e15822c9d8842104fdb286e6bc199cea5e56ee7a48cf3550a332bf9bbc16c0', 'trust_probe.py': 'd1df609764badda6ca238bb454f413296359b983416170fe7dfd3e9e0f9fa9f1'}
+CONFIG_FIELDS = ('enabled', 'blend_weight', 'degree', 'ridge_lambda', 'window_size', 'flex_window', 'warmup_steps', 'tail_actual_steps', 'max_history', 'history_storage', 'debug', 'force_actual', 'bootstrap_first_forecast', 'anchor_residual_feedback', 'selective_rollback_correction', 'offline_smoothing_replay', 'audio_blend_weight', 'offline_archive_storage', 'model_aware_mode', 'model_aware_risk_threshold', 'model_aware_trust_shrinkage', 'model_aware_replay_generic_correction', 'generic_correction_mode', 'generic_correction_limiter', 'generic_correction_limit', 'generic_correction_attenuation', 'sa_pece_forecast_policy')
+INSTANCE_FIELDS = {'SpectrumH3Runtime': ('_backend_history', '_consecutive_forecasts', '_current_window', '_disable_reason', '_disabled', '_experiment_disable_reason', '_experiment_disabled', '_forced_actual_is_replay', '_forced_actual_reason', '_history_labels', '_history_topology', '_last_completed_mode', '_last_completed_reason', '_last_completed_step_id', '_model_aware_disabled_reason', '_model_profile', '_model_profile_cache_hit', '_model_profile_lookup_seconds', '_offline_archive', '_offline_archive_seconds_total', '_offline_phase', '_offline_smoother', '_offline_smoother_build_seconds_total', '_primary_forecaster', '_primary_model_aware', '_required_actual_refreshes', '_required_feedback_actuals', '_rollback_replay_active', '_rollback_requested', '_run', '_run_counter', '_stage_forecasters', '_stage_model_aware', '_stage_required_actual_refreshes', '_step', 'config', 'forecaster', 'model_aware', 'stats'), 'HistoryWeightForecaster': ('_cholesky', '_design', '_evidence_history', '_evidence_segments', '_exact_head_history', '_exact_head_row_indices', '_exact_head_shapes', '_factor_generation', '_factorization_count', '_feature_dtype', '_feature_shape', '_generation', '_history', '_history_device', '_jitter_attempts', 'chunk_bytes', 'degree', 'history_storage', 'last_prediction_chunk_count', 'last_prediction_max_fp32_elements', 'max_history', 'model_aware_correction_seconds', 'model_aware_exact_head_projection_calls', 'model_aware_exact_head_projection_seconds', 'model_aware_exact_head_workspace_bytes', 'model_aware_fit_seconds', 'ridge_lambda'), 'ModelAwareController': ('_head_device_cache', 'ablation_count', 'anchor_count', 'audio_applied_2d_head_ratio_sum', 'audio_applied_2d_ratio_sum', 'audio_diagonal_bound_active_count', 'audio_diagonal_candidate_head_ratio_sum', 'audio_diagonal_candidate_loss_count', 'audio_diagonal_candidate_ratio_sum', 'audio_diagonal_candidate_win_count', 'audio_diagonal_comparison_count', 'audio_diagonal_projection_ewma', 'audio_direction_g01_ewma', 'audio_direction_g11_ewma', 'audio_exact_2d_condition_max', 'audio_exact_2d_g0_ewma', 'audio_exact_2d_g1_ewma', 'audio_exact_2d_head_ratio_sum', 'audio_exact_2d_ratio_sum', 'audio_exact_2d_vs_exact_scalar_advantage_max', 'audio_exact_2d_vs_exact_scalar_advantage_sum', 'audio_exact_2d_vs_exact_scalar_comparison_count', 'audio_exact_2d_vs_exact_scalar_loss_count', 'audio_exact_2d_vs_exact_scalar_win_count', 'audio_exact_2d_vs_generic_2d_advantage_max', 'audio_exact_2d_vs_generic_2d_advantage_sum', 'audio_exact_2d_vs_generic_2d_comparison_count', 'audio_exact_2d_vs_generic_2d_loss_count', 'audio_exact_2d_vs_generic_2d_win_count', 'audio_exact_2d_vs_generic_scalar_advantage_max', 'audio_exact_2d_vs_generic_scalar_advantage_sum', 'audio_exact_2d_vs_generic_scalar_comparison_count', 'audio_exact_2d_vs_generic_scalar_loss_count', 'audio_exact_2d_vs_generic_scalar_win_count', 'audio_forecast_ratio_max', 'audio_forecast_ratio_sum', 'audio_gain_delta_applied_abs_max', 'audio_gain_delta_applied_abs_sum', 'audio_gain_delta_exact_diagonal_abs_max', 'audio_gain_delta_exact_diagonal_abs_sum', 'audio_gain_delta_post_abs_max', 'audio_gain_delta_post_abs_sum', 'audio_gain_delta_pre_abs_max', 'audio_gain_delta_pre_abs_sum', 'audio_generic_2d_condition_max', 'audio_generic_2d_g0_ewma', 'audio_generic_2d_g1_ewma', 'audio_generic_2d_head_ratio_sum', 'audio_generic_2d_ratio_sum', 'audio_generic_2d_vs_scalar_advantage_max', 'audio_generic_2d_vs_scalar_advantage_sum', 'audio_generic_2d_vs_scalar_comparison_count', 'audio_generic_2d_vs_scalar_loss_count', 'audio_generic_2d_vs_scalar_win_count', 'audio_generic_bound_active_count', 'audio_generic_corrected_head_ratio_sum', 'audio_generic_corrected_ratio_sum', 'audio_model_bound_active_count', 'audio_model_candidate_head_ratio_sum', 'audio_model_candidate_loss_count', 'audio_model_candidate_ratio_sum', 'audio_model_candidate_win_count', 'audio_model_comparison_count', 'audio_model_corrected_head_ratio_sum', 'audio_model_corrected_ratio_sum', 'audio_model_projection_ewma', 'audio_model_trust', 'audio_projection_ewma', 'audio_subspace_condition_fallback_count', 'audio_subspace_evidence_count', 'audio_subspace_fallback_count', 'audio_subspace_model_trust', 'audio_subspace_regularization_max', 'curvature_ratio_ewma', 'fit_condition_ewma', 'forecast_ratio_ewma', 'generic_corrected_ratio_sum', 'mode', 'model_corrected_ratio_sum', 'profile', 'risk_threshold', 'stream_evidence_count', 'video_applied_2d_head_ratio_sum', 'video_applied_2d_ratio_sum', 'video_diagonal_bound_active_count', 'video_diagonal_candidate_head_ratio_sum', 'video_diagonal_candidate_loss_count', 'video_diagonal_candidate_ratio_sum', 'video_diagonal_candidate_win_count', 'video_diagonal_comparison_count', 'video_diagonal_projection_ewma', 'video_direction_g01_ewma', 'video_direction_g11_ewma', 'video_exact_2d_condition_max', 'video_exact_2d_g0_ewma', 'video_exact_2d_g1_ewma', 'video_exact_2d_head_ratio_sum', 'video_exact_2d_ratio_sum', 'video_exact_2d_vs_exact_scalar_advantage_max', 'video_exact_2d_vs_exact_scalar_advantage_sum', 'video_exact_2d_vs_exact_scalar_comparison_count', 'video_exact_2d_vs_exact_scalar_loss_count', 'video_exact_2d_vs_exact_scalar_win_count', 'video_exact_2d_vs_generic_2d_advantage_max', 'video_exact_2d_vs_generic_2d_advantage_sum', 'video_exact_2d_vs_generic_2d_comparison_count', 'video_exact_2d_vs_generic_2d_loss_count', 'video_exact_2d_vs_generic_2d_win_count', 'video_exact_2d_vs_generic_scalar_advantage_max', 'video_exact_2d_vs_generic_scalar_advantage_sum', 'video_exact_2d_vs_generic_scalar_comparison_count', 'video_exact_2d_vs_generic_scalar_loss_count', 'video_exact_2d_vs_generic_scalar_win_count', 'video_forecast_ratio_max', 'video_forecast_ratio_sum', 'video_gain_delta_applied_abs_max', 'video_gain_delta_applied_abs_sum', 'video_gain_delta_exact_diagonal_abs_max', 'video_gain_delta_exact_diagonal_abs_sum', 'video_gain_delta_post_abs_max', 'video_gain_delta_post_abs_sum', 'video_gain_delta_pre_abs_max', 'video_gain_delta_pre_abs_sum', 'video_generic_2d_condition_max', 'video_generic_2d_g0_ewma', 'video_generic_2d_g1_ewma', 'video_generic_2d_head_ratio_sum', 'video_generic_2d_ratio_sum', 'video_generic_2d_vs_scalar_advantage_max', 'video_generic_2d_vs_scalar_advantage_sum', 'video_generic_2d_vs_scalar_comparison_count', 'video_generic_2d_vs_scalar_loss_count', 'video_generic_2d_vs_scalar_win_count', 'video_generic_bound_active_count', 'video_generic_corrected_head_ratio_sum', 'video_generic_corrected_ratio_sum', 'video_model_bound_active_count', 'video_model_candidate_head_ratio_sum', 'video_model_candidate_loss_count', 'video_model_candidate_ratio_sum', 'video_model_candidate_win_count', 'video_model_comparison_count', 'video_model_corrected_head_ratio_sum', 'video_model_corrected_ratio_sum', 'video_model_projection_ewma', 'video_model_trust', 'video_projection_ewma', 'video_subspace_condition_fallback_count', 'video_subspace_evidence_count', 'video_subspace_fallback_count', 'video_subspace_model_trust', 'video_subspace_regularization_max')}
+
+REQUIRED_INSTANCE_FIELDS = {'SpectrumH3Runtime': ('_backend_history', '_consecutive_forecasts', '_current_window', '_disable_reason', '_disabled', '_experiment_disable_reason', '_experiment_disabled', '_forced_actual_is_replay', '_forced_actual_reason', '_history_labels', '_history_topology', '_last_completed_mode', '_last_completed_step_id', '_model_aware_disabled_reason', '_model_profile', '_model_profile_cache_hit', '_model_profile_lookup_seconds', '_offline_archive', '_offline_archive_seconds_total', '_offline_phase', '_offline_smoother', '_offline_smoother_build_seconds_total', '_primary_forecaster', '_primary_model_aware', '_required_actual_refreshes', '_required_feedback_actuals', '_rollback_replay_active', '_rollback_requested', '_run', '_run_counter', '_stage_forecasters', '_stage_model_aware', '_stage_required_actual_refreshes', '_step', 'config', 'forecaster', 'model_aware', 'stats'), 'HistoryWeightForecaster': ('_cholesky', '_design', '_evidence_history', '_evidence_segments', '_exact_head_history', '_exact_head_row_indices', '_exact_head_shapes', '_factor_generation', '_factorization_count', '_feature_dtype', '_feature_shape', '_generation', '_history', '_history_device', '_jitter_attempts', 'chunk_bytes', 'degree', 'history_storage', 'last_prediction_chunk_count', 'last_prediction_max_fp32_elements', 'max_history', 'model_aware_correction_seconds', 'model_aware_exact_head_projection_calls', 'model_aware_exact_head_projection_seconds', 'model_aware_exact_head_workspace_bytes', 'model_aware_fit_seconds', 'ridge_lambda'), 'ModelAwareController': ('_head_device_cache', 'ablation_count', 'anchor_count', 'audio_applied_2d_head_ratio_sum', 'audio_applied_2d_ratio_sum', 'audio_diagonal_bound_active_count', 'audio_diagonal_candidate_head_ratio_sum', 'audio_diagonal_candidate_loss_count', 'audio_diagonal_candidate_ratio_sum', 'audio_diagonal_candidate_win_count', 'audio_diagonal_comparison_count', 'audio_diagonal_projection_ewma', 'audio_direction_g01_ewma', 'audio_direction_g11_ewma', 'audio_exact_2d_condition_max', 'audio_exact_2d_g0_ewma', 'audio_exact_2d_g1_ewma', 'audio_exact_2d_head_ratio_sum', 'audio_exact_2d_ratio_sum', 'audio_exact_2d_vs_exact_scalar_advantage_max', 'audio_exact_2d_vs_exact_scalar_advantage_sum', 'audio_exact_2d_vs_exact_scalar_comparison_count', 'audio_exact_2d_vs_exact_scalar_loss_count', 'audio_exact_2d_vs_exact_scalar_win_count', 'audio_exact_2d_vs_generic_2d_advantage_max', 'audio_exact_2d_vs_generic_2d_advantage_sum', 'audio_exact_2d_vs_generic_2d_comparison_count', 'audio_exact_2d_vs_generic_2d_loss_count', 'audio_exact_2d_vs_generic_2d_win_count', 'audio_exact_2d_vs_generic_scalar_advantage_max', 'audio_exact_2d_vs_generic_scalar_advantage_sum', 'audio_exact_2d_vs_generic_scalar_comparison_count', 'audio_exact_2d_vs_generic_scalar_loss_count', 'audio_exact_2d_vs_generic_scalar_win_count', 'audio_forecast_ratio_max', 'audio_forecast_ratio_sum', 'audio_gain_delta_applied_abs_max', 'audio_gain_delta_applied_abs_sum', 'audio_gain_delta_exact_diagonal_abs_max', 'audio_gain_delta_exact_diagonal_abs_sum', 'audio_gain_delta_post_abs_max', 'audio_gain_delta_post_abs_sum', 'audio_gain_delta_pre_abs_max', 'audio_gain_delta_pre_abs_sum', 'audio_generic_2d_condition_max', 'audio_generic_2d_g0_ewma', 'audio_generic_2d_g1_ewma', 'audio_generic_2d_head_ratio_sum', 'audio_generic_2d_ratio_sum', 'audio_generic_2d_vs_scalar_advantage_max', 'audio_generic_2d_vs_scalar_advantage_sum', 'audio_generic_2d_vs_scalar_comparison_count', 'audio_generic_2d_vs_scalar_loss_count', 'audio_generic_2d_vs_scalar_win_count', 'audio_generic_bound_active_count', 'audio_generic_corrected_head_ratio_sum', 'audio_generic_corrected_ratio_sum', 'audio_model_bound_active_count', 'audio_model_candidate_head_ratio_sum', 'audio_model_candidate_loss_count', 'audio_model_candidate_ratio_sum', 'audio_model_candidate_win_count', 'audio_model_comparison_count', 'audio_model_corrected_head_ratio_sum', 'audio_model_corrected_ratio_sum', 'audio_model_projection_ewma', 'audio_model_trust', 'audio_projection_ewma', 'audio_subspace_condition_fallback_count', 'audio_subspace_evidence_count', 'audio_subspace_fallback_count', 'audio_subspace_model_trust', 'audio_subspace_regularization_max', 'curvature_ratio_ewma', 'fit_condition_ewma', 'forecast_ratio_ewma', 'generic_corrected_ratio_sum', 'mode', 'model_corrected_ratio_sum', 'profile', 'risk_threshold', 'stream_evidence_count', 'video_applied_2d_head_ratio_sum', 'video_applied_2d_ratio_sum', 'video_diagonal_bound_active_count', 'video_diagonal_candidate_head_ratio_sum', 'video_diagonal_candidate_loss_count', 'video_diagonal_candidate_ratio_sum', 'video_diagonal_candidate_win_count', 'video_diagonal_comparison_count', 'video_diagonal_projection_ewma', 'video_direction_g01_ewma', 'video_direction_g11_ewma', 'video_exact_2d_condition_max', 'video_exact_2d_g0_ewma', 'video_exact_2d_g1_ewma', 'video_exact_2d_head_ratio_sum', 'video_exact_2d_ratio_sum', 'video_exact_2d_vs_exact_scalar_advantage_max', 'video_exact_2d_vs_exact_scalar_advantage_sum', 'video_exact_2d_vs_exact_scalar_comparison_count', 'video_exact_2d_vs_exact_scalar_loss_count', 'video_exact_2d_vs_exact_scalar_win_count', 'video_exact_2d_vs_generic_2d_advantage_max', 'video_exact_2d_vs_generic_2d_advantage_sum', 'video_exact_2d_vs_generic_2d_comparison_count', 'video_exact_2d_vs_generic_2d_loss_count', 'video_exact_2d_vs_generic_2d_win_count', 'video_exact_2d_vs_generic_scalar_advantage_max', 'video_exact_2d_vs_generic_scalar_advantage_sum', 'video_exact_2d_vs_generic_scalar_comparison_count', 'video_exact_2d_vs_generic_scalar_loss_count', 'video_exact_2d_vs_generic_scalar_win_count', 'video_forecast_ratio_max', 'video_forecast_ratio_sum', 'video_gain_delta_applied_abs_max', 'video_gain_delta_applied_abs_sum', 'video_gain_delta_exact_diagonal_abs_max', 'video_gain_delta_exact_diagonal_abs_sum', 'video_gain_delta_post_abs_max', 'video_gain_delta_post_abs_sum', 'video_gain_delta_pre_abs_max', 'video_gain_delta_pre_abs_sum', 'video_generic_2d_condition_max', 'video_generic_2d_g0_ewma', 'video_generic_2d_g1_ewma', 'video_generic_2d_head_ratio_sum', 'video_generic_2d_ratio_sum', 'video_generic_2d_vs_scalar_advantage_max', 'video_generic_2d_vs_scalar_advantage_sum', 'video_generic_2d_vs_scalar_comparison_count', 'video_generic_2d_vs_scalar_loss_count', 'video_generic_2d_vs_scalar_win_count', 'video_generic_bound_active_count', 'video_generic_corrected_head_ratio_sum', 'video_generic_corrected_ratio_sum', 'video_model_bound_active_count', 'video_model_candidate_head_ratio_sum', 'video_model_candidate_loss_count', 'video_model_candidate_ratio_sum', 'video_model_candidate_win_count', 'video_model_comparison_count', 'video_model_corrected_head_ratio_sum', 'video_model_corrected_ratio_sum', 'video_model_projection_ewma', 'video_model_trust', 'video_projection_ewma', 'video_subspace_condition_fallback_count', 'video_subspace_evidence_count', 'video_subspace_fallback_count', 'video_subspace_model_trust', 'video_subspace_regularization_max')}
+
+
+PUBLIC_SOURCE_029 = {'__init__.py': '48bff4800f8f0a64d0354874d1a7951f0a6c2bae23a4126317e347e2fd51850e', 'backend_history.py': 'f7a641be4515bfa2ef85785bdd0b7a450f592e36309d95fd7c1f3c3d8afcdaec', 'bsa_transition_probe.py': '3cbe0938aa80925eacf2319db0aa89de4621db435e4495809cf855a182fe4801', 'bsa_transition_probe_compat.py': '6f998f3ee1f2232aff0f63e314139bee2365a659364747837fa0d37c9ec4911d', 'bsa_transition_probe_manual.py': '8fe0e35d4805c2140ba99dc4a0c07984a52269723756789d8b16ea25775e9398', 'comfy_compiler_compat.py': 'd61918c61adc9354e8dcc1da59112df473a62302b5ac2f66c292e80f80d1a0c4', 'config.py': 'b375b26ecbea1d1aa7c7eb25290ea0d1beebb537268c6591957e621e0601ed18', 'core_bsa_calibration_compat.py': 'bab075a56c73fbe44991c27f95a3e1df5a8b3c801793788376413f6351c04eb6', 'core_bsa_compat.py': 'a2e4bce9e5dfc1e11d38c65a33ab8e399a3be3467884a25027cb8f332aa5bf9c', 'core_bsa_diagnostics.py': 'd566f4e1f326c26ab9073eb68098df24cec0d4e01de1a8c023bc41712629ebac', 'core_bsa_flow_compat.py': '8103bec78a57f5affb8dc18f833735cfed12ef944eed40cd8d302b14869a6e9a', 'core_bsa_forecast_recovery.py': 'b382d053452a183a25932cf7b608cf189caa36d0448b6476b6cf21e7337db08a', 'core_bsa_loader_compat.py': '132593b237dc562bdd37db82ce6d2521691c0b6cc1272d57cdab99d8d1d25683', 'core_bsa_preprocess_compat.py': '7344174093c19709df380b4fd0522c091b33a5a7b54410c251473fcc09ed6de4', 'er_sde_ksampler_contract.py': '9c7cf3311593135a784d3b2f658d5a0f14cc2e436b65e8dad940696a802f0730', 'er_sde_offline_replay_safety.py': 'bb5591a6fc61be654164962c60c21bdc987f854548115fe0d2dd2646623292d3', 'er_sde_policy.py': '55e4728d1a09c0df76957b9f79a469b154078d6131587dd42084e2c50ede8af1', 'er_sde_stochastic.py': '9b265193af890986a12a364fddc4c083acce27601bdd5a082d3c3a70b0676006', 'experiments.py': '7c29591b74e2a2a97ed331dc024a18da92d327b1d3677ab99831a244da465a17', 'external_patch_compat.py': '076f9af35820d87c57ed7c31b5996bbcf223e606d51da9c272eb7aeaacf7b036', 'external_patch_hardening.py': '136169c29df6eae177cfae42d8629a3b46cc9c548540501272336139c51734a3', 'external_patch_visual_reference.py': 'd554da56ddbac1b8fcb25fa030184e78d459c0c581bfceac5f1b89559f4d3fc6', 'forecast.py': '8e5aaa82044cf977f985abd6a2bf800818f130c72f0dcb7e7323b18ab5c0fa9c', 'generic_correction.py': '7d5fd8213b7339dec70e13fb76e516de26c3b5d5339b4a43a1ab641451c8d111', 'generic_correction_calibration.py': '0bcbbde2fdea70afb6f0dd16463687b1ddbc9443ae8ad7f55c8b39d315591253', 'generic_correction_controller.py': 'b5671f62da37e5801d96aeb7f6497ef2305646c567b72f0171342c3732f8c1e2', 'generic_correction_core.py': '30e0de1319d03eaceb98da0aa78e17ff8dddde6370f287a9680badcdf8ed5716', 'generic_correction_evaluator.py': '11942a1991d71a652ede6482de84a120a198990a2f480576924aeb414c720587', 'generic_correction_research.py': 'b32dc00353aaf255c91e1359da79e1e2e3c481c68a140ad6ec4c24752681a121', 'generic_correction_runtime.py': 'b974b831584f005d99ca96c8abd8b79d98a20dbf927246bf7af8c095211c7e4e', 'generic_correction_topology.py': '89c5e6091d81d3e1ac90046647194f50362a8ef1da8c7df96a852a6bb02cd5ff', 'generic_correction_worker.py': '4cc4bac719b2b7e47cfb6f813ce74448e4e9b02165d0732767adfad942701845', 'minimax_h3.py': '02e97ab21b899853fa2fb9bcd65e8a2d64efbc681bec17d578559c50f20d16d0', 'model_aware.py': '9463453fe3786935a6c8691c3457976d74708177f4106a910dd4b781f95990f1', 'nodes.py': '9d45b50f93cc1b5ac19760a6e19a07c03aee37c644f886bbf16eec53091bd447', 'objective_media.py': 'f071ab4c3a16524b70dd7c89db40907f7636f42f7fd3630cb86daf371343c01f', 'objective_media_bounded.py': '170001bc7647e151ab3847ec832136e49abdd2e8fdb9fbe818ce19c7bd2d846b', 'objective_media_nodes.py': '761b9887d9c078f50da1efa3f5e5c49e7e1d982423804a1b6763ca9434837d2c', 'postrun_safety.py': '9340c9a6c1b0cf20f351226f96f2a6dd0aeac773ceebd1e2b375346437a711e9', 'refdelta_interop.py': 'db2cc28a4028ca78dd1a2461210886b58a959e39e09bc9e0c510423ce9c27606', 'refinement_compat.py': 'c1d40cea15c22e04a624b9df40a8d9092969b93e11a2dc99f4f5de765694449f', 'replay_calibration.py': '8e8a415d6561d6aad21be9ab21cffdc54e36b8e21fa6fef18c739b0fd55adbf9', 'replay_calibration_provenance.py': '54dc9d036f5d4fd3373e2736673f91cae71347c8a5d48351c9aa111af5cc04cd', 'replay_calibration_validation.py': '6aea41fee0339e8087be4659ef4610eb13a47cddcb6fc454c0a973526ee80bb8', 'replay_component_shadow.py': '3a2098865f2b0ec8ee15462c4e4c614b46f523a8fa5394b995b88a48f9974ae9', 'replay_generic_correction_gate.py': '5bbf3c71ec1a7abedef75edcf52e372ad8c7a87d0caf97027105565d712cf597', 'replay_shadow_composition.py': 'fb376cc70186a6d2ff6bff2880244cf35d2f209e2c7ffa4987a438b7c5a73cb7', 'replay_spectral_alpha_shadow.py': '2a3549877777ec317e805c0db321efc01fce451cef39c5df15f780cfda29e9b4', 'replay_spectral_mixture_shadow.py': '53a18d20129bbd74e6675675fa18be3f555000a13a306a101eeea7a1468fdaa1', 'replay_trust_shadow.py': '4f956f9e045c0cd12daba64c03c738171f15e6ebccf995be647bd8a9f7d61cef', 'rollback.py': '60f04164c0c54a337c2e5b27131b931252362ba6ecf3beb24eea0f760291b07c', 'runtime.py': '0bd77c4649828209439519eb5f6cd7305ee16a59f3d6d5239858ebd31c4ba7bc', 'sampling.py': '48e15822c9d8842104fdb286e6bc199cea5e56ee7a48cf3550a332bf9bbc16c0', 'source_code_audit.py': '4b7ff036385cfbdda624e3e8c92ee70a0e9f5c68197c2b5c7acbe1b22fbcf763', 'trust_probe.py': 'd1df609764badda6ca238bb454f413296359b983416170fe7dfd3e9e0f9fa9f1'}
+
+def _select_source_profile(folder):
+    names = {path.name for path in folder.glob("*.py")}
+    if names == set(SUPPORTED_SOURCE):
+        return SUPPORTED_SOURCE, "spectrum_provider_v1.json"
+    if names == set(PUBLIC_SOURCE_029):
+        return PUBLIC_SOURCE_029, "spectrum_provider_v029.json"
+    raise ValueError("unsupported provider source set")
+
+
+def _code_digest(code):
+    constants = tuple(_normal_code(item) if isinstance(item, types.CodeType) else item
+                      for item in code.co_consts)
+    return hashlib.sha256(marshal.dumps(code.replace(
+        co_filename="", co_firstlineno=0, co_consts=constants))).hexdigest()
+
+
+def _normal_code(code):
+    return code.replace(co_filename="", co_firstlineno=0, co_consts=tuple(
+        _normal_code(item) if isinstance(item, types.CodeType) else item
+        for item in code.co_consts))
+
+
+
+def _scalar(value):
+    if value is None or type(value) in (bool, int, str):
+        return value
+    if type(value) is float:
+        return value if math.isfinite(value) else {"float": "nan" if math.isnan(value) else str(value)}
+    if type(value) in (list, tuple, set, frozenset):
+        values = [_scalar(item) for item in value]
+        if type(value) in (set, frozenset):
+            values.sort(key=lambda item: json.dumps(item, sort_keys=True))
+        return {"type": type(value).__name__, "items": values}
+    if type(value) is dict and all(type(key) is str for key in value):
+        return {key: _scalar(value[key]) for key in sorted(value)}
+    if value is dataclasses._HAS_DEFAULT_FACTORY:
+        return {"dataclass_default_factory": True}
+    if value is dataclasses.MISSING:
+        return {"dataclass_missing": True}
+    if dataclasses.is_dataclass(value) and type(value).__name__ == "SpectrumH3Config" and tuple(field.name for field in dataclasses.fields(value)) == CONFIG_FIELDS:
+        return {"SpectrumH3Config": {name: _scalar(getattr(value, name)) for name in CONFIG_FIELDS}}
+    raise ValueError("unobservable provider setting: " + type(value).__qualname__)
+
+
+def _relative_name(value):
+    module = getattr(value, "__module__", "")
+    marker = ".comfyui_spectrum_h3"
+    if marker in module:
+        module = "comfyui_spectrum_h3" + module.split(marker, 1)[1]
+    return module + "." + getattr(value, "__qualname__", type(value).__qualname__)
+
+
+def _callable_value(value, seen=(), provider_prefix=None):
+    if inspect.ismethod(value):
+        owner = value.__self__
+        state = {"class": _relative_name(owner)} if inspect.isclass(owner) else {
+            "type": _relative_name(type(owner)), "state": _scalar(vars(owner))}
+        return {"bound_method": _callable_value(value.__func__, seen, provider_prefix), "owner": state}
+    if inspect.isfunction(value):
+        if id(value) in seen:
+            return {"reference": _relative_name(value)}
+        seen = (*seen, id(value))
+        return {"function": _relative_name(value), "code_sha256": _code_digest(value.__code__),
+                "defaults": _scalar(value.__defaults__), "kwdefaults": _scalar(value.__kwdefaults__),
+                "closure": [_callable_value(cell.cell_contents, seen, provider_prefix) for cell in (value.__closure__ or ())]}
+    if inspect.isclass(value):
+        return {"class": _relative_name(value)}
+    if value is object.__setattr__:
+        return {"native": "object.__setattr__"}
+    if type(value) is types.ModuleType:
+        if provider_prefix is None or not value.__name__.startswith(provider_prefix + "."):
+            raise ValueError("unsupported provider module closure")
+        if sys.modules.get(value.__name__) is not value:
+            raise ValueError("provider module closure is not loaded")
+        root = Path(sys.modules[provider_prefix].__file__).resolve().parent
+        path = Path(value.__file__).resolve()
+        source, _ = _select_source_profile(root)
+        if path.parent != root or path.name not in source:
+            raise ValueError("provider module closure provenance differs")
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if digest != source[path.name]:
+            raise ValueError("provider module closure source differs")
+        name = "comfyui_spectrum_h3" + value.__name__.split(".comfyui_spectrum_h3", 1)[1]
+        return {"provider_module_reference": name, "source_sha256": digest}
+    return _scalar(value)
+
+
+def _module_callables(module):
+    values, members, references = {}, {}, {}
+    prefix = module.__name__.split(".comfyui_spectrum_h3", 1)[0] + ".comfyui_spectrum_h3"
+    for name, value in sorted(vars(module).items()):
+        owner = getattr(value, "__module__", "")
+        if owner != module.__name__:
+            if ".comfyui_spectrum_h3" in owner and (inspect.isfunction(value) or inspect.isclass(value)):
+                references[name] = _callable_value(value, provider_prefix=prefix)
+            continue
+        if inspect.isfunction(value):
+            values[name] = _callable_value(value, provider_prefix=prefix)
+        elif inspect.isclass(value):
+            node_classes = tuple(getattr(module, "NODE_CLASS_MAPPINGS", {}).values())
+            registration = {"RELATIVE_PYTHON_MODULE"} if value in node_classes else set()
+            members[name] = sorted(set(vars(value)) - registration)
+            for member, method in sorted(vars(value).items()):
+                if isinstance(method, (classmethod, staticmethod)):
+                    method = method.__func__
+                elif isinstance(method, property):
+                    method = method.fget
+                if inspect.isfunction(method):
+                    values[name + "." + member] = _callable_value(method, provider_prefix=prefix)
+    return {"callables": values, "class_members": members, "provider_references": references}
+
+
+def _provider(prefix, folder):
+    source, metadata_file = _select_source_profile(folder)
+    metadata_content = Path(__file__).with_name(metadata_file).read_bytes()
+    metadata = json.loads(metadata_content)
+    constants = {}
+    for filename, digest in sorted(source.items()):
+        path = folder / filename
+        if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            raise ValueError("unsupported provider source change")
+        module = sys.modules.get(prefix if filename == "__init__.py" else prefix + "." + path.stem)
+        if module is None:
+            continue
+        if Path(module.__file__).resolve() != path.resolve():
+            raise ValueError("provider module provenance differs")
+        if _module_callables(module) != metadata["modules"].get(filename):
+            raise ValueError("provider loaded implementation differs: " + filename)
+        if path.stem in {"sampling", "runtime", "config", "forecast", "model_aware"}:
+            for name, value in sorted(vars(module).items()):
+                if name.isupper() and name not in {"LOG", "_PROFILE_CACHE", "_PROFILE_CACHE_LOCK"} and not inspect.isclass(value) and not callable(value):
+                    try: constants[path.stem + "." + name] = _scalar(value)
+                    except ValueError as exc: raise ValueError(path.stem + "." + name + ": " + str(exc)) from exc
+    # The audited source set, not the current subset of lazy imports, is identity.
+    return {"source_sha256": source,
+            "loaded_implementation_contract_sha256": hashlib.sha256(metadata_content).hexdigest(),
+            "constants": constants, "python": list(sys.version_info[:3])}
+
+
+def _instance(value, cls):
+    if type(value) is not cls or not isinstance(vars(value), dict):
+        raise ValueError("unsupported runtime component")
+    if not set(REQUIRED_INSTANCE_FIELDS[cls.__name__]) <= set(vars(value)):
+        raise ValueError("incomplete runtime component")
+    if not set(vars(value)) <= set(INSTANCE_FIELDS[cls.__name__]):
+        raise ValueError("unsupported additional runtime attribute")
+
+
+def spectrum_binding_signature(binding):
+    """Return an identity and safety gate for the exact supported binding only."""
+    descriptor = {"spectrum_binding_signature_version": 1}
+    try:
+        prefix, separator, name = type(binding).__module__.rpartition(".")
+        sampling = sys.modules.get(type(binding).__module__)
+        runtime_module = sys.modules.get(prefix + ".runtime")
+        config_module = sys.modules.get(prefix + ".config")
+        if not separator or name != "sampling" or not prefix.endswith(".comfyui_spectrum_h3"):
+            raise ValueError("unsupported Spectrum binding provider")
+        if sampling is None or runtime_module is None or config_module is None:
+            raise ValueError("provider is not loaded")
+        if type(binding) is not sampling.SpectrumH3Binding or type(binding).__slots__ != ("runtime",):
+            raise ValueError("unsupported Spectrum binding structure")
+        if [field.name for field in dataclasses.fields(binding)] != ["runtime"]:
+            raise ValueError("unsupported additional binding field")
+        folder = Path(sampling.__file__).resolve().parent
+        descriptor["implementation"] = _provider(prefix, folder)
+        runtime = binding.runtime
+        _instance(runtime, runtime_module.SpectrumH3Runtime)
+        if type(runtime.stats) is not runtime_module.RuntimeStats or type(runtime._backend_history) is not runtime_module.BackendHistory:
+            raise ValueError("unsupported runtime history/statistics type")
+        config = runtime.config
+        if type(config) is not config_module.SpectrumH3Config:
+            raise ValueError("unsupported Spectrum config type")
+        if not type(config).__dataclass_params__.frozen or tuple(type(config).__slots__) != CONFIG_FIELDS:
+            raise ValueError("unsupported Spectrum config structure")
+        if tuple(field.name for field in dataclasses.fields(config)) != CONFIG_FIELDS:
+            raise ValueError("unsupported additional config field")
+        if any(type(getattr(config, name)) is float and not math.isfinite(getattr(config, name)) for name in CONFIG_FIELDS):
+            raise ValueError("non-finite Spectrum configuration")
+        descriptor["config"] = {name: _scalar(getattr(config, name)) for name in CONFIG_FIELDS}
+        forecast_module = sys.modules[prefix + ".forecast"]
+        aware_module = sys.modules[prefix + ".model_aware"]
+        for forecaster in [runtime.forecaster, runtime._primary_forecaster, *runtime._stage_forecasters.values()]:
+            _instance(forecaster, forecast_module.HistoryWeightForecaster)
+            expected = {"degree": config.degree, "ridge_lambda": config.ridge_lambda,
+                        "max_history": config.max_history, "history_storage": config.history_storage,
+                        "chunk_bytes": 32 * 1024 * 1024}
+            if any(getattr(forecaster, name) != value for name, value in expected.items()):
+                raise ValueError("forecaster settings differ from config")
+        for aware in [runtime.model_aware, runtime._primary_model_aware, *runtime._stage_model_aware.values()]:
+            _instance(aware, aware_module.ModelAwareController)
+            if aware.mode != config.model_aware_mode or aware.risk_threshold != config.model_aware_risk_threshold:
+                raise ValueError("controller settings differ from config")
+        # The audited provider owns and clears these transient histories/counters.
+        # Their values never enter the persistent generation identity.
+        return descriptor, True
+    except (AttributeError, KeyError, TypeError, ValueError, OSError, RecursionError) as exc:
+        descriptor["unsupported"] = str(exc)
+        return descriptor, False

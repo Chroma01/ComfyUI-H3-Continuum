@@ -1,0 +1,153 @@
+name: Publish verified v3.9.5
+
+on:
+  workflow_run:
+    workflows: [tests]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-v3.9.5
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      publish: ${{ steps.tag.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          test "$(python -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')" = 3.9.5
+          test "$(gh api repos/$GITHUB_REPOSITORY/branches/main --jq .commit.sha)" = "$RELEASE_SHA"
+          if gh release view v3.9.5 --json isDraft --jq .isDraft 2>/dev/null | grep -qx false; then
+            echo 'publish=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          EXISTING=$(gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v3.9.5 --jq .object.sha 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            test "$EXISTING" = "$RELEASE_SHA"
+          else
+            gh api repos/$GITHUB_REPOSITORY/git/refs -f ref=refs/tags/v3.9.5 -f sha="$RELEASE_SHA"
+          fi
+          echo 'publish=true' >> "$GITHUB_OUTPUT"
+  tag-tests:
+    needs: tag
+    if: needs.tag.outputs.publish == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v3.9.5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU test dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+          python -m pip install -r requirements.txt numpy safetensors pytest psutil opencv-python-headless Pillow aiohttp
+      - name: Compile tag
+        run: python -m compileall -q .
+      - name: Linux full regression on published tag
+        if: runner.os == 'Linux'
+        run: python -m pytest -q -p no:cacheprovider
+      - name: Windows storage regression on published tag
+        if: runner.os == 'Windows'
+        run: python -m pytest -q -p no:cacheprovider tests/test_temporary_storage.py tests/test_storage_api.py tests/test_p20_file_backed_tensor_poc.py tests/test_p22_file_backed_buffer.py tests/decode_cache
+  publish:
+    needs: [tag, tag-tests]
+    if: needs.tag.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v3.9.5
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build GitHub ZIP and verify source manifests
+        run: |
+          python - <<'PY'
+          import hashlib,pathlib,subprocess,zipfile,tomllib
+          root=pathlib.Path('.')
+          assert tomllib.loads((root/'pyproject.toml').read_text())['project']['version']=='3.9.5'
+          for name in ['MANIFEST.sha256','REGISTRY_MANIFEST.sha256']:
+              rows=(root/name).read_text().splitlines()
+              for row in rows:
+                  h,p=row.split('  ',1);assert hashlib.sha256((root/p).read_bytes()).hexdigest()==h,p
+              print(name,len(rows),'matched')
+          files=subprocess.check_output(['git','ls-tree','-r','--name-only','HEAD'],text=True).splitlines()
+          target=root/'ComfyUI-H3-Continuum-v3.9.5.zip'
+          with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+              for p in files:z.write(root/p,'ComfyUI-H3-Continuum/'+p)
+          with zipfile.ZipFile(target) as z:
+              assert z.testzip() is None
+              assert set(z.namelist())=={'ComfyUI-H3-Continuum/'+p for p in files}
+              assert all(z.read('ComfyUI-H3-Continuum/'+p)==(root/p).read_bytes() for p in files)
+          pathlib.Path('SHA256SUMS.txt').write_text(hashlib.sha256(target.read_bytes()).hexdigest()+'  '+target.name+'\n')
+          print('GitHub ZIP exact:',len(files),'files')
+          PY
+      - name: Install pinned Registry CLI
+        run: python -m pip install comfy-cli==1.22.0
+      - name: Build and verify Registry archive
+        run: |
+          comfy --skip-prompt --no-enable-telemetry env
+          comfy node pack
+          python - <<'PY'
+          import hashlib,pathlib,zipfile
+          root=pathlib.Path('.')
+          declared={p:h for h,p in (r.split('  ',1) for r in (root/'REGISTRY_MANIFEST.sha256').read_text().splitlines())}
+          with zipfile.ZipFile('node.zip') as z:
+              assert z.testzip() is None
+              assert {i.filename for i in z.infolist() if not i.is_dir()}==set(declared)|{'REGISTRY_MANIFEST.sha256'}
+              assert all(hashlib.sha256(z.read(p)).hexdigest()==h for p,h in declared.items())
+              assert z.read('REGISTRY_MANIFEST.sha256')==(root/'REGISTRY_MANIFEST.sha256').read_bytes()
+          print('Registry ZIP exact:',len(declared),'payload hashes matched')
+          PY
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create v3.9.5 ComfyUI-H3-Continuum-v3.9.5.zip SHA256SUMS.txt --verify-tag --title 'v3.9.5 — Attention and Spectrum Take reuse' --notes-file docs/RELEASE_NOTES_V395.md --latest
+      - name: Download and verify public GitHub assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v3.9.5 --dir public-download --pattern 'ComfyUI-H3-Continuum-v3.9.5.zip' --pattern SHA256SUMS.txt
+          python - <<'PY'
+          import pathlib,hashlib
+          for name in ['ComfyUI-H3-Continuum-v3.9.5.zip','SHA256SUMS.txt']:
+              assert pathlib.Path(name).read_bytes()==(pathlib.Path('public-download')/name).read_bytes(),name
+          print('Public GitHub assets match verified local ZIP and checksum')
+          PY
+      - name: Publish verified Registry package
+        env:
+          REGISTRY_ACCESS_TOKEN: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+        run: |
+          test -n "$REGISTRY_ACCESS_TOKEN"
+          comfy node publish --token "$REGISTRY_ACCESS_TOKEN"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: publication-v3.9.5
+          path: |
+            ComfyUI-H3-Continuum-v3.9.5.zip
+            SHA256SUMS.txt
+            node.zip

@@ -38,6 +38,7 @@ from .branch_provenance import (
     resolve_chain,
 )
 from .constants import CONTINUUM_ACTUAL_PREFIX_STEPS, continuity_storage_mode
+from .spectrum_signature import spectrum_binding_signature
 from .v2.session import make_session, validate_chunk_entry
 from .v3.review_control import (
     GENERATION_MODE_REVIEW,
@@ -552,6 +553,400 @@ def _observe_value(value: Any, *, depth: int = 0) -> tuple[Any, bool]:
     return {"type": _qualified(value), "repr": rendered[:256]}, False
 
 
+# The generic observer remains byte-for-byte compatible with unaffected v6 Runs.
+# Only the Core setter / registered PyTorch and Kitchen override gets this
+# finite descriptor. Never import Core/Kitchen or execute an attention kernel.
+def _attention_code(code):
+    constants = tuple(
+        _attention_code(item) if isinstance(item, type(code)) else item
+        for item in code.co_consts
+    )
+    return code.replace(co_consts=constants, co_filename="", co_firstlineno=0)
+
+
+def _attention_class(value):
+    import dataclasses
+    methods = {}
+    safe = True
+    for name, method in vars(value).items():
+        if isinstance(method, property):
+            methods[name] = {"property_unobserved": True}
+            safe = False
+            continue
+        if not inspect.isfunction(method):
+            continue
+        references = {}
+        for cell_name, cell in zip(method.__code__.co_freevars, method.__closure__ or ()):
+            target = cell.cell_contents
+            origin = (isinstance(target, type) and dataclasses.is_dataclass(value)
+                      and target is not value and _qualified(target) == _qualified(value)
+                      and getattr(target, "__dataclass_fields__", None) is value.__dataclass_fields__
+                      and getattr(target, "__init__", None) is value.__init__)
+            if target is value or origin or target is object or (
+                    isinstance(target, type) and target.__module__ in {"builtins", "dataclasses"}):
+                references[cell_name] = target
+        descriptor, complete = _attention_function(method, references=references)
+        descriptor["reference_targets"] = {
+            k: {"type": _qualified(v), "owner": v is value,
+                "dataclass_origin": isinstance(v, type) and v is not value and _qualified(v) == _qualified(value)}
+            for k, v in references.items()
+        }
+        methods[name] = descriptor
+        safe = safe and complete
+    return {"class": _qualified(value), "slots": list(getattr(value, "__slots__", ())),
+            "methods": methods}, safe
+
+def _attention_globals(function):
+    import builtins
+    import dis
+    import sys
+    from types import ModuleType
+    names = set()
+    def visit(code):
+        names.update(i.argval for i in dis.get_instructions(code) if i.opname == "LOAD_GLOBAL")
+        for child in code.co_consts:
+            if isinstance(child, type(code)):
+                visit(child)
+    visit(function.__code__)
+    result = {}
+    safe = True
+    for name in sorted(names):
+        if name not in function.__globals__:
+            if not hasattr(builtins, name):
+                safe = False
+            continue
+        value = function.__globals__[name]
+        if isinstance(value, ModuleType):
+            if sys.modules.get(value.__name__) is not value or not value.__name__.startswith(
+                    ("torch", "comfy", "math", "functools", "typing")):
+                return result, False
+            path = getattr(value, "__file__", None)
+            result[name] = {"module": value.__name__,
+                            "file_sha256": _attention_source_file(path) if path else None}
+        elif inspect.isbuiltin(value):
+            owner = sys.modules.get(value.__module__)
+            if (owner is None or getattr(owner, value.__name__, None) is not value or
+                    not value.__module__.startswith(("torch.", "comfy_kitchen.", "_thread", "math", "builtins"))):
+                return result, False
+            path = getattr(owner, "__file__", None)
+            result[name] = {"builtin": _qualified(value), "python_version": list(sys.version_info[:3]),
+                            "file_sha256": _attention_source_file(path) if path else None}
+        elif inspect.isfunction(value):
+            observed, complete = _observe(value)
+            if not complete:
+                # The only global cycle admitted is another registered Core
+                # backend, used by Kitchen's low-precision fallback.
+                attention = sys.modules.get("comfy.ldm.modules.attention")
+                registry = getattr(attention, "REGISTERED_ATTENTION_FUNCTIONS", {})
+                backend = next((n for n in ("pytorch", "comfy_kitchen_int8")
+                                if registry.get(n) is value), None)
+                cells = dict(zip(value.__code__.co_freevars,
+                                 (c.cell_contents for c in value.__closure__ or ())))
+                if (backend is None or set(cells) != {"func", "wrapper"} or
+                        cells["wrapper"] is not value or value.__globals__ is not vars(attention)):
+                    return result, False
+                wrapper, wrapper_safe = _attention_function(value, references=cells)
+                raw, raw_safe = _observe(cells["func"])
+                observed = {"backend": backend, "wrapper": wrapper, "raw": raw}
+                complete = wrapper_safe and raw_safe and value.container_function is None
+            attributes, attributes_safe = _observe(vars(value)) if complete and not (
+                isinstance(observed, dict) and "backend" in observed) else ({}, complete)
+            result[name] = {"function": observed, "attributes": attributes}
+            safe = safe and complete and attributes_safe
+        elif isinstance(value, type):
+            if not value.__module__.startswith(("torch", "comfy")):
+                return result, False
+            result[name], complete = _attention_class(value)
+            safe = safe and complete
+        else:
+            try:
+                result[name] = _attention_provider_state(value)
+            except Exception:
+                result[name] = {"type": _qualified(value), "unobservable": True}
+                safe = False
+    return result, safe
+
+def _attention_function(function, *, references=None):
+    if not inspect.isfunction(function):
+        return _observe(function)[0], False
+    references = references or {}
+    closure = []
+    safe = True
+    for name, cell in zip(function.__code__.co_freevars, function.__closure__ or ()):
+        value = cell.cell_contents
+        if name in references and value is references[name]:
+            observed, complete = {"reference": name}, True
+        else:
+            observed, complete = _observe(value)
+        closure.append({"name": name, "value": observed})
+        safe = safe and complete
+    attributes = dict(vars(function))
+    for name, value in references.items():
+        if name == "func" and attributes.get("__wrapped__") is value:
+            attributes.pop("__wrapped__")
+    # Both container paths are recorded separately by the adapter.
+    attributes.pop("container_function", None)
+    defaults, defaults_safe = _observe(function.__defaults__)
+    kwdefaults, kw_safe = _observe(function.__kwdefaults__)
+    attributes, attributes_safe = _observe(attributes)
+    globals_value, globals_safe = _attention_globals(function)
+    return {
+        "callable": _qualified(function),
+        "code_sha256": hashlib.sha256(marshal.dumps(_attention_code(function.__code__))).hexdigest(),
+        "defaults": defaults, "kwdefaults": kwdefaults,
+        "closure": closure, "attributes": attributes, "globals": globals_value,
+    }, safe and defaults_safe and kw_safe and attributes_safe and globals_safe
+
+
+@functools.lru_cache(maxsize=512)
+def _attention_file_hash(path, size, mtime_ns, ctime_ns):
+    return _file_sha256(Path(path))
+
+
+def _attention_source_file(path):
+    path = Path(path)
+    stat = path.stat()
+    return _attention_file_hash(str(path), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+
+
+def _attention_provider_state(value, *, depth=0):
+    # Provider constraints contain torch dtype / SDP enums, not MODEL tensors.
+    if depth > 10:
+        raise ValueError("provider state exceeds observation depth")
+    import dataclasses
+    for name in ("MISSING", "_FIELD_CLASSVAR", "_FIELD_INITVAR", "_HAS_DEFAULT_FACTORY"):
+        if value is getattr(dataclasses, name):
+            return {"dataclass_sentinel": name}
+    if isinstance(value, torch.dtype):
+        return {"torch_dtype": str(value)}
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, (dict, tuple, list, set, frozenset)) and len(value) > _OBSERVATION_MAX_ITEMS:
+        raise ValueError("provider state exceeds item bound")
+    if isinstance(value, (tuple, list)):
+        return [_attention_provider_state(v, depth=depth + 1) for v in value]
+    if isinstance(value, (set, frozenset)):
+        return sorted((_attention_provider_state(v, depth=depth + 1) for v in value), key=_canonical)
+    if isinstance(value, dict):
+        return sorted([
+            [_attention_provider_state(k, depth=depth + 1),
+             _attention_provider_state(v, depth=depth + 1)]
+            for k, v in value.items()
+        ], key=_canonical)
+    import dataclasses
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return {"type": _qualified(value), "fields": {
+            field.name: _attention_provider_state(getattr(value, field.name), depth=depth + 1)
+            for field in dataclasses.fields(value)
+        }}
+    sdp = getattr(getattr(torch.nn, "attention", None), "SDPBackend", None)
+    if sdp is not None and isinstance(value, sdp):
+        return {"torch_sdp_backend": int(value.value)}
+    if inspect.isfunction(value):
+        result, safe = _attention_function(value)
+        if safe:
+            return result
+    raise ValueError("unsupported attention provider state")
+
+
+def _attention_providers(attention, backend):
+    import sys
+    import importlib.metadata
+    ops = sys.modules.get("comfy.ops")
+    if ops is None:
+        raise ValueError("Core attention providers are not loaded")
+    functions = {
+        "reshape": attention._reshape_qkv_to_heads,
+        "heads": attention._heads_from_dim,
+        "sdpa": ops.scaled_dot_product_attention,
+        "repeat_kv": ops.repeat_kv_for_gqa,
+    }
+    state = {"batch_limit": attention.SDP_BATCH_LIMIT}
+    for name in ("SDPA_BACKEND_PRIORITY", "SDPA_CONTIGUOUS_KV_L2_SIZE"):
+        if hasattr(ops, name):
+            state[name] = getattr(ops, name)
+    container = attention.AttentionTensorContainer
+    functions.update({
+        "container_init": container.__init__,
+        "container_peek": container.peek, "container_take": container.take,
+    })
+    # The provider's native binding must still be the loaded PyTorch binding.
+    if torch.nn.functional.scaled_dot_product_attention is not torch._C._nn.scaled_dot_product_attention:
+        raise ValueError("unsupported PyTorch SDPA replacement")
+    cuda = torch.backends.cuda
+    state["torch_sdpa"] = {
+        name: getattr(cuda, name)() for name in
+        ("flash_sdp_enabled", "mem_efficient_sdp_enabled", "math_sdp_enabled",
+         "cudnn_sdp_enabled", "fp16_bf16_reduction_math_sdp_allowed") if hasattr(cuda, name)
+    }
+    state["torch_matmul"] = {
+        "allow_tf32": cuda.matmul.allow_tf32,
+        "float32_precision": torch.get_float32_matmul_precision(),
+    }
+    files = {
+        "core_attention": _attention_source_file(attention.__file__),
+        "core_ops": _attention_source_file(ops.__file__),
+        "torch_functional": _attention_source_file(torch.nn.functional.__file__),
+        "torch_native": _attention_source_file(torch._C.__file__),
+    }
+    versions = {"torch": str(torch.__version__), "torch_git": str(torch.version.git_version)}
+    if backend == "comfy_kitchen_int8":
+        kitchen = sys.modules.get("comfy_kitchen")
+        if kitchen is None or getattr(attention, "comfy_kitchen", None) is not kitchen:
+            raise ValueError("Kitchen provider is not loaded")
+        functions["int8_inputs"] = attention._comfy_kitchen_int8_inputs
+        for name in ("int8_attention", "prequantize_int8_attention", "int8_attention_from_prequantized"):
+            functions[name] = getattr(kitchen, name)
+        versions["comfy_kitchen"] = importlib.metadata.version("comfy-kitchen")
+        root = Path(kitchen.__file__).parent
+        paths = sorted(p for p in root.rglob("*") if p.is_file() and p.suffix in {".py", ".pyd", ".so"})
+        if len(paths) > _OBSERVATION_MAX_ITEMS:
+            raise ValueError("Kitchen provider exceeds file observation bound")
+        files["comfy_kitchen"] = {p.relative_to(root).as_posix(): _attention_source_file(p) for p in paths}
+        # Capture runtime replacement of Python numerical helpers too.
+        module = sys.modules.get("comfy_kitchen.sage_attention")
+        if module is None:
+            raise ValueError("Kitchen implementation is not loaded")
+        functions.update({
+            "kitchen_helper." + name: value for name, value in vars(module).items()
+            if inspect.isfunction(value) and value.__module__ == module.__name__
+        })
+        # Kitchen INT8 dispatches directly to its CUDA/HIP extension, not the
+        # general op registry. Record only the dispatch actually used here.
+        state["kitchen_constants"] = {
+            name: value for name, value in vars(module).items()
+            if name.isupper() and not name.startswith("__")
+        }
+        for slot in ("_cuda_backend", "_hip_backend"):
+            provider = getattr(module, slot)
+            if provider is None:
+                state[slot] = None
+                continue
+            if sys.modules.get(provider.__name__) is not provider:
+                raise ValueError("unregistered Kitchen native provider")
+            native = getattr(provider, "_C", None)
+            if native is not None and sys.modules.get(native.__name__) is not native:
+                raise ValueError("unsupported Kitchen native binding")
+            state[slot] = {
+                "module": provider.__name__,
+                "extension_available": getattr(provider, "_EXT_AVAILABLE", None),
+                "native_sha256": _attention_source_file(native.__file__) if native is not None else None,
+            }
+            functions.update({
+                slot + "." + name: function for name, function in vars(provider).items()
+                if inspect.isfunction(function) and
+                (name.startswith(("sage_", "_sage_")) or name in {"_dl", "_wrap_for_dlpack"})
+            })
+    observed_functions = {}
+    for name, function in functions.items():
+        owner = sys.modules.get(getattr(function, "__module__", ""))
+        if (not inspect.isfunction(function) or owner is None or
+                not function.__module__.startswith(("comfy.", "comfy_kitchen.")) or
+                function.__globals__ is not vars(owner)):
+            raise ValueError("unsupported attention helper binding: " + name)
+        descriptor, safe = _attention_function(function)
+        if not safe:
+            raise ValueError("unobservable attention helper: " + name)
+        observed_functions[name] = descriptor
+    return {"versions": versions, "files": files, "functions": observed_functions,
+            "state": _attention_provider_state(state)}
+
+
+def _core_attention_override(value):
+    import sys
+    attention = sys.modules.get("comfy.ldm.modules.attention")
+    patcher = sys.modules.get("comfy.model_patcher")
+    if attention is None or patcher is None or not inspect.isfunction(value):
+        return None
+    setter = patcher.ModelPatcher.set_model_optimized_attention
+    override_codes = [c for c in setter.__code__.co_consts
+                      if isinstance(c, type(setter.__code__)) and c.co_name == "optimized_attention_override"]
+    wrapper_codes = [c for c in attention.wrap_attn.__code__.co_consts
+                     if isinstance(c, type(setter.__code__)) and c.co_name == "wrapper"]
+    if len(override_codes) != 1 or len(wrapper_codes) != 1 or value.__code__ != override_codes[0]:
+        return None
+    cells = dict(zip(value.__code__.co_freevars, (c.cell_contents for c in value.__closure__ or ())))
+    if set(cells) != {"optimized_attention"}:
+        return None
+    wrapped = cells["optimized_attention"]
+    registry = attention.REGISTERED_ATTENTION_FUNCTIONS
+    backend = next((name for name in ("pytorch", "comfy_kitchen_int8")
+                    if registry.get(name) is wrapped and
+                    getattr(attention, "attention_" + name, None) is wrapped), None)
+    if backend is None or not inspect.isfunction(wrapped) or wrapped.__code__ != wrapper_codes[0]:
+        return None
+    cells = dict(zip(wrapped.__code__.co_freevars, (c.cell_contents for c in wrapped.__closure__ or ())))
+    if set(cells) != {"func", "wrapper"} or cells["wrapper"] is not wrapped or getattr(wrapped, "__wrapped__", None) is not cells["func"]:
+        return None
+    raw = cells["func"]
+    if (value.__globals__ is not vars(patcher) or wrapped.__globals__ is not vars(attention)
+            or not inspect.isfunction(raw) or raw.__globals__ is not vars(attention)):
+        return None
+    expected_container = (getattr(attention, "_attention_comfy_kitchen_int8_containers", None)
+                          if backend == "comfy_kitchen_int8" else None)
+    inner = getattr(wrapped, "container_function", None)
+    outer = getattr(value, "container_function", None)
+    components = {}
+    safe = inner is expected_container and outer is expected_container
+    if expected_container is not None:
+        safe = safe and inspect.isfunction(expected_container) and expected_container.__globals__ is vars(attention)
+    for name, function, refs in (
+        ("override", value, {"optimized_attention": wrapped}),
+        ("wrapper", wrapped, {"wrapper": wrapped, "func": raw}),
+        ("raw", raw, {}),
+        ("inner_container", inner, {}),
+        ("outer_container", outer, {}),
+    ):
+        if function is None:
+            descriptor, complete = None, True
+        else:
+            descriptor, complete = _attention_function(function, references=refs)
+        components[name] = descriptor
+        safe = safe and complete
+    result = {"core_attention_signature_version": 1, "backend": backend, **components,
+              "outer_container_present": hasattr(value, "container_function")}
+    try:
+        result["providers"] = _attention_providers(attention, backend)
+    except Exception as exc:
+        result["observation_error"] = type(exc).__name__
+        result["reuse_disabled_reason"] = "Core attention provider implementation/state is unobservable"
+        safe = False
+    return result, safe
+
+
+def _observe_model_options(options):
+    spectrum = None
+    if "spectrum_h3_binding" in options:
+        spectrum = spectrum_binding_signature(options["spectrum_h3_binding"])
+        options = dict(options)
+        options["spectrum_h3_binding"] = None
+    observed, safe = _observe_attention_model_options(options)
+    if spectrum is not None:
+        observed["spectrum_h3_binding"] = spectrum[0]
+        safe = safe and spectrum[1]
+    return observed, safe
+
+
+def _observe_attention_model_options(options):
+    transformer = options.get("transformer_options")
+    if not isinstance(transformer, dict) or "optimized_attention_override" not in transformer:
+        return _observe(options)
+    try:
+        adapted = _core_attention_override(transformer["optimized_attention_override"])
+    except Exception:
+        adapted = None
+    if adapted is None:
+        # Unknown overrides keep their prior descriptor and safe-side policy.
+        return _observe(options)
+    copied = dict(options)
+    copied["transformer_options"] = dict(transformer)
+    copied["transformer_options"]["optimized_attention_override"] = None
+    observed, safe = _observe(copied)
+    if not isinstance(observed.get("transformer_options"), dict) or "truncated" in observed["transformer_options"]:
+        return observed, False
+    observed["transformer_options"]["optimized_attention_override"] = adapted[0]
+    return observed, safe and adapted[1]
+
 def _model_signature(model: Any, legacy_fingerprint: str) -> tuple[dict[str, Any], bool]:
     base = getattr(model, "model", None)
     inner = getattr(base, "diffusion_model", None)
@@ -565,7 +960,7 @@ def _model_signature(model: Any, legacy_fingerprint: str) -> tuple[dict[str, Any
     transformer.pop("h3_continuum_join_context", None)
     if "transformer_options" in observed_options:
         observed_options["transformer_options"] = transformer
-    observed_options, options_safe = _observe(observed_options)
+    observed_options, options_safe = _observe_model_options(observed_options)
     weights: list[dict[str, Any]] = []
     weights_safe = True
     try:

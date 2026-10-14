@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.9.5 — Issue #31 Attention and Spectrum reuse signatures (2026-10-15)
+
+- Observe the loaded Core PyTorch and Comfy Kitchen INT8 attention overrides with a finite local descriptor, including the verified wrapper self-reference, implementations, defaults, closure, both container dispatch paths, numerical helpers and provider state.
+- Keep Sampling v6, runtime signature v1 and Graph v4 unchanged. Overrides outside this adapter retain their existing observation policy; unrelated incomplete MODEL/CFG observations still disable reuse.
+- Add a dedicated Spectrum binding identity for explicit audited provider implementations, including upstream Spectrum 0.2.29. Include every effective immutable config value and verified loaded functions/wrappers; exclude reviewed execution-local history and counters. Unknown provider sources, extra runtime state or altered callables remain non-reusable.
+- Preserve original unsafe Takes and v5 history. Only new correctly identified runs can gain reusable prefixes. Public nodes, workflow bytes and storage schemas are unchanged. See the versioned validation record for CPU/GPU coverage and remaining limits.
+
 ## 3.9.4 — Registry packaging repair (2026-10-14)
 
 Include the declared Review restoration guide and exclude repository-only prompt-authoring files from the Registry ZIP. The publishing workflow now builds the actual package and checks its exact file set, CRC and every Registry Manifest hash before uploading. Runtime behavior, twelve public node IDs, workflows and saved Runs/Takes are unchanged. GitHub Releases 3.9.3 and 3.9.2 remain available.

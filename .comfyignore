@@ -70,3 +70,6 @@ examples/workflows/*
 # Keep the Registry payload aligned with its declared Manifest.
 !docs/REVIEW_RESTORATION_REPAIR.md
 write-h3-v39-reference-prompts/
+
+# Current Issue #31 compatibility and update guidance.
+!docs/ISSUE31_SAMPLING_SIGNATURES.md

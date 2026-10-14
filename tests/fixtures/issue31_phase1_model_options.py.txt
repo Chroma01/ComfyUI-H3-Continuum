@@ -1,0 +1,19 @@
+def _observe_model_options(options):
+    transformer = options.get("transformer_options")
+    if not isinstance(transformer, dict) or "optimized_attention_override" not in transformer:
+        return _observe(options)
+    try:
+        adapted = _core_attention_override(transformer["optimized_attention_override"])
+    except Exception:
+        adapted = None
+    if adapted is None:
+        # Unknown overrides keep their prior descriptor and safe-side policy.
+        return _observe(options)
+    copied = dict(options)
+    copied["transformer_options"] = dict(transformer)
+    copied["transformer_options"]["optimized_attention_override"] = None
+    observed, safe = _observe(copied)
+    if not isinstance(observed.get("transformer_options"), dict) or "truncated" in observed["transformer_options"]:
+        return observed, False
+    observed["transformer_options"]["optimized_attention_override"] = adapted[0]
+    return observed, safe and adapted[1]

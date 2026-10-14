@@ -1,5 +1,17 @@
 # Public development log
 
+## 2026-10-15 — package 3.9.5 / Issue #31 publication
+
+Consolidate the Attention fix and finite Spectrum binding adapter on the exact 3.9.4 public source tree. Add a separate audited upstream Spectrum 0.2.29 profile without changing existing local-provider identities. Keep old unsafe history, public node IDs, contracts and all official workflows. CPU/GPU and publication checks are recorded separately in docs/ISSUE31_SAMPLING_SIGNATURES.md.
+
+## 2026-10-14 — Issue #31 Phase 1, unpublished
+
+- Final standard CPU validation: 1,777 passed / 1 skipped / 2 existing Inspector expected failures; no failures. All three standard commands recorded zero CUDA initialization attempts. Native PackedLayout, prompt planning and twelve-node registration checks passed.
+- Limit production edits to the MODEL attention signature adapter in run_storage.py. Use already-loaded Core registries and implementation bindings; never import Core/Kitchen or execute an attention kernel during observation.
+- Include both container functions and provider implementations/state without persistent addresses. Keep unrelated v6 signatures and every existing reuse guard; do not rewrite old unsafe manifests or raw files.
+- Add real-Core CPU signature, clone/recreation, separate-process/hash-seed, mutation detection, prefix reuse and history immutability regressions. Kernel registration in CPU fixtures is structural evidence, not INT8 execution acceptance.
+- GPU Review continuity, Spectrum/KJ execution, browser behavior and reporter-exact reproduction remain separate. No public node, official workflow, installed runtime, package version, commit or release changes.
+
 ## 2026-10-14 — package 3.9.4 Registry packaging repair
 
 - Reconcile the actual Registry ZIP with its declared Manifest: include the Review restoration guide and exclude prompt-authoring source files.
@@ -53,3 +65,11 @@ Earlier product behavior is described in CHANGELOG.md and the historical Release
 - Add 3.9.3 and retained 3.9.2 Release, custom-node ZIP and checksum links to the current English/Japanese guides. Update the installation heading to 3.9.3 and retain the implemented settings screenshot and historical validation records.
 - Refresh Registry then development manifests from saved bytes. The existing release-metadata/public-surface CPU gate passes 8 tests with zero CUDA initialization attempts; all 25 tracked JSON/ZIP assets retain their bytes.
 - Product code, package metadata, public schemas and saved-data contracts are unchanged. GitHub Release/asset and Registry publication are verified separately; no new GPU, long-form performance or physical SSD-write validation is claimed.
+
+
+## 2026-10-15 — Issue #31 Spectrum binding identity candidate
+
+Added a dedicated, fail-closed Spectrum binding adapter without changing the generic observer, Sampling v6, runtime signature v1, Graph v4, public nodes, workflows or package version. The immutable config fields and audited source/loaded-callable contract identify generation; reviewed runtime history, counters and profile caches do not change persistent identity. Unsupported structures, additional attributes and altered implementations remain non-reusable. Existing unsafe Takes are preserved without migration. CPU and GPU evidence are recorded separately; no commit or publication is authorized.
+
+
+Issue #31 Phase 3 validation: the final standard CPU entry point passed 1,834 tests, 1 skip and 2 existing expected Inspector failures, with zero CUDA initialization attempts. The 57 new Spectrum tests cover all 27 config fields, transient-state/process stability, implementation/extra-state refusal, unaffected v6 contract identity and old unsafe Take protection; the 36 Phase 1 attention tests also pass. Under one audited local provider implementation, both PyTorch+Spectrum and Kitchen+Spectrum persisted new Chunk 1 Takes and reused them from a separate Queue to generate Chunk 2, with unchanged prefix hashes, identical safe contracts and fully decodable 10-second AV output. This is a targeted local GPU gate, not acceptance of other providers, KJ, browser behavior, subjective quality or benchmarks. No commit, push or publication occurred.
