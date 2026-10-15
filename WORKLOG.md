@@ -1,5 +1,11 @@
 # Public development log
 
+## 2026-10-15 — package 3.9.6 / regeneration intent and automatic variations
+
+- Separate saved manual regeneration intent from the legacy stale Chunk 1 / nonce 0 state. Retain earlier unmarked later-chunk/fixed-nonce settings, and clear intent metadata when Auto or a one-shot restart consumes it. No widget order or API inputs change.
+- Bypass Core output caching only for Full Run explicit regeneration with Run Storage on and automatic nonce 0. Run Storage remains the authority for compatible prefixes, interrupted variations and new completed variations; its Sampling v6 checks are unchanged.
+- Add restored-workflow Queue cases for both public Samplers and a CPU-only real-Core cache lookup gate. Keep historical unsafe/v5 Takes read-only and official workflow bytes unchanged. Full CPU gate: 1,908 passed / 2 skipped / 2 known Inspector expected failures; zero unexpected failures and CUDA initialization attempts. Normal ComfyUI browser save/reload retained Chunk 2 / nonce 5 and Chunk 1 / nonce 0 after history loading. Five new-Run GPU queues passed continuation, Chunk 2 regeneration and two identical Full Run / nonce 0 submissions; earlier Chunk 1 bytes were preserved. GPU scope: PyTorch, Spectrum OFF, 512x512, 8-step Turbo; all five media outputs fully decoded. See docs/REGENERATE_INTENT_V396.md. GitHub main/tag CI, Release asset integrity and Registry status are verified separately during publication.
+
 ## 2026-10-15 — package 3.9.5 / Issue #31 publication
 
 Main Linux/Windows CI passed. Correct the tag-presence probe to branch on the API exit status: a missing-ref error body must not be treated as an existing commit SHA. Product code and accepted GPU signatures are unchanged.

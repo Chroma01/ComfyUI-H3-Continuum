@@ -23,6 +23,7 @@ const LEGACY_RUN_NAME_WIDGET = "run_name";
 const CHUNKS_WIDGET = "chunks";
 const REGENERATE_WIDGET = "reroll_from_chunk";
 const REROLL_NONCE_WIDGET = "reroll_nonce";
+const REGENERATE_INTENT_PROPERTY = "h3_continuum_regenerate_from";
 const RUN_STORAGE_WIDGET = "run_storage";
 const REFERENCE_SIZE_WIDGET = "reference_size";
 const TIMELINE_SIZE_WIDGET = "timeline_video_size";
@@ -464,9 +465,18 @@ function setExistingWidgetValue(widget, value) {
     widget.callback?.(value);
 }
 
+function hasManualRegenerateIntent(node) {
+    const value = findWidget(node, REGENERATE_WIDGET)?.value;
+    return Boolean(node.__h3ContinuumManualRegenerateIntent
+        || (value && value !== "Auto"
+            && node.properties?.[REGENERATE_INTENT_PROPERTY] === value));
+}
+
 function setRegenerateProgrammatically(node, value) {
     const widget = findWidget(node, REGENERATE_WIDGET);
     if (!widget) return;
+    delete node.__h3ContinuumManualRegenerateIntent;
+    if (node.properties) delete node.properties[REGENERATE_INTENT_PROPERTY];
     node.__h3ContinuumProgrammaticRegenerate = true;
     try {
         setExistingWidgetValue(widget, value);
@@ -484,13 +494,16 @@ function repairStaleReviewRegenerate(node, project) {
         !revision
         || !["review_ready", "complete"].includes(revision.status)
         || activeReviewPrompt(node)
-        || node.__h3ContinuumManualRegenerateIntent
+        || hasManualRegenerateIntent(node)
         || node.__h3ContinuumRestartSelected
     ) {
         return false;
     }
     const widget = findWidget(node, REGENERATE_WIDGET);
-    if (!widget || widget.value === "Auto" || widget.value === 0) return false;
+    // Only the legacy unowned Chunk 1 / nonce 0 residue is ambiguous.
+    // Later boundaries and fixed variations are explicit saved settings.
+    if (!["Chunk 1", 1].includes(widget?.value)
+        || Number(findWidget(node, REROLL_NONCE_WIDGET)?.value ?? 0) !== 0) return false;
     setRegenerateProgrammatically(node, "Auto");
     setExistingWidgetValue(findWidget(node, REROLL_NONCE_WIDGET), 0);
     return true;
@@ -2885,8 +2898,13 @@ function configureConditionalWidgets(node) {
             if (!node.__h3ContinuumProgrammaticRegenerate) {
                 if (value === "Auto" || value === 0 || value == null) {
                     delete node.__h3ContinuumManualRegenerateIntent;
+                    if (node.properties) delete node.properties[REGENERATE_INTENT_PROPERTY];
                 } else {
                     node.__h3ContinuumManualRegenerateIntent = true;
+                    if (isModernSamplerClass(node.comfyClass)) {
+                        node.properties ||= {};
+                        node.properties[REGENERATE_INTENT_PROPERTY] = value;
+                    }
                 }
             }
             return result;
@@ -3083,6 +3101,7 @@ function normalizeReviewActionOnLoad(node) {
     if (!isModernSamplerClass(node.comfyClass)) {
         return false;
     }
+    delete node.__h3ContinuumManualRegenerateIntent;
     delete node[REVIEW_PENDING_ACTION];
     delete node[REVIEW_UI_SELECTION];
     let changed = false;
@@ -3145,7 +3164,8 @@ function buildReviewQueueInputs(node, apiInputs) {
     if (
         setup
         && from === "Chunk 1"
-        && !node.__h3ContinuumManualRegenerateIntent
+        && Number(nonce) === 0
+        && !hasManualRegenerateIntent(node)
         && !node.__h3ContinuumRestartSelected
     ) {
         from = "Auto";

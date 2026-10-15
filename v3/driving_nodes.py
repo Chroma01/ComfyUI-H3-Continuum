@@ -61,7 +61,11 @@ from .memory_action_policy import (
     resolve_memory_action_policy,
 )
 from .node_facade import execute_v38_runtime_request, make_runtime_request
-from .nodes import CATEGORY as CONTINUUM_CATEGORY, H3ContinuumSamplerProduction
+from .nodes import (
+    CATEGORY as CONTINUUM_CATEGORY,
+    H3ContinuumSamplerProduction,
+    _regenerate_from_value,
+)
 from .resolution import (
     H3_ASPECT_AUTO,
     H3_ASPECT_OPTIONS,
@@ -739,15 +743,25 @@ class H3ContinuumSamplerV38(H3ContinuumSamplerV37):
     def IS_CHANGED(
         cls,
         generation_mode=GENERATION_MODE_FULL_RUN,
+        run_storage="Off",
+        reroll_from_chunk="Auto",
+        reroll_nonce=0,
         **kwargs,
     ):
-        # Review execution depends on validated Run Storage state that is
-        # intentionally outside the visible graph inputs.  Always execute the
-        # V3.8 sampler in Review mode and let Run Storage remain the sole
-        # authority for exact prefix reuse.  Full Run keeps Core's stable cache
-        # behavior, and this method is deliberately not inherited by V3.7/Easy.
+        # Review and automatic reroll variations depend on saved state outside
+        # Core's input cache. Run Storage still owns all reuse/safety decisions.
         if generation_mode == GENERATION_MODE_REVIEW:
             return float("NaN")
+        if run_storage == "Save + Auto Resume":
+            try:
+                boundary = _regenerate_from_value(
+                    reroll_from_chunk, chunks=int(kwargs.get("chunks", 16))
+                )
+                if boundary > 0 and int(reroll_nonce) == 0:
+                    return float("NaN")
+            except (TypeError, ValueError, OverflowError):
+                pass  # Core/backend validation owns malformed inputs.
+        # Ordinary Full Run and fixed positive nonces keep stable caching.
         return False
 
     def run(

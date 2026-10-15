@@ -1,15 +1,20 @@
-# ComfyUI-H3-Continuum 3.9.5 — V3.9
+# ComfyUI-H3-Continuum 3.9.6 — V3.9
 
-**最新版パッケージは3.9.5です。** 固定版のGitHub配布は下表を参照してください。Registryの公開状態は別に確認します。
+**最新版パッケージは3.9.6です。** 固定版のGitHub配布は下表を参照してください。Registryの公開状態は別に確認します。
 
 | バージョン | Release | カスタムノード本体ZIP | SHA-256チェックサム |
 | --- | --- | --- | --- |
+| 3.9.6 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.6) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.6/ComfyUI-H3-Continuum-v3.9.6.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.6/SHA256SUMS.txt) |
 | 3.9.5 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.5) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.5/ComfyUI-H3-Continuum-v3.9.5.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.5/SHA256SUMS.txt) |
 | 3.9.4 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.4) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.4/ComfyUI-H3-Continuum-v3.9.4.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.4/SHA256SUMS.txt) |
 | 3.9.3 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.3) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/ComfyUI-H3-Continuum-v3.9.3.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/SHA256SUMS.txt) |
 | 3.9.2 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.2) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/ComfyUI-H3-Continuum-v3.9.2.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.2/SHA256SUMS.txt) |
 
 元の[3.9.2 Source ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/archive/refs/tags/v3.9.2.zip)は従来のタグから取得できます。本体ZIPと公式Workflow ZIPは別の配布物です。
+
+## 3.9.6 — 再生成指定・Nonce保持と自動Variationの再実行
+
+V3.8／V3.9の**Regenerate From・Variation Nonceを保存・再読込後も保持**します。保存ONで**Full Run＋明示Chunk＋Nonce 0**を指定すると、QueueごとにRun Storageが処理し、完了後の再実行で新Variationを作成できます。前のChunkと既存Takeは保持します。更新後はComfyUIを再起動し、ブラウザーを再読込してください。旧markerなしChunk 1／Nonce 0は、Chunk 1を選び直して一度保存してください。[操作・互換性・検証範囲](docs/REGENERATE_INTENT_V396.md)を参照してください。
 
 ## 3.9.5 — Issue #31：Attention／Spectrumの保存Take継続
 

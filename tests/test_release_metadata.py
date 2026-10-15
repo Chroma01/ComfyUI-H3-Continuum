@@ -6,7 +6,7 @@ import tomllib
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "3.9.5"
+EXPECTED_VERSION = "3.9.6"
 
 
 def test_v35_release_metadata_is_consistent():

@@ -471,3 +471,11 @@ def test_n2c_history_refresh_hooks_and_multiline_surface_are_present():
     assert 'const TAKE_TOGGLE_WIDGET = "Render History";' in source
     assert "app.queuePrompt =" not in source
     assert "api.__h3ContinuumReviewQueueAdapter" in source
+
+
+def test_explicit_regenerate_restore_and_legacy_compatibility(review_queue_results):
+    selected = [record for name, record in review_queue_results.items()
+                if name.startswith(("regenerate restore:", "regenerate legacy:",
+                                    "regenerate intent reset:"))]
+    assert len(selected) == 22
+    assert all(record["pass"] for record in selected)

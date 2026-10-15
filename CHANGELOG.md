@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.9.6 — regeneration intent and automatic variation cache (2026-10-15)
+
+- Preserve explicit Regenerate From and Variation Nonce across V3.8/V3.9 workflow restoration and Queue submission. Persist only the selected intent as workflow metadata; keep the legacy unowned Chunk 1 / nonce 0 cleanup and one-shot restart behavior.
+- Execute Full Run explicit regeneration with automatic nonce 0 through Run Storage on every Queue. Ordinary Full Run and fixed positive nonces retain Core caching. Sampling v6 safety, accepted Takes, public inputs and official workflow files are unchanged.
+- Full CPU gate: 1,908 passed / 2 skipped / 2 known Inspector expected failures; zero unexpected failures and CUDA initialization attempts. Normal ComfyUI browser save/reload retained Chunk 2 / nonce 5 and Chunk 1 / nonce 0 after history loading. Five new-Run GPU queues passed continuation, Chunk 2 regeneration and two identical Full Run / nonce 0 submissions; earlier Chunk 1 bytes were preserved. GPU scope: PyTorch, Spectrum OFF, 512x512, 8-step Turbo; all five media outputs fully decoded. See docs/REGENERATE_INTENT_V396.md.
+
 ## 3.9.5 — Issue #31 Attention and Spectrum reuse signatures (2026-10-15)
 
 - Observe the loaded Core PyTorch and Comfy Kitchen INT8 attention overrides with a finite local descriptor, including the verified wrapper self-reference, implementations, defaults, closure, both container dispatch paths, numerical helpers and provider state.

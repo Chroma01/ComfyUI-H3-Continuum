@@ -1,4 +1,10 @@
-3.9.5 current validation: 1,893 CPU passed / 2 skipped / 2 existing Inspector xfailed / failures 0; CUDA initialization 0. Public Spectrum 0.2.29 PyTorch/Kitchen Chunk 1→2 GPU continuation and full 10-second AV decode PASS. Details: docs/ISSUE31_SAMPLING_SIGNATURES.md
+ComfyUI-H3-Continuum 3.9.6 / Regeneration intent and automatic variations
+Full CPU gate: 1,908 passed / 2 skipped / 2 known Inspector expected failures; zero unexpected failures and CUDA initialization attempts. Normal ComfyUI browser save/reload retained Chunk 2 / nonce 5 and Chunk 1 / nonce 0 after history loading. Five new-Run GPU queues passed continuation, Chunk 2 regeneration and two identical Full Run / nonce 0 submissions; earlier Chunk 1 bytes were preserved. GPU scope: PyTorch, Spectrum OFF, 512x512, 8-step Turbo; all five media outputs fully decoded. See docs/REGENERATE_INTENT_V396.md.
+Update: restart ComfyUI and refresh the browser; select and save old unmarked Chunk 1 / nonce 0 again. Do not delete Runs/Takes. GitHub Release/Registry upload, service scan approval and Manager installation are separate publication checks.
+
+--- Previous 3.9.5 package record (historical) ---
+
+Previous 3.9.5 validation: 1,893 CPU passed / 2 skipped / 2 existing Inspector xfailed / failures 0; CUDA initialization 0. Public Spectrum 0.2.29 PyTorch/Kitchen Chunk 1→2 GPU continuation and full 10-second AV decode PASS. Details: docs/ISSUE31_SAMPLING_SIGNATURES.md
 
 ComfyUI-H3-Continuum 3.9.5 / Issue #31 Attention and Spectrum identity - 2026-10-15
 

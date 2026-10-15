@@ -697,5 +697,57 @@ await test('archived v5 lineage remains browsable after a v6 canonical run',asyn
  const n=e.makeNode();await e.load(n,current);
  assert.equal(e.f.takeCatalog(n).length,3);
 });
+
+// Persisted explicit requests must survive Core's graph-restoration lifecycle.
+for(const nodeClass of ['H3ContinuumSamplerV38','H3ContinuumSamplerV39']) {
+ for(const mode of ['Full Run','Review Each Chunk']) {
+  for(const boundary of ['Chunk 1','Chunk 2']) {
+   for(const nonce of [0,5]) {
+    await test(`regenerate restore: ${nodeClass} ${mode} ${boundary} nonce ${nonce}`,async e=>{
+     const n=e.makeNode(312,'fixture',nodeClass);await e.load(n,project(3,3));
+     e.w(n,'generation_mode').value=mode;
+     e.w(n,'reroll_from_chunk').value=boundary;e.w(n,'reroll_from_chunk').callback?.(boundary);
+     e.w(n,'reroll_nonce').value=nonce;
+     const info=JSON.parse(JSON.stringify({properties:n.properties,...n.serialize()}));
+     const beforeHistory=JSON.stringify(e.getSaved());
+     n.onRemoved?.();e.app.graph._nodes=[];e.app.extension.beforeConfigureGraph?.();
+     const loaded=e.makeNode(312,'',nodeClass,false);e.app.extension.nodeCreated(loaded);
+     loaded.properties=info.properties;loaded.configure(info);
+     e.app.extension.loadedGraphNode(loaded);await e.finishRestore();
+     assert.equal(e.w(loaded,'reroll_from_chunk').value,boundary);
+     assert.equal(e.w(loaded,'reroll_nonce').value,nonce);
+     await e.queue(loaded);const sent=e.submissions.at(-1).data.output['312'].inputs;
+     assert.equal(sent.reroll_from_chunk,boundary);assert.equal(sent.reroll_nonce,nonce);
+     assert.equal(sent.generation_mode,mode);assert.equal(sent.run_storage,'Save + Auto Resume');
+     assert(!Object.hasOwn(sent,'h3_continuum_regenerate_from'));
+     assert.equal(JSON.stringify(e.getSaved()),beforeHistory);
+    });
+   }
+  }
+ }
+ for(const [boundary,nonce] of [['Chunk 2',0],['Chunk 1',5]]) {
+  await test(`regenerate legacy: ${nodeClass} ${boundary} nonce ${nonce}`,async e=>{
+   e.setSaved(project(3,3));e.app.extension.beforeConfigureGraph?.();
+   const n=e.makeNode(312,'fixture',nodeClass,false);e.app.extension.nodeCreated(n);
+   e.w(n,'generation_mode').value='Review Each Chunk';e.w(n,'reroll_from_chunk').value=boundary;
+   e.w(n,'reroll_nonce').value=nonce;e.app.extension.loadedGraphNode(n);await e.finishRestore();
+   assert.equal(e.w(n,'reroll_from_chunk').value,boundary);assert.equal(e.w(n,'reroll_nonce').value,nonce);
+   e.w(n,'Run').callback('Review Each Chunk');
+   await e.queue(n);assert.equal(e.submissions.at(-1).data.output['312'].inputs.reroll_from_chunk,boundary);
+   assert.equal(e.submissions.at(-1).data.output['312'].inputs.reroll_nonce,nonce);
+  });
+ }
+ await test(`regenerate intent reset: ${nodeClass}`,async e=>{
+  const n=e.makeNode(312,'fixture',nodeClass);await e.load(n,project(1));
+  e.w(n,'reroll_from_chunk').value='Chunk 1';e.w(n,'reroll_from_chunk').callback?.('Chunk 1');
+  assert.equal(n.properties.h3_continuum_regenerate_from,'Chunk 1');
+  e.w(n,'reroll_from_chunk').value='Auto';e.w(n,'reroll_from_chunk').callback?.('Auto');
+  assert(!Object.hasOwn(n.properties,'h3_continuum_regenerate_from'));
+  e.w(n,'Start again from Chunk 1').callback();await e.queue(n);
+  assert.equal(e.w(n,'reroll_from_chunk').value,'Auto');
+  assert(!Object.hasOwn(n.properties,'h3_continuum_regenerate_from'));
+ });
+}
+
 console.log(JSON.stringify(results,null,2));if(results.some(r=>!r.pass))process.exitCode=1;
 })();

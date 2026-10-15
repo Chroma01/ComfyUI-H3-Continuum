@@ -89,6 +89,8 @@ def test_run_storage_off_normalizes_widgets_reload_and_queued_inputs(tmp_path):
     source = PROJECT_ID_JS.read_text(encoding="utf-8")
     functions = "\n".join(
         [
+            next(line for line in source.splitlines()
+                 if line.startswith("const REGENERATE_INTENT_PROPERTY = ")),
             _function_source(source, "findWidget", "setWidgetVisible"),
             _function_source(source, "setWidgetVisible", "hidePersistentWidget"),
             _function_source(source, "linkedInput", "attachRefresh"),

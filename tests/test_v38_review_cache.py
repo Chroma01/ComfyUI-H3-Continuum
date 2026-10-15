@@ -13,6 +13,7 @@ import pytest
 from ComfyUI_H3_Continuum_Join.v3.driving_nodes import (
     H3ContinuumSamplerV37,
     H3ContinuumSamplerV38,
+    H3ContinuumSamplerV39,
 )
 from ComfyUI_H3_Continuum_Join.v3.easy_nodes import H3ContinuumEasyV38
 from ComfyUI_H3_Continuum_Join.v3.review_control import (
@@ -69,6 +70,25 @@ def test_v38_full_run_keeps_stable_core_cache_behavior(review_action):
         generation_mode=GENERATION_MODE_FULL_RUN,
         review_action=review_action,
     ) is False
+
+
+@pytest.mark.parametrize("node_class", [H3ContinuumSamplerV38, H3ContinuumSamplerV39])
+@pytest.mark.parametrize("boundary,nonce,storage,changed", [
+    ("Chunk 1", 0, "Save + Auto Resume", True),
+    ("Chunk 2", 0, "Save + Auto Resume", True),
+    (2, 0, "Save + Auto Resume", True),
+    ("Chunk 2", 5, "Save + Auto Resume", False),
+    ("Auto", 0, "Save + Auto Resume", False),
+    (0, 0, "Save + Auto Resume", False),
+    ("Chunk 2", 0, "Off", False),
+])
+def test_full_run_automatic_reroll_reaches_storage(node_class, boundary, nonce, storage, changed):
+    value = node_class.IS_CHANGED(generation_mode=GENERATION_MODE_FULL_RUN,
+        run_storage=storage, reroll_from_chunk=boundary, reroll_nonce=nonce, chunks=3)
+    if changed:
+        assert math.isnan(value)
+    else:
+        assert value is False
 
 
 def test_v37_and_easy_do_not_inherit_the_v38_cache_contract():
@@ -130,7 +150,7 @@ def test_real_comfy_cache_signature_is_stable_only_for_full_run(tmp_path):
                 comfy_kitchen.int8_attention_is_available = lambda *a, **k: False
 
             import nodes as comfy_nodes
-            from comfy_execution.caching import CacheKeySetInputSignature
+            from comfy_execution.caching import BasicCache, CacheKeySetInputSignature
             from comfy_execution.graph import DynamicPrompt
             from execution import IsChangedCache
 
@@ -187,7 +207,28 @@ def test_real_comfy_cache_signature_is_stable_only_for_full_run(tmp_path):
                 review_finish_2 = await signature(
                     "Review Each Chunk", "Finish Remaining"
                 )
+
+                cache_results = {{}}
+                for node_name in ["H3ContinuumSamplerV38", "H3ContinuumSamplerV39"]:
+                    comfy_nodes.NODE_CLASS_MAPPINGS[class_type] = package.NODE_CLASS_MAPPINGS[node_name]
+                    observed_counts = {{}}
+                    for label, boundary, nonce in [("ordinary", "Auto", 0), ("automatic", "Chunk 2", 0), ("fixed", "Chunk 2", 5)]:
+                        cache = BasicCache(CacheKeySetInputSignature)
+                        executions = 0
+                        for queue in range(2):
+                            prompt = {{"305": {{"class_type": class_type, "inputs": {{
+                                "generation_mode": "Full Run", "review_action": "Continue / Next",
+                                "run_storage": "Save + Auto Resume", "reroll_from_chunk": boundary,
+                                "reroll_nonce": nonce, "chunks": 3}}}}}}
+                            dynprompt = DynamicPrompt(prompt)
+                            await cache.set_prompt(dynprompt, ["305"], IsChangedCache(str(queue), dynprompt, None))
+                            if cache.get_local("305") is None:
+                                executions += 1
+                                cache.set_local("305", ("CPU fixture output",))
+                        observed_counts[label] = executions
+                    cache_results[node_name] = observed_counts
                 print(json.dumps({{
+                    "cache_executions": cache_results,
                     "full_stable": full_1 == full_2,
                     "review_continue_changed": review_continue_1 != review_continue_2,
                     "review_regenerate_changed": review_regen_1 != review_regen_2,
@@ -210,6 +251,10 @@ def test_real_comfy_cache_signature_is_stable_only_for_full_run(tmp_path):
     )
     observed = json.loads(result.stdout.strip().splitlines()[-1])
     assert observed == {
+        "cache_executions": {
+            name: {"ordinary": 1, "automatic": 2, "fixed": 1}
+            for name in ("H3ContinuumSamplerV38", "H3ContinuumSamplerV39")
+        },
         "full_stable": True,
         "review_continue_changed": True,
         "review_regenerate_changed": True,

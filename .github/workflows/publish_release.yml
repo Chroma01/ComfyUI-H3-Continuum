@@ -1,4 +1,4 @@
-name: Publish verified v3.9.5
+name: Publish verified v3.9.6
 
 on:
   workflow_run:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-v3.9.5
+  group: publish-v3.9.6
   cancel-in-progress: false
 
 jobs:
@@ -29,18 +29,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          test "$(python -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')" = 3.9.5
+          test "$(python -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')" = 3.9.6
           test "$(gh api repos/$GITHUB_REPOSITORY/branches/main --jq .commit.sha)" = "$RELEASE_SHA"
-          if gh release view v3.9.5 --json isDraft --jq .isDraft 2>/dev/null | grep -qx false; then
+          if gh release view v3.9.6 --json isDraft --jq .isDraft 2>/dev/null | grep -qx false; then
             echo 'publish=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if EXISTING=$(gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v3.9.5 --jq .object.sha 2>/dev/null); then
+          if EXISTING=$(gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v3.9.6 --jq .object.sha 2>/dev/null); then
             echo "Existing tag: $EXISTING"
             test "$EXISTING" = "$RELEASE_SHA"
           else
-            echo "Creating v3.9.5 at $RELEASE_SHA"
-            gh api repos/$GITHUB_REPOSITORY/git/refs -f ref=refs/tags/v3.9.5 -f sha="$RELEASE_SHA"
+            echo "Creating v3.9.6 at $RELEASE_SHA"
+            gh api repos/$GITHUB_REPOSITORY/git/refs -f ref=refs/tags/v3.9.6 -f sha="$RELEASE_SHA"
           fi
           echo 'publish=true' >> "$GITHUB_OUTPUT"
   tag-tests:
@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: v3.9.5
+          ref: v3.9.6
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -79,7 +79,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: v3.9.5
+          ref: v3.9.6
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -89,14 +89,14 @@ jobs:
           python - <<'PY'
           import hashlib,pathlib,subprocess,zipfile,tomllib
           root=pathlib.Path('.')
-          assert tomllib.loads((root/'pyproject.toml').read_text())['project']['version']=='3.9.5'
+          assert tomllib.loads((root/'pyproject.toml').read_text())['project']['version']=='3.9.6'
           for name in ['MANIFEST.sha256','REGISTRY_MANIFEST.sha256']:
               rows=(root/name).read_text().splitlines()
               for row in rows:
                   h,p=row.split('  ',1);assert hashlib.sha256((root/p).read_bytes()).hexdigest()==h,p
               print(name,len(rows),'matched')
           files=subprocess.check_output(['git','ls-tree','-r','--name-only','HEAD'],text=True).splitlines()
-          target=root/'ComfyUI-H3-Continuum-v3.9.5.zip'
+          target=root/'ComfyUI-H3-Continuum-v3.9.6.zip'
           with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
               for p in files:z.write(root/p,'ComfyUI-H3-Continuum/'+p)
           with zipfile.ZipFile(target) as z:
@@ -126,15 +126,15 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create v3.9.5 ComfyUI-H3-Continuum-v3.9.5.zip SHA256SUMS.txt --verify-tag --title 'v3.9.5 — Attention and Spectrum Take reuse' --notes-file docs/RELEASE_NOTES_V395.md --latest
+        run: gh release create v3.9.6 ComfyUI-H3-Continuum-v3.9.6.zip SHA256SUMS.txt --verify-tag --title 'v3.9.6 — Regeneration intent and automatic variations' --notes-file docs/RELEASE_NOTES_V396.md --latest
       - name: Download and verify public GitHub assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download v3.9.5 --dir public-download --pattern 'ComfyUI-H3-Continuum-v3.9.5.zip' --pattern SHA256SUMS.txt
+          gh release download v3.9.6 --dir public-download --pattern 'ComfyUI-H3-Continuum-v3.9.6.zip' --pattern SHA256SUMS.txt
           python - <<'PY'
           import pathlib,hashlib
-          for name in ['ComfyUI-H3-Continuum-v3.9.5.zip','SHA256SUMS.txt']:
+          for name in ['ComfyUI-H3-Continuum-v3.9.6.zip','SHA256SUMS.txt']:
               assert pathlib.Path(name).read_bytes()==(pathlib.Path('public-download')/name).read_bytes(),name
           print('Public GitHub assets match verified local ZIP and checksum')
           PY
@@ -147,8 +147,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: publication-v3.9.5
+          name: publication-v3.9.6
           path: |
-            ComfyUI-H3-Continuum-v3.9.5.zip
+            ComfyUI-H3-Continuum-v3.9.6.zip
             SHA256SUMS.txt
             node.zip
