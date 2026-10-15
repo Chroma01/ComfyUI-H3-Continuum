@@ -15,6 +15,8 @@
 
 Fix automatic Full Run variations when Chunks or Variation Nonce come from external nodes. Unresolved linked inputs no longer let Core skip an explicitly requested regeneration. Earlier accepted chunks, existing Takes, public inputs and official workflows are preserved. Update the custom nodes, restart ComfyUI and refresh the browser; no workflow changes or history deletion are required. [Release notes](docs/RELEASE_NOTES_V397.md).
 
+**Published v3.9.7 GPU recheck (2026-10-15): PASS.** After restarting with the published tag (`18df80d`), external Core INT nodes supplied Chunks=2 and Nonce=0. Two completely identical Chunk 2 regeneration prompts advanced automatic Nonce **1 → 2**; both reused Chunk 1 and generated only Chunk 2. Earlier Takes and raw latents were retained. All three outputs (baseline plus two variations) fully decoded with 240 frames and 10-second video/audio. Existing 60 workflows, one settings file, 30 Run/Take files and all 459 release files remained hash-identical. Scope: RTX 5060 Ti 16 GB, 512×512, 24 fps, 2×5 seconds, 8-step Turbo, PyTorch attention, Spectrum OFF, Core API submissions. No CUDA/OOM/execution errors were observed; this does not extend browser, subjective-quality or other-accelerator acceptance.
+
 The original [3.9.2 GitHub source archive](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/archive/refs/tags/v3.9.2.zip) remains available from its unchanged tag. This custom-node package ZIP is distinct from the official workflow ZIPs.
 
 <img width="1026" height="756" alt="{56C36D94-39EC-4484-9495-5648A1F486F3}" src="https://github.com/user-attachments/assets/ad9bd73f-1ac2-4925-80dd-55a5d3231431" />

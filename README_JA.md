@@ -15,6 +15,8 @@
 
 ChunksやVariation Nonceを外部ノードから接続した際に、明示したFull Run再生成がCoreのキャッシュで省略される問題を修正しました。前の採用済みChunk、既存Take、公開入力、公式Workflowは維持します。更新後はComfyUIを再起動し、ブラウザーを再読込してください。Workflowの変更や履歴の削除は不要です。 [Release notes](docs/RELEASE_NOTES_V397.md).
 
+**公開版3.9.7でのGPU再検証（2026-10-15）：PASS。** 公開タグ（`18df80d`）で再起動後、外部Core INTからChunks=2・Nonce=0を入力し、完全に同一のプロンプトでChunk 2を2回再生成しました。自動Nonceは**1→2**へ進み、両回ともChunk 1を再利用してChunk 2だけを生成。以前のTake・raw latentも保持しました。基準生成を含む動画3本は240フレーム・映像／音声各10秒で全デコード成功。既存Workflow 60件・設定1件・Run／Take 30ファイル・公開版459ファイルのハッシュは不変です。条件はRTX 5060 Ti 16 GB、512×512、24fps、2×5秒、8-step Turbo、PyTorch attention／Spectrum OFF、Core API経由。CUDA／OOM／実行エラーは確認されず、ブラウザー・主観画質・他アクセラレーターの受入範囲は拡張していません。
+
 元の[3.9.2 Source ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/archive/refs/tags/v3.9.2.zip)は従来のタグから取得できます。本体ZIPと公式Workflow ZIPは別の配布物です。
 
 ## 3.9.6 — 再生成指定・Nonce保持と自動Variationの再実行
