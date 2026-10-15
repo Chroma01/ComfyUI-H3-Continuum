@@ -1,5 +1,11 @@
 # Public development log
 
+## 2026-10-15 — package 3.9.7 / linked-input regeneration cache
+
+- Keep Full Run automatic variations reachable when Core leaves linked Chunks, Nonce, storage, regeneration boundary or generation mode unresolved during cache-key evaluation.
+- Validate the actual chunk range at execution, and retain stable caching for known ordinary Full Run, storage OFF and directly specified fixed nonces. An unresolved external nonce conservatively reevaluates the node; Run Storage still owns prefix reuse.
+- Keep Sampling Contract v6, Take protection, public schemas and official workflows unchanged. Add direct-input and real-Core cache regressions for both V3.8 and V3.9.
+
 ## 2026-10-15 — package 3.9.6 / regeneration intent and automatic variations
 
 - Separate saved manual regeneration intent from the legacy stale Chunk 1 / nonce 0 state. Retain earlier unmarked later-chunk/fixed-nonce settings, and clear intent metadata when Auto or a one-shot restart consumes it. No widget order or API inputs change.

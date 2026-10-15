@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_COMFY_ROOT = Path(
     os.environ.get(
         "H3_CONTINUUM_COMFY_ROOT",
-        r"D:\StabilityMatrix\Data\Packages\ComfyUI_W",
+        str(ROOT.parent / "ComfyUI"),
     )
 )
 
@@ -96,6 +96,37 @@ def test_v37_and_easy_do_not_inherit_the_v38_cache_contract():
     assert "IS_CHANGED" not in H3ContinuumEasyV38.__dict__
     assert not hasattr(H3ContinuumSamplerV37, "IS_CHANGED")
     assert not hasattr(H3ContinuumEasyV38, "IS_CHANGED")
+
+
+@pytest.mark.parametrize("node_class", [H3ContinuumSamplerV38, H3ContinuumSamplerV39])
+@pytest.mark.parametrize("changes,changed", [
+    ({"chunks": None}, True),
+    ({"chunks": 1}, True),
+    ({"chunks": "not resolved"}, True),
+    ({"reroll_nonce": None}, True),
+    ({"run_storage": None}, True),
+    ({"reroll_from_chunk": None}, True),
+    ({"generation_mode": None}, True),
+    ({"chunks": None, "reroll_nonce": None, "run_storage": None}, True),
+    ({"chunks": None, "reroll_nonce": 5}, False),
+    ({"run_storage": None, "reroll_nonce": 5}, False),
+    ({"reroll_from_chunk": None, "reroll_nonce": 5}, False),
+    ({"reroll_from_chunk": "Auto", "reroll_nonce": None}, False),
+    ({"reroll_from_chunk": "Auto", "run_storage": None}, False),
+    ({"run_storage": "Off", "reroll_nonce": None}, False),
+    ({"run_storage": "Off", "reroll_from_chunk": None}, False),
+    ({"run_storage": "invalid"}, False),
+    ({"reroll_nonce": "invalid"}, False),
+    ({"reroll_from_chunk": "invalid"}, False),
+    ({"reroll_from_chunk": "Chunk 17"}, False),
+    ({"generation_mode": GENERATION_MODE_REVIEW, "run_storage": "Off"}, True),
+])
+def test_cache_intent_handles_unresolved_inputs_without_validating_chunk_range(node_class, changes, changed):
+    inputs = dict(generation_mode=GENERATION_MODE_FULL_RUN, run_storage="Save + Auto Resume",
+                  reroll_from_chunk="Chunk 2", reroll_nonce=0, chunks=3)
+    inputs.update(changes)
+    value = node_class.IS_CHANGED(**inputs)
+    assert math.isnan(value) if changed else value is False
 
 
 def test_real_comfy_cache_signature_is_stable_only_for_full_run(tmp_path):
@@ -212,7 +243,19 @@ def test_real_comfy_cache_signature_is_stable_only_for_full_run(tmp_path):
                 for node_name in ["H3ContinuumSamplerV38", "H3ContinuumSamplerV39"]:
                     comfy_nodes.NODE_CLASS_MAPPINGS[class_type] = package.NODE_CLASS_MAPPINGS[node_name]
                     observed_counts = {{}}
-                    for label, boundary, nonce in [("ordinary", "Auto", 0), ("automatic", "Chunk 2", 0), ("fixed", "Chunk 2", 5)]:
+                    for label, boundary, nonce, linked in [
+                        ("ordinary", "Auto", 0, None),
+                        ("automatic", "Chunk 2", 0, None),
+                        ("fixed", "Chunk 2", 5, None),
+                        ("linked_chunks", "Chunk 2", 0, "chunks"),
+                        ("linked_nonce", "Chunk 2", 0, "reroll_nonce"),
+                        ("linked_storage", "Chunk 2", 0, "run_storage"),
+                        ("linked_boundary", "Chunk 2", 0, "reroll_from_chunk"),
+                        ("linked_mode", "Chunk 2", 5, "generation_mode"),
+                        ("fixed_linked_chunks", "Chunk 2", 5, "chunks"),
+                        ("ordinary_linked_nonce", "Auto", 0, "reroll_nonce"),
+                        ("fixed_linked_nonce", "Chunk 2", 5, "reroll_nonce"),
+                    ]:
                         cache = BasicCache(CacheKeySetInputSignature)
                         executions = 0
                         for queue in range(2):
@@ -220,6 +263,15 @@ def test_real_comfy_cache_signature_is_stable_only_for_full_run(tmp_path):
                                 "generation_mode": "Full Run", "review_action": "Continue / Next",
                                 "run_storage": "Save + Auto Resume", "reroll_from_chunk": boundary,
                                 "reroll_nonce": nonce, "chunks": 3}}}}}}
+                            if linked:
+                                class ScalarProbe:
+                                    @classmethod
+                                    def INPUT_TYPES(cls):
+                                        return {{"required": {{"value": ("*",)}}}}
+                                comfy_nodes.NODE_CLASS_MAPPINGS["H3CacheScalarProbe"] = ScalarProbe
+                                value = prompt["305"]["inputs"][linked]
+                                prompt["900"] = {{"class_type": "H3CacheScalarProbe", "inputs": {{"value": value}}}}
+                                prompt["305"]["inputs"][linked] = ["900", 0]
                             dynprompt = DynamicPrompt(prompt)
                             await cache.set_prompt(dynprompt, ["305"], IsChangedCache(str(queue), dynprompt, None))
                             if cache.get_local("305") is None:
@@ -252,7 +304,10 @@ def test_real_comfy_cache_signature_is_stable_only_for_full_run(tmp_path):
     observed = json.loads(result.stdout.strip().splitlines()[-1])
     assert observed == {
         "cache_executions": {
-            name: {"ordinary": 1, "automatic": 2, "fixed": 1}
+            name: {"ordinary": 1, "automatic": 2, "fixed": 1,
+                   "linked_chunks": 2, "linked_nonce": 2, "linked_storage": 2,
+                   "linked_boundary": 2, "linked_mode": 2, "fixed_linked_chunks": 1,
+                   "ordinary_linked_nonce": 1, "fixed_linked_nonce": 2}
             for name in ("H3ContinuumSamplerV38", "H3ContinuumSamplerV39")
         },
         "full_stable": True,

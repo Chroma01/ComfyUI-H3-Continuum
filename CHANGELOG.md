@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.9.7 — external-input regeneration cache (2026-10-15)
+
+- Fix automatic Full Run variations when Chunks or Variation Nonce come from external nodes. Unresolved linked inputs no longer let Core skip an explicitly requested regeneration. Earlier accepted chunks, existing Takes, public inputs and official workflows are preserved. Update the custom nodes, restart ComfyUI and refresh the browser; no workflow changes or history deletion are required.
+- CPU: 1,948 passed / 2 skipped / 2 known Inspector expected failures; zero unexpected failures and zero CUDA initialization attempts. Targeted Core-API GPU queues verified external Chunks=2 / Nonce=0, repeated identical automatic variations 1 then 2, and 1 reused / 1 generated chunk per variation. Browser save/reload and Run-button submissions were checked separately. GPU scope: PyTorch attention, Spectrum OFF, 512x512, 8-step Turbo, two 5-second chunks. This is a targeted cache repair, not general image-quality or all-accelerator acceptance.
+
 ## 3.9.6 — regeneration intent and automatic variation cache (2026-10-15)
 
 - Preserve explicit Regenerate From and Variation Nonce across V3.8/V3.9 workflow restoration and Queue submission. Persist only the selected intent as workflow metadata; keep the legacy unowned Chunk 1 / nonce 0 cleanup and one-shot restart behavior.

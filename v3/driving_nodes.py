@@ -750,14 +750,20 @@ class H3ContinuumSamplerV38(H3ContinuumSamplerV37):
     ):
         # Review and automatic reroll variations depend on saved state outside
         # Core's input cache. Run Storage still owns all reuse/safety decisions.
-        if generation_mode == GENERATION_MODE_REVIEW:
+        # Core supplies None for linked inputs during its cache-key pass.
+        if generation_mode is None or generation_mode == GENERATION_MODE_REVIEW:
             return float("NaN")
-        if run_storage == "Save + Auto Resume":
+        if run_storage in ("Save + Auto Resume", None):
             try:
+                if reroll_nonce is not None and int(reroll_nonce) != 0:
+                    return False
+                if reroll_from_chunk is None:
+                    return float("NaN")
+                # The execution path validates the actual configured chunk range.
                 boundary = _regenerate_from_value(
-                    reroll_from_chunk, chunks=int(kwargs.get("chunks", 16))
+                    reroll_from_chunk, chunks=16
                 )
-                if boundary > 0 and int(reroll_nonce) == 0:
+                if boundary > 0:
                     return float("NaN")
             except (TypeError, ValueError, OverflowError):
                 pass  # Core/backend validation owns malformed inputs.
