@@ -2,6 +2,13 @@
 
 Updated: 2026-10-16 (Japan time).
 
+## Japanese README organization (documentation only)
+
+The Japanese README follows the English quick-start structure. Japanese detail
+and images remain in docs/USER_GUIDE_JA.md and docs/README_HISTORY_JA.md.
+Downloads, model folders, provider links, history safety and limited acceptance
+scope are retained. English documentation, runtime and published assets are unchanged.
+
 ## README organization (documentation only)
 
 The English README is a compact entry point. Detailed operating instructions and

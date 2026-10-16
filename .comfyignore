@@ -83,3 +83,7 @@ write-h3-v39-reference-prompts/
 # Keep the condensed README and its moved text references together.
 !docs/USER_GUIDE.md
 !docs/README_HISTORY.md
+
+# Japanese detailed references retained by the condensed README.
+!docs/USER_GUIDE_JA.md
+!docs/README_HISTORY_JA.md

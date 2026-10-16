@@ -1,5 +1,22 @@
 # Public development log
 
+## 2026-10-16 — Japanese README organization
+
+Align the Japanese README with the compact English entry point, including exact
+model/VAE/text-encoder downloads, model folders, external node links and optional
+Turbo guidance. Keep current compatibility and known limitations explicit.
+Move all former Japanese detail and ten image references into USER_GUIDE_JA.md
+and README_HISTORY_JA.md, preserving historical context and rebasing links.
+Include these text guides in the Registry selection and update both manifests.
+English documentation, product code, images, official workflows and existing
+Runs/Takes remain unchanged. This is local documentation work, not a new release.
+
+Local checks: 5 existing tests passed, 95 relative file/heading links resolved,
+all ten original image references and original detailed text were retained, and
+both manifests matched (464 source entries / 162 Registry entries). The Japanese
+README is 247 lines instead of 801. Its 18 external destinations match English.
+No CUDA initialization, runtime deployment, commit or push was performed.
+
 ## 2026-10-16 — condensed README and retained reference material
 
 Organize the English README as a short installation and operation entry point.
