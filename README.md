@@ -16,6 +16,19 @@
 
 An audited KJ Model Preview Override can keep preview images without changing a new Run's sampling identity. Separate Queues can reuse Chunk 1 and generate Chunk 2 while preserving earlier Takes. Support is limited to the explicitly pinned KJ source and Core helpers, **VAE / Audio VAE disconnected, Tiny VAE `none`**, and Core NoPreviews/Auto/Latent2RGB. Other KJ builds remain conservative; version 1.5.2 alone is insufficient. Restart ComfyUI, refresh the browser and start a new Run; do not delete old Takes or workflows. See [compatibility, source hashes and verified scope](docs/KJ_PREVIEW_OVERRIDE_V398.md).
 
+### Published v3.9.8 GPU recheck — 2026-10-16: PASS
+
+After restarting the normal ComfyUI installation with the published tag **`v3.9.8` / `58fbd855`**, all 464 installed release files matched the tag. The startup log confirmed 3.9.8, and new saved Sampling v6 contracts contained the KJ adapter and pinned audit-profile digest. Two brand-new Runs passed four Core-API GPU Queues:
+
+| KJ Preview Override configuration | Separate-Queue Chunk 1 → 2 |
+| --- | --- |
+| Model Attention Backend: PyTorch, Spectrum OFF | **PASS — 1 reused / 1 generated** |
+| Model Attention Backend: Comfy Kitchen INT8 + audited local Spectrum | **PASS — 1 reused / 1 generated** |
+
+On both second Queues, the KJ MODEL stayed cached with preview images retained (**8 → 16**), while the Sampler executed. The contract/revision and original Chunk 1 latent hashes stayed unchanged; `resume_safe=true`. All four video/audio outputs fully decoded (5 seconds / 120 frames, then 10 seconds / 240 frames, 512×512 at 24fps). Existing workflows and Takes were preserved: 170 protected files, including 71 saved workflow files and 46 pre-existing Run/Take files, retained their hashes.
+
+**Scope:** only the exact audited KJ/Core profile; the local KJ source differs from upstream, so KJNodes 1.5.2 alone is insufficient. Preview Override VAE / Audio VAE were disconnected, Tiny VAE was `none`, Core preview was Auto. GPU: RTX 5060 Ti 16 GB, 8-step Turbo, Euler/simple, 2×5-second chunks. Spectrum used the audited local offline-replay implementation, system-RAM history/archive and model-aware OFF. **Unverified:** browser Run-button/save-reload behavior, the reporter's exact complete graph, other KJ/Spectrum builds, SolAttn/preview VAE paths, per-kernel return tracing, subjective quality and speed/VRAM benchmarks. Retained PNGs were 32×32, not high-resolution preview-quality evidence. The known Inspector issue remains; old unsafe/v5 Takes are not repaired or promoted. [Issue #31 result](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues/31#issuecomment-6209571261).
+
 ## 3.9.7 — External-input regeneration cache fix
 
 Fix automatic Full Run variations when Chunks or Variation Nonce come from external nodes. Unresolved linked inputs no longer let Core skip an explicitly requested regeneration. Earlier accepted chunks, existing Takes, public inputs and official workflows are preserved. Update the custom nodes, restart ComfyUI and refresh the browser; no workflow changes or history deletion are required. [Release notes](docs/RELEASE_NOTES_V397.md).

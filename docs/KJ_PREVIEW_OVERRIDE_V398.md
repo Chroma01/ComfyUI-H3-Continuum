@@ -26,7 +26,7 @@ Restart ComfyUI, refresh the browser and create a new Run. Do not delete or rewr
 
 Full real-Core CPU validation: 1,995 passed, 3 skipped, 2 existing Inspector expected failures, zero unexpected failures or CUDA initialization attempts. The dedicated real-provider tests passed all 48 cases, including 0/1/multiple held frames, reconstruction, fixed-setting changes, wrapper ordering, source/code/default/helper changes, VAE exclusion, Attention/Spectrum combinations, prefix preservation and old unsafe history. Offline registration retains twelve nodes.
 
-After an ordinary managed ComfyUI restart, four GPU Queues used the same repair product bytes as this release:
+The initial acceptance used the same repair product bytes. A subsequent recheck installed all 464 files from the published v3.9.8 tag (`58fbd855`), restarted normal ComfyUI, verified the live 3.9.8 startup banner and saved adapter/profile identity, and passed four new-Run GPU Queues:
 
 | New Run | First Queue | Separate second Queue |
 | --- | --- | --- |
@@ -43,4 +43,4 @@ These were controlled submissions through the normal Core API. Browser Run-butto
 
 監査済みKJ Preview Overrideの一時画像だけを永続署名から分離し、固定設定・実装識別・ラッパー順序を保持します。KJNodes 1.5.2全体ではなく、上表のソースと読み込み済み関数を照合できる実装だけが対象です。VAE／Audio VAE未接続・Tiny VAE none・Core NoPreviews／Auto／Latent2RGBが条件です。
 
-更新後は再起動し、新Runを使用してください。旧Take・Workflowの削除や移行は不要で、旧unsafe履歴は再利用不可のまま保持します。CPU 1,995成功（専用48件を含む）、PyTorchおよびKitchen＋ローカルSpectrumの各2 Queueで画像保持後のChunk 1→2継続、元Chunk 1保持、4本の映像・音声全デコードを確認しました。公開タグそのものの再GPU試験ではなく、同一製品コードの限定受入結果です。画質・速度・実ブラウザー操作・全KJ構成への合格は主張しません。
+更新後は再起動し、新Runを使用してください。旧Take・Workflowの削除や移行は不要で、旧unsafe履歴は再利用不可のまま保持します。CPU 1,995成功（専用48件を含む）、PyTorchおよびKitchen＋ローカルSpectrumの各2 Queueで画像保持後のChunk 1→2継続、元Chunk 1保持、4本の映像・音声全デコードを確認しました。初期の同一製品コードによる受入後、公開タグv3.9.8（58fbd855）を実環境へ反映・再起動して、新Runで同じ2構成の4 Queueも再確認済みです。画質・速度・実ブラウザー操作・全KJ構成への合格は主張しません。

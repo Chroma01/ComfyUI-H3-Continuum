@@ -1,5 +1,9 @@
 # Public development log
 
+## 2026-10-16 — published v3.9.8 GPU recheck documentation
+
+Record a fresh GPU recheck after deploying and restarting the exact published tag `58fbd855`: PyTorch/KJ and Comfy Kitchen INT8 + audited local Spectrum/KJ each passed separate-Queue Chunk 1 to 2 continuation. KJ retained images, contracts and original Chunk 1 stayed equal, and all four AV outputs decoded. Existing Takes/workflows were hash-protected. README and Release notes distinguish this published-tag result from the earlier candidate gate and retain exact provider/no-preview-VAE/Tiny-none scope plus browser, quality and performance limits. This is a documentation-only main update; the original v3.9.8 tag and package assets remain unchanged.
+
 ## 2026-10-16 — package 3.9.8 / KJ Preview Override Phase A
 
 - Audit the actual KJ Preview Override file, SHA-256 `d07c8e5ff7d7abd3e31acefe2cf29f618b5da5341b3b434e72ec2ac0953230b0`, rather than accepting KJNodes 1.5.2 by version alone. Pin sibling helpers and Core preview/dispatcher source, then compare loaded code/defaults/classes without importing or executing the provider during observation.

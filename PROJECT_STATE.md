@@ -2,6 +2,10 @@
 
 Updated: 2026-10-16 (Japan time).
 
+## Published v3.9.8 GPU recheck (2026-10-16)
+
+The exact published tag `58fbd855` was deployed and restarted in normal ComfyUI; all 464 release files and the live startup/adapter identity matched. Two new Runs / four Core-API Queues passed PyTorch/KJ and Kitchen INT8 + audited local Spectrum/KJ Chunk 1 to 2 continuation, unchanged prefix/contracts and complete AV decoding. Existing Takes/workflows stayed hash-identical. README and docs/RELEASE_NOTES_V398.md record conditions and unverified scope. The later documentation-only main commit does not replace the release tag, GitHub assets or Registry package.
+
 ## 3.9.8 — KJ Preview Override Phase A (2026-10-16)
 
 A bounded adapter identifies the audited KJ Preview Override source and loaded helpers, preserves fixed settings and wrapper execution order, and excludes its reviewed transient image list. VAE/Audio VAE must be disconnected, KJ Tiny VAE must be `none`, and Core approximate-VAE preview is outside this phase. Unknown implementations remain non-reusable. Sampling v6, old Takes and official workflows are unchanged. Full real-Core CPU gate: 1,995 passed / 3 skipped / 2 existing Inspector expected failures / zero unexpected failures and CUDA initialization attempts; the 48 dedicated KJ tests passed without skips. Normal ComfyUI GPU acceptance passed four Core-API Queues: PyTorch and Comfy Kitchen INT8 + the audited local Spectrum implementation, each with separate-Queue Chunk 1 to 2 continuation and held preview images. Both second Queues reused one chunk and generated one; original Chunk 1 bytes and contracts were unchanged. All four video/audio outputs fully decoded. See docs/KJ_PREVIEW_OVERRIDE_V398.md for exact support and limits. Release and Registry state are verified separately.

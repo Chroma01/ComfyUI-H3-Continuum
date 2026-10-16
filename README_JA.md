@@ -16,6 +16,19 @@
 
 監査済みKJ Model Preview Overrideでは、プレビュー画像を保持しても新Runの保存署名を変えず、別QueueでChunk 1を再利用してChunk 2だけ生成できます。対応は固定したKJソース・Core helperと、**VAE／Audio VAE未接続・Tiny VAE `none`**、Core NoPreviews／Auto／Latent2RGBに限定します。KJNodes 1.5.2全般への対応ではありません。更新後はComfyUIを再起動し、ブラウザーを再読込して新Runを作成してください。旧Take・Workflowの削除は不要です。[対応条件・監査ハッシュ・検証範囲](docs/KJ_PREVIEW_OVERRIDE_V398.md)を参照してください。
 
+### 公開版v3.9.8のGPU再検証 — 2026-10-16：PASS
+
+通常ComfyUIに公開タグ **`v3.9.8`／`58fbd855`** を反映して再起動し、公開版464ファイルとの一致、実ログの3.9.8読込、新しいSampling v6契約内のKJアダプターと固定監査プロファイルを確認しました。新Runを2つ使用した計4 Queueの結果です。
+
+| KJ Preview Override併用構成 | 別QueueのChunk 1→2継続 |
+| --- | --- |
+| Model Attention Backend：PyTorch／Spectrum OFF | **PASS — 1再利用／1生成** |
+| Model Attention Backend：Comfy Kitchen INT8＋監査済みローカルSpectrum | **PASS — 1再利用／1生成** |
+
+両構成の2回目は画像を保持したKJ MODELをキャッシュ再利用（**8→16枚**）し、Samplerは実行。契約・revision・元Chunk 1 latentのSHA-256を維持し、`resume_safe=true`でした。映像・音声4本は全デコード成功（512×512／24fps、5秒120フレーム→10秒240フレーム）。保護対象170ファイル（保存Workflow 71件・既存Run／Take 46ファイルを含む）は全ハッシュ不変です。
+
+**対応範囲：** 固定したKJ／Core監査プロファイルのみ。ローカルKJソースはupstreamと異なり、KJNodes 1.5.2全般の合格ではありません。Preview OverrideのVAE／Audio VAE未接続・Tiny VAE `none`・Core Auto、RTX 5060 Ti 16 GB、8-step Turbo／Euler/simple、2×5秒。Spectrumは監査済みローカル版のoffline replay、履歴・archiveはsystem RAM、model-aware OFFです。**未確認：** ブラウザーRunボタン／保存再読込、報告者の完全一致graph、別KJ／Spectrum版、SolAttn／preview VAE、カーネル単位の戻り値、主観画質・音質、速度・VRAM比較。保持PNGは32×32で、高解像度プレビュー品質の証明ではありません。既知Inspector問題は残り、旧unsafe／v5 Takeを自動修復・昇格しません。[Issue #31への結果返信](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues/31#issuecomment-6209571261)。
+
 ## 3.9.7 — 外部入力接続時の再生成キャッシュ修正
 
 ChunksやVariation Nonceを外部ノードから接続した際に、明示したFull Run再生成がCoreのキャッシュで省略される問題を修正しました。前の採用済みChunk、既存Take、公開入力、公式Workflowは維持します。更新後はComfyUIを再起動し、ブラウザーを再読込してください。Workflowの変更や履歴の削除は不要です。 [Release notes](docs/RELEASE_NOTES_V397.md).
