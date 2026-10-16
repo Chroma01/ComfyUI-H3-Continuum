@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.9.8 — Issue #31 Preview Override Phase A (2026-10-16)
+
+- Add a finite KJ Model Preview Override signature for the explicitly audited source profile. Preserve fixed preview settings, loaded implementation identity and cross-key/list wrapper execution order; omit only the reviewed builtin `frames` list.
+- Limit reuse support to VAE/Audio VAE disconnected, KJ Tiny VAE `none`, and Core NoPreviews/Auto/Latent2RGB. Unknown source, altered helpers, additional state and approximate-VAE preview remain non-reusable. Generation itself retains the existing fallback.
+- Keep unaffected MODEL signatures, Sampling v6 guards, old unsafe/v5 history and official Workflow bytes unchanged. Full real-Core CPU gate: 1,995 passed / 3 skipped / 2 existing Inspector expected failures / zero unexpected failures and CUDA initialization attempts; the 48 dedicated KJ tests passed without skips. Normal ComfyUI GPU acceptance passed four Core-API Queues: PyTorch and Comfy Kitchen INT8 + the audited local Spectrum implementation, each with separate-Queue Chunk 1 to 2 continuation and held preview images. Both second Queues reused one chunk and generated one; original Chunk 1 bytes and contracts were unchanged. All four video/audio outputs fully decoded. See docs/KJ_PREVIEW_OVERRIDE_V398.md for exact support and limits.
+
 ## 3.9.7 — external-input regeneration cache (2026-10-15)
 
 - Fix automatic Full Run variations when Chunks or Variation Nonce come from external nodes. Unresolved linked inputs no longer let Core skip an explicitly requested regeneration. Earlier accepted chunks, existing Takes, public inputs and official workflows are preserved. Update the custom nodes, restart ComfyUI and refresh the browser; no workflow changes or history deletion are required.

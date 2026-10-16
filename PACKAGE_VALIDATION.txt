@@ -1,3 +1,9 @@
+ComfyUI-H3-Continuum 3.9.8 / KJ Model Preview Override continuation
+Full real-Core CPU gate: 1,995 passed / 3 skipped / 2 existing Inspector expected failures / zero unexpected failures and CUDA initialization attempts; the 48 dedicated KJ tests passed without skips. Normal ComfyUI GPU acceptance passed four Core-API Queues: PyTorch and Comfy Kitchen INT8 + the audited local Spectrum implementation, each with separate-Queue Chunk 1 to 2 continuation and held preview images. Both second Queues reused one chunk and generated one; original Chunk 1 bytes and contracts were unchanged. All four video/audio outputs fully decoded. See docs/KJ_PREVIEW_OVERRIDE_V398.md for exact support and limits.
+Support: explicitly audited provider only; Preview Override VAE/Audio VAE disconnected, Tiny VAE none, Core NoPreviews/Auto/Latent2RGB. Restart and start a new Run. Old unsafe/v5 Takes and workflow bytes remain protected.
+
+--- Earlier package validation records (historical) ---
+
 ComfyUI-H3-Continuum 3.9.7 / External-input regeneration cache
 CPU: 1,948 passed / 2 skipped / 2 known Inspector expected failures; zero unexpected failures and zero CUDA initialization attempts. Targeted Core-API GPU queues verified external Chunks=2 / Nonce=0, repeated identical automatic variations 1 then 2, and 1 reused / 1 generated chunk per variation. Browser save/reload and Run-button submissions were checked separately. GPU scope: PyTorch attention, Spectrum OFF, 512x512, 8-step Turbo, two 5-second chunks. This is a targeted cache repair, not general image-quality or all-accelerator acceptance.
 Existing workflow and Take files were hash-protected. No storage/schema migration.

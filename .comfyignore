@@ -76,3 +76,6 @@ write-h3-v39-reference-prompts/
 
 # Current regeneration intent and automatic variation guide.
 !docs/REGENERATE_INTENT_V396.md
+
+# Current audited KJ Preview Override compatibility guide.
+!docs/KJ_PREVIEW_OVERRIDE_V398.md

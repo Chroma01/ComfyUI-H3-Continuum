@@ -1,5 +1,11 @@
 # Public development log
 
+## 2026-10-16 — package 3.9.8 / KJ Preview Override Phase A
+
+- Audit the actual KJ Preview Override file, SHA-256 `d07c8e5ff7d7abd3e31acefe2cf29f618b5da5341b3b434e72ec2ac0953230b0`, rather than accepting KJNodes 1.5.2 by version alone. Pin sibling helpers and Core preview/dispatcher source, then compare loaded code/defaults/classes without importing or executing the provider during observation.
+- Add a dedicated adapter only at `outer_sample/kj_preview_override`. Preserve all fixed wrapper settings and Core's key/list order. Ignore only the exact builtin transient `frames` list after the provider audit; preserve the generic no-KJ observer and all other reuse guards.
+- CPU scope covers real-provider frame changes, reconstruction, fixed-setting/order changes, monkeypatch/source rejection, VAE/Tiny VAE exclusion, combined Attention/Spectrum identities, saved prefix bytes and old unsafe history. Full real-Core CPU gate: 1,995 passed / 3 skipped / 2 existing Inspector expected failures / zero unexpected failures and CUDA initialization attempts; the 48 dedicated KJ tests passed without skips. Normal ComfyUI GPU acceptance passed four Core-API Queues: PyTorch and Comfy Kitchen INT8 + the audited local Spectrum implementation, each with separate-Queue Chunk 1 to 2 continuation and held preview images. Both second Queues reused one chunk and generated one; original Chunk 1 bytes and contracts were unchanged. All four video/audio outputs fully decoded. See docs/KJ_PREVIEW_OVERRIDE_V398.md for exact support and limits. GitHub main/tag CI, Release asset integrity and Registry status are separate publication checks.
+
 ## 2026-10-15 — package 3.9.7 / linked-input regeneration cache
 
 - Keep Full Run automatic variations reachable when Core leaves linked Chunks, Nonce, storage, regeneration boundary or generation mode unresolved during cache-key evaluation.

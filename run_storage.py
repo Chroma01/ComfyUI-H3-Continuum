@@ -39,6 +39,7 @@ from .branch_provenance import (
 )
 from .constants import CONTINUUM_ACTUAL_PREFIX_STEPS, continuity_storage_mode
 from .spectrum_signature import spectrum_binding_signature
+from .preview_override_signature import observe_model_wrappers
 from .v2.session import make_session, validate_chunk_entry
 from .v3.review_control import (
     GENERATION_MODE_REVIEW,
@@ -950,7 +951,7 @@ def _observe_attention_model_options(options):
 def _model_signature(model: Any, legacy_fingerprint: str) -> tuple[dict[str, Any], bool]:
     base = getattr(model, "model", None)
     inner = getattr(base, "diffusion_model", None)
-    wrappers, wrappers_safe = _observe(getattr(model, "wrappers", {}) or {})
+    wrappers, wrappers_safe = observe_model_wrappers(getattr(model, "wrappers", {}) or {}, _observe)
     patches, patches_safe = _observe(getattr(model, "patches", {}) or {})
     options = getattr(model, "model_options", {}) or {}
     if not isinstance(options, dict):
