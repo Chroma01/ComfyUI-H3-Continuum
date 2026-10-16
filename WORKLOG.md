@@ -1,5 +1,27 @@
 # Public development log
 
+## 2026-10-16 — condensed README and retained reference material
+
+Organize the English README as a short installation and operation entry point.
+Keep the version heading, fixed-version downloads, getting-started video, Review /
+regeneration steps, history safety and bounded v3.9.8 compatibility/known limits.
+Move the former detailed controls and screenshots into docs/USER_GUIDE.md, and
+release/legacy implementation material into docs/README_HISTORY.md; retain all
+original sections and image assets, with rebased links and historical context.
+Follow-up: list the template-selected H3 diffusion model, text encoder, Video/Audio
+VAEs with provider downloads and ComfyUI model folders. Link Spectrum, KJNodes,
+rgthree and optional task-matched LightX2V Turbo LoRAs. Explain the saved INT8
+Video VAE versus old FP16 download metadata without altering workflow bytes.
+
+Include the two text references in the Registry selection and update both source
+manifests. Product code, Japanese README, official workflows, stored Takes,
+release tags/assets and runtime deployment are unchanged by this documentation work.
+
+Local documentation checks: 5 existing tests passed; all 143 relative file/heading
+links resolved, all 39 original image references were retained, and both manifests
+matched (462 source entries / 160 Registry entries). README is 267 lines, down
+from 1,574. No code, workflow, image or Japanese README changes were made.
+
 ## 2026-10-16 — published v3.9.8 GPU recheck documentation
 
 Record a fresh GPU recheck after deploying and restarting the exact published tag `58fbd855`: PyTorch/KJ and Comfy Kitchen INT8 + audited local Spectrum/KJ each passed separate-Queue Chunk 1 to 2 continuation. KJ retained images, contracts and original Chunk 1 stayed equal, and all four AV outputs decoded. Existing Takes/workflows were hash-protected. README and Release notes distinguish this published-tag result from the earlier candidate gate and retain exact provider/no-preview-VAE/Tiny-none scope plus browser, quality and performance limits. This is a documentation-only main update; the original v3.9.8 tag and package assets remain unchanged.

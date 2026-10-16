@@ -2,6 +2,14 @@
 
 Updated: 2026-10-16 (Japan time).
 
+## README organization (documentation only)
+
+The English README is a compact entry point. Detailed operating instructions and
+screenshots remain in docs/USER_GUIDE.md; release and older implementation notes
+remain in docs/README_HISTORY.md. Version-specific acceptance statements retain
+their historical context. Japanese README, product code, official workflows and
+published v3.9.8 assets are unchanged; this is not a new runtime or release version.
+
 ## Published v3.9.8 GPU recheck (2026-10-16)
 
 The exact published tag `58fbd855` was deployed and restarted in normal ComfyUI; all 464 release files and the live startup/adapter identity matched. Two new Runs / four Core-API Queues passed PyTorch/KJ and Kitchen INT8 + audited local Spectrum/KJ Chunk 1 to 2 continuation, unchanged prefix/contracts and complete AV decoding. Existing Takes/workflows stayed hash-identical. README and docs/RELEASE_NOTES_V398.md record conditions and unverified scope. The later documentation-only main commit does not replace the release tag, GitHub assets or Registry package.
