@@ -194,6 +194,9 @@ def test_registry_manifest_matches_every_declared_source_file():
         "examples/workflows/MiniMax_H3_Continuum_V39.json",
         "examples/workflows/MiniMax_H3_Continuum_V39.zip",
         "examples/MiniMax_H3_Continuum_V39.json",
+        "examples/MiniMax_H3_Continuum_V39_Turbo_Sample.json",
+        "examples/workflows/MiniMax_H3_Continuum_V39_Turbo_Sample.json",
+        "examples/workflows/MiniMax_H3_Continuum_V39_Turbo_Sample.zip",
         "examples/MiniMax_H3_Continuum_V38X2.json",
     }
 

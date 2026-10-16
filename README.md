@@ -84,7 +84,7 @@ The complete supplied graph also needs these external node packages:
 - [KJNodes](https://github.com/kijai/ComfyUI-KJNodes) — supplies the template's H3 SageAttention patch. Follow its attention dependency requirements, or replace/bypass that patch if unavailable.
 - [rgthree-comfy](https://github.com/rgthree/rgthree-comfy) — supplies `Power Lora Loader (rgthree)`.
 
-**Optional Turbo:** download one task-matched [LightX2V Turbo LoRA](https://huggingface.co/lightx2v/Minimax-h3-Turbo) into `models/loras/`; all entries start disabled.
+**Optional Turbo:** download one task-matched [LightX2V Turbo LoRA](https://huggingface.co/lightx2v/Minimax-h3-Turbo) into `models/loras/`; the standard workflows start with all entries disabled. The separate Turbo Sample enables one LoRA.
 Follow that LoRA's sampler/step instructions; [listed files and setup](docs/USER_GUIDE.md#turbo-lora-and-spectrum-in-supplied-workflows) explain the choices. Models and extensions are not installed by Continuum.
 
 ## Choose a workflow
@@ -92,6 +92,7 @@ Follow that LoRA's sampler/step instructions; [listed files and setup](docs/USER
 | Workflow | Download | Use |
 | --- | --- | --- |
 | **V3.9** | [JSON](examples/workflows/MiniMax_H3_Continuum_V39.json) / [ZIP](examples/workflows/MiniMax_H3_Continuum_V39.zip) | Current Sampler and fixed Reference Image slots |
+| **V3.9 Turbo Sample** | [JSON](examples/workflows/MiniMax_H3_Continuum_V39_Turbo_Sample.json) / [ZIP](examples/workflows/MiniMax_H3_Continuum_V39_Turbo_Sample.zip) | Auto, 2 x 8s dance and Thai rap; [setup and limits](docs/TURBO_SAMPLE.md) |
 | **V3.8X2** | [JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.json) / [combined ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip) | Retained workflow; combined ZIP also contains V3.9 |
 
 They are also available in **Templates → ComfyUI-H3-Continuum**.
@@ -100,7 +101,7 @@ Keep the original graph and open the dedicated V3.9 graph for new work.
 
 The templates reference external Spectrum, rgthree and KJNodes nodes.
 Install, replace or remove missing optional dependencies before Queue.
-Spectrum and Turbo LoRA entries are saved disabled; ComfyUI-Easy-Use is not required.
+In the standard workflows, Spectrum and Turbo LoRA entries are saved disabled; ComfyUI-Easy-Use is not required.
 
 In the V3.9 template, select your own **First Image** file before Queue.
 Reference loaders 1–6 start bypassed and all per-chunk assignments start off.

@@ -98,6 +98,7 @@ def test_template_gallery_uses_official_workflows_only():
     gallery = ROOT / "examples"
     assert {path.name for path in gallery.glob("*.json")} == {
         "MiniMax_H3_Continuum_V39.json",
+        "MiniMax_H3_Continuum_V39_Turbo_Sample.json",
         "MiniMax_H3_Continuum_V38X2.json",
     }
     assert (gallery / WORKFLOW.name).read_bytes() == WORKFLOW.read_bytes()

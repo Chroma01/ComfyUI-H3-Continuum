@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — V3.9 Turbo Sample (2026-10-16)
+
+- Add a separate user-supplied Auto / 2 x 8s Turbo dance and Thai rap sample, gallery copy, ZIP and setup notes. Preserve standard workflows, saved Takes and product code. This source-only sample has no new GPU acceptance and does not replace v3.9.8 release assets.
+
+
 ## 3.9.8 — Issue #31 Preview Override Phase A (2026-10-16)
 
 - Post-release documentation: after installing and restarting published tag `58fbd855`, both PyTorch/KJ and Kitchen + audited local Spectrum/KJ passed new-Run, separate-Queue Chunk 1 to 2 continuation with retained previews, unchanged prefix/contracts and four fully decoded AV outputs. Record the limited audited profile and unverified browser/quality/performance scope. Keep the original tag/assets and existing Takes/workflows.

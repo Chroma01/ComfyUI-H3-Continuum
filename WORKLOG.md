@@ -1,5 +1,17 @@
 # Public development log
 
+## 2026-10-16 — V3.9 Turbo Sample
+
+Add the user-supplied sample separately: Auto, 2 x 8s, multiline image-anchored
+dance prompt, fixed background/camera, Thai rap and one enabled Turbo LoRA.
+Preserve the supplied 6-step/Draft settings and document their unverified pairing
+with the 4-step/768p LoRA. Fresh workflow/project IDs avoid user Run identity reuse;
+remove misleading auto-download metadata for the saved custom model. Standard
+workflows, existing Takes and runtime code stay unchanged. No new GPU validation,
+runtime deployment, release or Registry publication is included.
+Local CPU checks: 17 passed, zero CUDA initialization attempts. Workflow link
+consistency, gallery/ZIP bytes, saved settings and both manifests were checked.
+
 ## 2026-10-16 — Japanese README organization
 
 Align the Japanese README with the compact English entry point, including exact

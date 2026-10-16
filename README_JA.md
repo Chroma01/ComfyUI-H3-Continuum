@@ -85,7 +85,7 @@ Registry審査・Managerが選択する版・GitHub Releaseの状態は別です
 - [rgthree-comfy](https://github.com/rgthree/rgthree-comfy)：`Power Lora Loader (rgthree)`を提供します。
 
 **Turboを使う場合のみ：** 用途に合う[LightX2V Turbo LoRA](https://huggingface.co/lightx2v/Minimax-h3-Turbo)を1つ選び、`models/loras/`へ配置します。
-LoRAはすべて保存時に無効です。配布元のSampler・Steps指定に従ってください。
+標準WorkflowではLoRAはすべて保存時に無効です。別のTurbo Sampleでは1つ有効です。配布元のSampler・Steps指定に従ってください。
 [ファイル一覧と設定の詳細](docs/USER_GUIDE.md#turbo-lora-and-spectrum-in-supplied-workflows)も参照できます。Continuumがこれらを自動導入することはありません。
 
 ## Workflowを選ぶ
@@ -93,6 +93,7 @@ LoRAはすべて保存時に無効です。配布元のSampler・Steps指定に�
 | Workflow | ダウンロード | 用途 |
 | --- | --- | --- |
 | **V3.9** | [JSON](examples/workflows/MiniMax_H3_Continuum_V39.json) / [ZIP](examples/workflows/MiniMax_H3_Continuum_V39.zip) | 現行Samplerと固定Reference Imageスロット |
+| **V3.9 Turbo Sample** | [JSON](examples/workflows/MiniMax_H3_Continuum_V39_Turbo_Sample.json) / [ZIP](examples/workflows/MiniMax_H3_Continuum_V39_Turbo_Sample.zip) | Auto・2×8秒のダンスとタイ語ラップ。[設定・制約](docs/TURBO_SAMPLE.md) |
 | **V3.8X2** | [JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.json) / [統合ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip) | 既存Workflow用。統合ZIPにはV3.9も収録 |
 
 ComfyUIの**Templates → ComfyUI-H3-Continuum**からも開けます。
