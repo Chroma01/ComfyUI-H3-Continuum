@@ -1586,7 +1586,7 @@ function reviewStatus(node) {
     const revision = canonicalStorageRevision(project);
     if (!revision) return "Queue the workflow to create the first chunk.";
     if (takeReadOnly(revision)) {
-        return "Saved history is read-only for Sampling v6\nStart from Chunk 1 with current settings. Existing Takes are kept.";
+        return takeReadOnlyExplanation(revision);
     }
     if (revision.status === "complete") {
         const unit = revision.review_unit;
@@ -1668,6 +1668,51 @@ const takeCatalogCache = new WeakMap();
 
 function takeReadOnly(item) {
     return Number(item?.sampling_contract_version) !== 6 || item?.generation_reusable !== true;
+}
+
+const TAKE_REUSE_REASON_HELP = new Map([
+    ["KJ/Core preview implementation is outside the audited source profiles",
+        "Bypass KJ Model Preview Override in a workflow copy, then test a new Run."],
+    ["KJ preview VAE/Audio VAE or Tiny VAE is outside the supported configuration",
+        "Disconnect the preview node's optional VAE/Audio VAE and set Tiny VAE to none. Keep the generation VAEs connected."],
+    ["Core approximate-VAE preview is outside the supported configuration",
+        "Set Core preview to Auto or Latent2RGB before starting a new Run."],
+    ["KJ preview runtime code or state could not be verified",
+        "Check Detailed Report; bypass KJ Model Preview Override in a workflow copy to isolate it."],
+    ...[
+        "MODEL wrapper/patch contract is not completely observable",
+        "SAMPLER function/options are not completely observable",
+        "CLIP/Qwen encoder contract is not completely observable",
+        "Video VAE contract is not completely observable",
+        "Reference Audio VAE contract is not completely observable",
+        "Driving Audio VAE contract is not completely observable",
+        "Saved generation conditions could not be fully verified; see Detailed Report",
+    ].map((reason) => [reason, ""]),
+]);
+
+function takeReadOnlyExplanation(item) {
+    if (!takeReadOnly(item)) return "";
+    if (Number(item?.sampling_contract_version) === 5) {
+        return "Sampling v5 history is read-only for v6 generation\nStart a new Run from Chunk 1. Existing Takes are kept.";
+    }
+    const verifiedMetadata = Number(item?.sampling_contract_version) === 6
+        && item?.generation_reusable === false;
+    const lines = [verifiedMetadata
+        ? "Saved Sampling v6 Take is read-only: its generation conditions were not fully verified."
+        : "Saved Take reuse could not be verified: compatibility metadata is incomplete or unsupported."];
+    const reasons = Array.isArray(item?.resume_disabled_reasons)
+        ? [...new Set(item.resume_disabled_reasons.slice(0, 8).filter(
+            (reason) => typeof reason === "string" && TAKE_REUSE_REASON_HELP.has(reason),
+        ))]
+        : [];
+    lines.push(...reasons);
+    const help = [...new Set(reasons.map((reason) => TAKE_REUSE_REASON_HELP.get(reason)).filter(Boolean))];
+    if (help.length) {
+        lines.push(...help, "After correcting the configuration, start a new Run from Chunk 1. Existing Takes are kept.");
+    } else {
+        lines.push("Check Detailed Report and the installed/backend version before starting a new Run. Existing Takes are kept.");
+    }
+    return lines.join("\n");
 }
 
 function takeCatalog(node) {
@@ -1833,7 +1878,7 @@ function takeAncestry(project, selected, catalog) {
 
 function continueFromTakeSummary(project, selected, catalog) {
     if (takeReadOnly(selected)) {
-        return "Read-only history: start a new Full Video or Review from Chunk 1; saved Takes remain available.";
+        return "Continue From Here: unavailable\n" + takeReadOnlyExplanation(selected);
     }
     const chain = takeAncestry(project, selected, catalog);
     if (!chain.length) {
@@ -1892,9 +1937,6 @@ function takeStatus(node) {
         `Compatible history: ${catalog.filter(item => !takeReadOnly(item)).length} Takes`,
         continueFromTakeSummary(project, selected, catalog),
     ];
-    if (takeReadOnly(selected)) {
-        lines.push(`Sampling v${selected.sampling_contract_version ?? "unknown"}: read-only; cannot reuse in v6 generation.`);
-    }
     if (hiddenCount) {
         lines.push(
             `${hiddenCount} incompatible or incomplete Take${hiddenCount === 1 ? "" : "s"} hidden`,

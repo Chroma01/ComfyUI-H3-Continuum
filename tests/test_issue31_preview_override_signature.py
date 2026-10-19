@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import os
 import sys
 import types
@@ -20,12 +21,12 @@ from .test_issue31_attention_signature import core_attention
 from .test_issue31_spectrum_signature import spectrum, binding
 
 
-@pytest.fixture
-def kj(require_comfy_core):
-    root = os.environ.get("H3_KJ_PREVIEW_TEST_ROOT")
+@pytest.fixture(params=["local", "public"])
+def kj(require_comfy_core, request):
+    root = os.environ.get("H3_KJ_PREVIEW_TEST_ROOT" if request.param == "local" else "H3_KJ_PREVIEW_PUBLIC_TEST_ROOT")
     if not root:
         pytest.skip("real audited KJ Preview Override provider is not configured")
-    package = types.ModuleType("issue31_kj_preview_tests")
+    package = types.ModuleType("issue31_kj_preview_tests_" + request.param)
     package.__path__ = [str(Path(root) / "nodes")]
     sys.modules[package.__name__] = package
     return importlib.import_module(package.__name__ + ".preview_override_node")
@@ -100,7 +101,8 @@ def test_full_audit_profile_is_part_of_identity(kj, monkeypatch):
     assert safe
     # An audit revision must change identity even with the same display ID and
     # wrapper source, so dependency-profile upgrades cannot reuse old Takes.
-    monkeypatch.setitem(adapter._PROFILE, "audit_revision", 2)
+    profile, _ = adapter._provider_source(kj.__file__)
+    monkeypatch.setitem(profile, "audit_revision", 2)
     after, safe = adapter.preview_override_signature(item)
     assert safe and before["profile"] == after["profile"]
     assert before["profile_sha256"] != after["profile_sha256"]
@@ -131,7 +133,8 @@ def test_key_and_list_execution_order_change_identity(kj):
 def test_unknown_implementations_and_out_of_scope_state_reject_reuse(kj, monkeypatch, change):
     item = wrapper(kj)
     if change == "source":
-        monkeypatch.setitem(adapter._PROFILE, "source_sha256", "f" * 64)
+        profile, _ = adapter._provider_source(kj.__file__)
+        monkeypatch.setitem(profile, "source_sha256", "f" * 64)
     elif change in ("call_code", "helper_code"):
         fn = type(item).__call__ if change == "call_code" else kj._normalize_packed_x0
         monkeypatch.setattr(fn, "__code__", fn.__code__.replace(co_consts=fn.__code__.co_consts + ("changed",)))
@@ -285,3 +288,41 @@ def test_old_unsafe_preview_history_is_never_promoted(kj, tmp_path, monkeypatch,
         with pytest.raises(storage.RunStorageError, match="read-only"):
             reader._validated_take_selection(old, resume_safe=True)
     assert before == {str(p): p.read_bytes() for p in source.run_root.rglob("*") if p.is_file()}
+
+
+def test_other_profile_registration_does_not_change_identity(kj, monkeypatch):
+    item = wrapper(kj)
+    before, safe = adapter.preview_override_signature(item)
+    assert safe
+    active, _ = adapter._provider_source(kj.__file__)
+    monkeypatch.setattr(adapter, "_PROFILES", (active,))
+    assert adapter.preview_override_signature(item) == (before, True)
+    monkeypatch.setattr(adapter, "_PROFILES", (active, dict(active, source_sha256="e" * 64)))
+    assert adapter.preview_override_signature(item) == (before, True)
+    monkeypatch.setattr(adapter, "_PROFILES", (active, active))
+    assert not adapter.preview_override_signature(item)[1]
+
+
+@pytest.mark.parametrize("contents", [None, "invalid json", "null", "[]", "{}"])
+def test_missing_or_malformed_optional_profile_does_not_break_existing_paths(tmp_path, contents):
+    path = tmp_path / "public.json"
+    if contents is not None:
+        path.write_text(contents, encoding="utf-8")
+    assert adapter._load_public_profile(path) is None
+    model = signatures._Model()
+    assert observe(model)[1]
+
+
+@pytest.mark.parametrize("field", ["id", "source_sha256"])
+def test_optional_profile_collision_cannot_disable_original_profile(kj, tmp_path, monkeypatch, field):
+    candidate = dict(adapter._PUBLIC_PROFILE)
+    candidate[field] = adapter._PROFILE[field]
+    path = tmp_path / "public.json"
+    path.write_text(json.dumps(candidate), encoding="utf-8")
+    loaded = adapter._load_public_profile(path)
+    assert loaded is None
+    monkeypatch.setattr(adapter, "_PROFILES", (adapter._PROFILE,))
+    item = wrapper(kj)
+    expected = "_local." in kj.__name__
+    assert adapter.preview_override_signature(item)[1] is expected
+    assert observe(signatures._Model())[1]

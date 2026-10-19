@@ -1,5 +1,24 @@
 # Public source status
 
+## 3.9.9 — KJ Preview Override / Review continuation
+
+Fix new-Run v6 read-only with the separately audited upstream KJ profile, and
+show saved reasons when reuse is unavailable. Keep the original local profile,
+Sampling v6 guards, old Takes and official workflow bytes.
+
+CPU: **2,075 passed / 2 skipped / 2 known expected failures**, plus overlapping
+90-case JS coverage. Upstream KJ GPU and normal-ComfyUI browser Continue both
+passed: **Chunk 1 preserved, Chunk 2 generated, one reused / one new**; all four
+AV outputs fully decoded. Browser checks used the existing local KJ profile.
+These are targeted repair checks, not general quality or all-provider acceptance.
+
+Restart ComfyUI and hard-refresh after updating. On Preview Override, disconnect
+optional VAE/Audio VAE and set Tiny VAE `none`; retain generation VAEs. Correct
+unsupported settings before starting a new Run. Old unsafe/v5 Takes remain
+readable and are not automatically made reusable. No workflow rewiring or Take
+deletion is required. [Full release notes](docs/RELEASE_NOTES_V399.md).
+
+
 ## V3.9 Turbo Sample on main
 
 Add the user-supplied sample separately: Auto, 2 x 8s, multiline image-anchored

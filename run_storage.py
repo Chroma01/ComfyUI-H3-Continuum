@@ -39,7 +39,9 @@ from .branch_provenance import (
 )
 from .constants import CONTINUUM_ACTUAL_PREFIX_STEPS, continuity_storage_mode
 from .spectrum_signature import spectrum_binding_signature
-from .preview_override_signature import observe_model_wrappers
+from .preview_override_signature import (
+    PREVIEW_REUSE_REASONS, observe_model_wrappers, preview_override_reuse_reasons,
+)
 from .v2.session import make_session, validate_chunk_entry
 from .v3.review_control import (
     GENERATION_MODE_REVIEW,
@@ -1029,6 +1031,31 @@ def _reusable_manifest(manifest: dict[str, Any]) -> bool:
     )
 
 
+_UNKNOWN_REUSE_REASON = "Saved generation conditions could not be fully verified; see Detailed Report"
+_PUBLIC_REUSE_REASONS = PREVIEW_REUSE_REASONS | frozenset((
+    "MODEL wrapper/patch contract is not completely observable",
+    "SAMPLER function/options are not completely observable",
+    "CLIP/Qwen encoder contract is not completely observable",
+    "Video VAE contract is not completely observable",
+    "Reference Audio VAE contract is not completely observable",
+    "Driving Audio VAE contract is not completely observable",
+    _UNKNOWN_REUSE_REASON,
+))
+
+
+def _project_resume_diagnostics(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Expose bounded saved reasons without changing contracts or old manifests."""
+    source = manifest.get("resume_disabled_reasons")
+    if _reusable_manifest(manifest) or type(source) is not list:
+        return {}
+    reasons = []
+    for value in source[:8]:
+        reason = value if type(value) is str and value in _PUBLIC_REUSE_REASONS else _UNKNOWN_REUSE_REASON
+        if reason not in reasons:
+            reasons.append(reason[:256])
+    return {"resume_disabled_reasons": reasons} if reasons else {}
+
+
 def _module_parameter_dtype(module: Any, name: str, parameter: torch.Tensor) -> torch.dtype:
     """Observe ordinary weights at Core's declared load dtype without casting them."""
     # Quantized/custom Tensor representations retain their original fingerprint.
@@ -1353,6 +1380,7 @@ def build_sampling_contract(
         raise RunStorageError("routed Reference plan cannot use legacy Reference contract")
     last_frame_hash = _canonical_optional_hash(last_frame_hash)
     model_value, model_safe = _signature_observation(_model_signature, model, model_fingerprint_value)
+    preview_reasons = preview_override_reuse_reasons(model_value.get("wrappers"))
     clip_value, clip_safe = _clip_signature(clip)
     has_first = str(first_frame_hash).lower() not in {"", "none", "null"}
     has_last = str(last_frame_hash).lower() not in {"", "none", "null"}
@@ -1523,6 +1551,7 @@ def build_sampling_contract(
     reasons = list(upstream_graph_reasons or []) if graph_authoritative else []
     if not model_safe:
         reasons.append("MODEL wrapper/patch contract is not completely observable")
+        reasons.extend(preview_reasons)
     if not sampler_safe:
         reasons.append("SAMPLER function/options are not completely observable")
     if not clip_safe:
@@ -2059,6 +2088,7 @@ class RunStorageController:
                 branch_regenerate_from=value.get("branch_regenerate_from"),
                 active_chain=chains.get(revision_id, []),
             )
+            revision.update(_project_resume_diagnostics(value))
             revisions.append(revision)
         canonical_storage_revision_id, canonical_chain = self._canonical_project_selection(
             catalog=catalog,
@@ -2084,7 +2114,8 @@ class RunStorageController:
                 "group_revisions": sorted(
                     [dict(item,
                           sampling_contract_version=(manifests.get(str(item.get("storage_revision_id"))) or {}).get("sampling_contract_version"),
-                          generation_reusable=_reusable_manifest(manifests.get(str(item.get("storage_revision_id"))) or {}))
+                          generation_reusable=_reusable_manifest(manifests.get(str(item.get("storage_revision_id"))) or {}),
+                          **_project_resume_diagnostics(manifests.get(str(item.get("storage_revision_id"))) or {}))
                      for item in catalog.values()],
                     key=lambda item: (
                         int(item["group"]["physical_group"]),

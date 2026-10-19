@@ -1,3 +1,9 @@
+ComfyUI-H3-Continuum 3.9.9 — public KJ / Review continuation
+CPU 2075 passed / 2 skipped / 2 known xfailed; upstream KJ GPU and installed local-KJ browser Continue PASS.
+既存Take・Workflowは維持。更新後は再起動・ブラウザー再読込。旧unsafe/v5は自動変換しません。
+対応条件と検証範囲: docs/RELEASE_NOTES_V399.md / docs/KJ_PREVIEW_OVERRIDE_V398.md
+
+--- Historical package record (unchanged) ---
 3.9.8: 監査済みKJ Model Preview Overrideの画像保持後のChunk継続を修正。対応条件・検証範囲：docs/KJ_PREVIEW_OVERRIDE_V398.md
 
 ComfyUI-H3-Continuum 3.9.8 — V3.9 / V3.8X2 インストール

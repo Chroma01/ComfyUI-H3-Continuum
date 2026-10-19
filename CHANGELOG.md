@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.9.9 — upstream KJ Preview Override / Review continuation (2026-10-20)
+
+Fix new-Run v6 read-only with the separately audited upstream KJ profile, and
+show saved reasons when reuse is unavailable. Keep the original local profile,
+Sampling v6 guards, old Takes and official workflow bytes.
+
+CPU: **2,075 passed / 2 skipped / 2 known expected failures**, plus overlapping
+90-case JS coverage. Upstream KJ GPU and normal-ComfyUI browser Continue both
+passed: **Chunk 1 preserved, Chunk 2 generated, one reused / one new**; all four
+AV outputs fully decoded. Browser checks used the existing local KJ profile.
+These are targeted repair checks, not general quality or all-provider acceptance.
+
+Restart ComfyUI and hard-refresh after updating. On Preview Override, disconnect
+optional VAE/Audio VAE and set Tiny VAE `none`; retain generation VAEs. Correct
+unsupported settings before starting a new Run. Old unsafe/v5 Takes remain
+readable and are not automatically made reusable. No workflow rewiring or Take
+deletion is required. [Full release notes](docs/RELEASE_NOTES_V399.md).
+
 ## Unreleased — V3.9 Turbo Sample (2026-10-16)
 
 - Add a separate user-supplied Auto / 2 x 8s Turbo dance and Thai rap sample, gallery copy, ZIP and setup notes. Preserve standard workflows, saved Takes and product code. This source-only sample has no new GPU acceptance and does not replace v3.9.8 release assets.

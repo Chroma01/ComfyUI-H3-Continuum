@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-comfy-registry-v3.9.8
+  group: publish-comfy-registry-v3.9.9
   cancel-in-progress: false
 
 jobs:
@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Check out v3.9.8 release
+      - name: Check out v3.9.9 release
         uses: actions/checkout@v4
         with:
-          ref: v3.9.8
+          ref: v3.9.9
           persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -27,14 +27,14 @@ jobs:
       - name: Verify release identity and source hashes
         shell: bash
         run: |
-          test "$(git describe --tags --exact-match HEAD)" = "v3.9.8"
+          test "$(git describe --tags --exact-match HEAD)" = "v3.9.9"
           python - <<'PY'
           import hashlib
           import pathlib
           import tomllib
           root = pathlib.Path(".")
           metadata = tomllib.loads((root / "pyproject.toml").read_text())
-          assert metadata["project"]["version"] == "3.9.8"
+          assert metadata["project"]["version"] == "3.9.9"
           assert metadata["tool"]["comfy"]["PublisherId"] == "ukr8b3g-cmyk"
           for name in ("REGISTRY_MANIFEST.sha256", "MANIFEST.sha256"):
               rows = (root / name).read_text().splitlines()

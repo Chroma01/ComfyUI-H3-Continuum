@@ -91,3 +91,6 @@ write-h3-v39-reference-prompts/
 # Japanese detailed references retained by the condensed README.
 !docs/USER_GUIDE_JA.md
 !docs/README_HISTORY_JA.md
+
+# Current 3.9.9 update and verification notes.
+!docs/RELEASE_NOTES_V399.md

@@ -698,6 +698,74 @@ await test('archived v5 lineage remains browsable after a v6 canonical run',asyn
  assert.equal(e.f.takeCatalog(n).length,3);
 });
 
+await test('v6 read-only reports saved preview source and keeps actions disabled',async e=>{
+ const p=project(1),reason='KJ/Core preview implementation is outside the audited source profiles';
+ for(const item of [...p.group_revisions,...p.revisions]){
+  item.generation_reusable=false;item.resume_disabled_reasons=[reason];
+ }
+ const n=e.makeNode();e.w(n,'generation_mode').value='Review Each Chunk';await e.load(n,p);
+ assert.match(e.f.reviewStatus(n),/Sampling v6 Take is read-only/);
+ assert.match(e.f.reviewStatus(n),/Bypass KJ Model Preview Override/);
+ assert(!e.visible(n,'Use it and continue'));
+ const before=[e.w(n,'take_action').value,e.w(n,'take_revision_id').value,e.w(n,'run_name').value];
+ e.f.selectTakeAction(n,'Use This Take');e.f.selectTakeAction(n,'Continue From Here');
+ assert.deepEqual([e.w(n,'take_action').value,e.w(n,'take_revision_id').value,e.w(n,'run_name').value],before);
+});
+await test('preview setting remedies preserve generation VAE guidance',async e=>{
+ const cases=[
+  ['KJ preview VAE/Audio VAE or Tiny VAE is outside the supported configuration',/Keep the generation VAEs connected/],
+  ['Core approximate-VAE preview is outside the supported configuration',/Auto or Latent2RGB/],
+ ];
+ for(const [index,[reason,expected]] of cases.entries()){
+  const p=project(1);for(const item of [...p.group_revisions,...p.revisions]){
+   item.generation_reusable=false;item.resume_disabled_reasons=[reason];
+  }
+  const n=e.makeNode(312+index);e.w(n,'generation_mode').value='Review Each Chunk';await e.load(n,p);
+  assert.match(e.f.reviewStatus(n),expected);
+  assert.match(e.f.reviewStatus(n),/After correcting the configuration/);
+  assert(!e.visible(n,'Use it and continue'));
+ }
+});
+await test('missing compatibility metadata is not mislabeled v5 or a known KJ error',async e=>{
+ for(const field of ['sampling_contract_version','generation_reusable']){
+  const p=project(1);for(const item of [...p.group_revisions,...p.revisions])delete item[field];
+  const n=e.makeNode(field==='sampling_contract_version'?312:313);e.w(n,'generation_mode').value='Review Each Chunk';await e.load(n,p);
+  assert.match(e.f.reviewStatus(n),/metadata is incomplete or unsupported/);
+  assert.doesNotMatch(e.f.reviewStatus(n),/Sampling v5|Bypass KJ/);
+  assert(!e.visible(n,'Use it and continue'));
+ }
+});
+await test('unknown saved reasons do not expose paths or unbounded text',async e=>{
+ const p=project(1);for(const item of [...p.group_revisions,...p.revisions]){
+  item.generation_reusable=false;item.resume_disabled_reasons=Array(20).fill('C:/Users/private/file.py'+'x'.repeat(10000));
+ }
+ const n=e.makeNode();e.w(n,'generation_mode').value='Review Each Chunk';await e.load(n,p);
+ const text=e.f.reviewStatus(n);assert.match(text,/Detailed Report/);
+ assert.doesNotMatch(text,/private|file.py/);assert(text.length<1500);
+});
+await test('history reasons follow the selected Take rather than the canonical revision',async e=>{
+ const p=project(2),vae='KJ preview VAE/Audio VAE or Tiny VAE is outside the supported configuration';
+ const core='Core approximate-VAE preview is outside the supported configuration';
+ for(const item of [...p.group_revisions,...p.revisions])item.generation_reusable=false;
+ p.group_revisions[0].resume_disabled_reasons=[vae];p.group_revisions[1].resume_disabled_reasons=[core];
+ p.revisions[0].resume_disabled_reasons=[core];
+ const n=e.makeNode();e.w(n,'generation_mode').value='Review Each Chunk';await e.load(n,p);e.f.selectTakeOffset(n,-1);
+ const text=e.w(n,'Render History / Takes').value;
+ assert.match(text,/Keep the generation VAEs connected/);assert.doesNotMatch(text,/Auto or Latent2RGB/);
+});
+await test('saved compatibility metadata controls Review with optional real backend vectors',async e=>{
+ const configured=process.env.H3_READONLY_PROJECT_VECTORS;
+ const p=project(1);p.revisions[0].resume_disabled_reasons=['KJ preview runtime code or state could not be verified'];
+ const vectors=configured?JSON.parse(fs.readFileSync(configured,'utf8')):[{project:p,reusable:true}];
+ assert(vectors.length>0);
+ for(const [index,vector] of vectors.entries()){
+  const n=e.makeNode(800+index,vector.project.run_name);e.w(n,'generation_mode').value='Review Each Chunk';await e.load(n,vector.project);
+  assert.equal(e.visible(n,'Use it and continue'),vector.reusable,e.f.reviewStatus(n));
+  if(vector.reason)assert(e.f.reviewStatus(n).includes(vector.reason));
+  if(vector.reusable)assert.doesNotMatch(e.f.reviewStatus(n),/read-only|could not be verified/);
+ }
+});
+
 // Persisted explicit requests must survive Core's graph-restoration lifecycle.
 for(const nodeClass of ['H3ContinuumSamplerV38','H3ContinuumSamplerV39']) {
  for(const mode of ['Full Run','Review Each Chunk']) {

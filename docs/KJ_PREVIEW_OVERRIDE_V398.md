@@ -2,9 +2,58 @@
 
 The audited Preview Override wrapper can keep its transient image list without changing the MODEL sampling identity. The adapter retains fixed settings, source and loaded implementation checks, the complete audit-profile digest, and Core's cross-key/list wrapper execution order. It does not add a generic exception for any field named `frames`.
 
+## 3.9.9 public-provider repair
+
+The source checkout additionally accepts the pinned upstream implementation from
+[KJNodes commit 17195fc](https://github.com/kijai/ComfyUI-KJNodes/blob/17195fcfa8a05f601b766a0f09c9733284f47416/nodes/preview_override_node.py).
+Its LF-normalized Preview Override SHA-256 is
+`1916295463eb790d3e8ea2b0dae2b25344549479b92e90a1d238acddb2dde3ab`,
+profile `kj-preview-upstream-17195fc-phase-a` in
+`preview_override_provider_public_v1.json` (canonical profile SHA-256
+`da128a4324d8e0a63d893501f8d65652d25da60690afaf1447d80f2a2b67617f`). Its sibling and Core hashes are the
+same as the original table below. The wrapper implementation is unchanged; the
+node factory additionally resolves display IDs through Core's DynamicPrompt.
+Both source and loaded-code audits remain required. This does not cover arbitrary
+KJNodes versions, future Core changes or preview-VAE configurations.
+
+The original profile JSON and successful descriptors are preserved. Profile
+registration alone cannot invalidate another profile's Takes. KJ-free contracts
+are unchanged. Missing or malformed optional public-profile data disables only
+that profile. Ordinary generation keeps its existing fallback.
+
+Review and Render History distinguish v5 history from v6 Takes whose generation
+conditions could not be verified. Bounded saved reasons identify unsupported
+preview settings or implementations; missing metadata points to Detailed Report.
+Reasons come from the selected Take's storage revision and do not affect its
+sampling identity or enable disabled actions.
+
+For an unsupported KJ/Core implementation, bypass **Model Preview Override** in a
+workflow copy and test a new Run. For unsupported preview VAE settings, disconnect
+only that preview node's optional VAE/Audio VAE and use Tiny VAE `none`; keep the
+generation VAEs connected. For Core approximate-VAE preview, use Auto or
+Latent2RGB. Correct the configuration before starting a new Run: repeatedly
+restarting Chunk 1 with the same unsupported setup will not repair it.
+Old unsafe/v5 Takes remain readable and are never promoted or rewritten.
+
+Full real-Core CPU regression: **2,075 passed, 2 skipped, 2 known Inspector
+expected failures, zero unexpected failures**. The 90-case production-JS fixture
+also passed with eight real Run Storage project vectors. These checks overlap
+the pytest total and must not be added together. Unmodified 3.9.8 fixtures confirm
+exact legacy/KJ-free identities and byte-identical saved Takes; all 21 existing
+workflow JSON/ZIP files are unchanged. Offline registration retains twelve nodes
+and passes native PackedLayout / Fixed 3x5s checks. Recorded CPU drivers attempted
+zero CUDA initializations. The skips cover a local-only Spectrum descriptor
+fixture on upstream Spectrum and an unavailable historical V3.5 workflow.
+
+The additional public profile passed two targeted H3 GPU Queues with cached
+preview images and unchanged Chunk 1. Normal-ComfyUI browser Continue passed
+separately with the retained original local profile. See
+[3.9.9 validation and limits](RELEASE_NOTES_V399.md). The historical v3.9.8 tag
+and assets retain their original local-only profile.
+
 ## Exact supported profile
 
-KJNodes reports 1.5.2, but only the following explicitly audited source combination is accepted. The Preview Override file differs from the upstream 1.5.2 file; this release does not claim all stock/upstream 1.5.2 builds are supported. Files are LF-normalized before source hashing. An unsupported provider remains non-reusable rather than blocking ordinary generation.
+The published v3.9.8 package accepts only the following explicitly audited source combination. KJNodes reports 1.5.2, but that version alone does not identify the supported implementation: this Preview Override file differs from upstream. The 3.9.9 extension is described above. Files are LF-normalized before source hashing. An unsupported provider remains non-reusable rather than blocking ordinary generation.
 
 | Source | SHA-256 |
 | --- | --- |

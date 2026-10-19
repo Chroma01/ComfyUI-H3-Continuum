@@ -1,6 +1,6 @@
 """Bounded KJ Preview Override identity; no provider imports or preview execution.
 
-Only the source profile shipped with this adapter can omit ``frames``. Other
+Only the source profiles shipped with this adapter can omit ``frames``. Other
 wrappers keep the ordinary observer, including its existing safety decisions.
 """
 from __future__ import annotations
@@ -15,8 +15,34 @@ from functools import lru_cache
 from pathlib import Path
 
 _PROFILE = json.loads(Path(__file__).with_name("preview_override_provider_v1.json").read_text(encoding="utf-8"))
+
+
+def _load_public_profile(path):
+    # A partial update must not break the old profile or ordinary generation.
+    try:
+        profile = json.loads(Path(path).read_text(encoding="utf-8"))
+        if (type(profile) is not dict or profile.keys() != _PROFILE.keys()
+                or type(profile["id"]) is not str or type(profile["source_sha256"]) is not str
+                or profile["id"] == _PROFILE["id"]
+                or profile["source_sha256"] == _PROFILE["source_sha256"]):
+            return None
+        return profile
+    except (OSError, ValueError):
+        return None
+
+
+_PUBLIC_PROFILE = _load_public_profile(Path(__file__).with_name("preview_override_provider_public_v1.json"))
+_PROFILES = (_PROFILE,) + ((_PUBLIC_PROFILE,) if _PUBLIC_PROFILE is not None else ())
 _FIELDS = frozenset(("max_resolution", "node_id", "jpeg_quality", "suppress_default",
                      "preview_frames", "preview_fps", "vae", "tiny_vae", "audio_vae", "frames"))
+
+_PREVIEW_REASONS = {
+    "provider source is outside the audited profile": "KJ/Core preview implementation is outside the audited source profiles",
+    "VAE preview is outside Phase A": "KJ preview VAE/Audio VAE or Tiny VAE is outside the supported configuration",
+    "Core approximate VAE is outside Phase A": "Core approximate-VAE preview is outside the supported configuration",
+}
+_UNKNOWN_PREVIEW_REASON = "KJ preview runtime code or state could not be verified"
+PREVIEW_REUSE_REASONS = frozenset((*_PREVIEW_REASONS.values(), _UNKNOWN_PREVIEW_REASON))
 
 
 def _normalized_code(code):
@@ -61,6 +87,15 @@ def _source(path, expected):
     if hashlib.sha256(data).hexdigest() != expected:
         raise ValueError("provider source is outside the audited profile")
     return data.decode("utf-8-sig")
+
+
+def _provider_source(path):
+    data = Path(path).read_bytes().replace(b"\r\n", b"\n")
+    digest = hashlib.sha256(data).hexdigest()
+    matches = [profile for profile in _PROFILES if profile.get("source_sha256") == digest]
+    if len(matches) != 1:
+        raise ValueError("provider source is outside the audited profile")
+    return matches[0], data.decode("utf-8-sig")
 
 
 def _check_function(fn, node, code, namespace):
@@ -134,7 +169,7 @@ def _audit_provider(value):
             or cls.__name__ != "_PreviewOverrideWrapper"):
         raise ValueError("unrecognized Preview Override provider")
     namespace = vars(module)
-    source = _source(namespace.get("__file__"), _PROFILE["source_sha256"])
+    profile, source = _provider_source(namespace.get("__file__"))
     codes, functions, classes = _compiled(source)
     for name, node in functions.items():
         _check_function(namespace.get(name), node, codes[name], namespace)
@@ -150,14 +185,14 @@ def _audit_provider(value):
     # Imported KJ bindings are canonical objects from the audited sibling files.
     # No importlib/exec is used here; absent or substituted modules fail closed.
     package = module.__name__.rsplit(".", 1)[0]
-    for relative, bindings in _PROFILE["siblings"].items():
+    for relative, bindings in profile["siblings"].items():
         sibling = sys.modules.get(package + "." + relative)
         if sibling is None:
             # ltxv_nodes is an explicitly optional import in the audited source.
             if relative == "ltxv_nodes" and all(namespace.get(alias) is None for alias in bindings):
                 continue
             raise ValueError("provider dependency not loaded")
-        dependency_source = _source(vars(sibling).get("__file__"), _PROFILE["sibling_sha256"][relative])
+        dependency_source = _source(vars(sibling).get("__file__"), profile["sibling_sha256"][relative])
         _check_selected(sibling, dependency_source, bindings.values())
         for alias, original in bindings.items():
             if namespace.get(alias) is not vars(sibling).get(original):
@@ -168,12 +203,12 @@ def _audit_provider(value):
     core = sys.modules.get("latent_preview")
     if namespace.get("latent_preview") is not core or core is None:
         raise ValueError("unknown Core preview module")
-    core_source = _source(vars(core).get("__file__"), _PROFILE["core_preview_sha256"])
+    core_source = _source(vars(core).get("__file__"), profile["core_preview_sha256"])
     _check_selected(core, core_source, ("get_previewer", "preview_to_image", "LatentPreviewer", "Latent2RGBPreviewer"))
     patcher = sys.modules.get("comfy.patcher_extension")
     if patcher is None:
         raise ValueError("Core wrapper dispatcher not loaded")
-    dispatch_source = _source(vars(patcher).get("__file__"), _PROFILE["core_dispatch_sha256"])
+    dispatch_source = _source(vars(patcher).get("__file__"), profile["core_dispatch_sha256"])
     _check_selected(patcher, dispatch_source, ("get_all_wrappers",))
     method = getattr(vars(core).get("args"), "preview_method", None)
     if (type(method) is not vars(core).get("LatentPreviewMethod")
@@ -182,13 +217,13 @@ def _audit_provider(value):
     size = vars(core).get("MAX_PREVIEW_RESOLUTION")
     if type(size) is not int or size <= 0:
         raise ValueError("unknown Core preview setting")
-    return {"method": method.name, "max_resolution": size}
+    return profile, {"method": method.name, "max_resolution": size}
 
 
 def preview_override_signature(value):
     """Return a finite descriptor, never relaxing an unknown provider's guard."""
     try:
-        core_preview = _audit_provider(value)
+        profile, core_preview = _audit_provider(value)
         state = vars(value)
         if set(state) != _FIELDS or type(state["frames"]) is not list:
             raise ValueError("unknown wrapper state")
@@ -203,12 +238,30 @@ def preview_override_signature(value):
                 or (state["node_id"] is not None and type(state["node_id"]) is not str)):
             raise ValueError("invalid fixed preview setting")
         settings = {key: state[key] for key in sorted(_FIELDS - {"frames", "vae", "audio_vae"})}
-        return {"adapter": "kj_preview_override_v1", "profile": _PROFILE["id"],
-                "profile_sha256": hashlib.sha256(json.dumps(_PROFILE, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
-                "source_sha256": _PROFILE["source_sha256"], "settings": settings,
+        return {"adapter": "kj_preview_override_v1", "profile": profile["id"],
+                "profile_sha256": hashlib.sha256(json.dumps(profile, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+                "source_sha256": profile["source_sha256"], "settings": settings,
                 "core_preview": core_preview}, True
     except Exception as exc:
         return {"adapter": "kj_preview_override_v1", "unsupported": str(exc)}, False
+
+
+def preview_override_reuse_reasons(observed):
+    """Classify the already observed KJ slot; never inspect MODEL a second time."""
+    wrappers = observed.get("wrappers") if type(observed) is dict else None
+    outer = wrappers.get("outer_sample") if type(wrappers) is dict else None
+    items = outer.get("kj_preview_override") if type(outer) is dict else None
+    if type(items) is not list:
+        return []
+    reasons = []
+    for item in items[:4096]:
+        if (type(item) is dict and item.get("adapter") == "kj_preview_override_v1"
+                and "unsupported" in item):
+            failure = item["unsupported"]
+            reason = _PREVIEW_REASONS.get(failure, _UNKNOWN_PREVIEW_REASON) if type(failure) is str else _UNKNOWN_PREVIEW_REASON
+            if reason not in reasons:
+                reasons.append(reason)
+    return reasons
 
 
 def observe_model_wrappers(wrappers, observe):

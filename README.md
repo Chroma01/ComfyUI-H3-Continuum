@@ -1,13 +1,31 @@
-# ComfyUI-H3-Continuum 3.9.8 — V3.9
+# ComfyUI-H3-Continuum 3.9.9 — V3.9
 
 Generate long-form MiniMax H3 video and audio in chunks, review each result,
 retry a section, and continue from compatible saved Takes.
 **V3.9 is the current workflow; V3.8X2 remains available separately.**
 
-[Download v3.9.8](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/ComfyUI-H3-Continuum-v3.9.8.zip) ·
-[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.8) ·
-[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/SHA256SUMS.txt) ·
+[Download v3.9.9](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.9/ComfyUI-H3-Continuum-v3.9.9.zip) ·
+[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.9) ·
+[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.9/SHA256SUMS.txt) ·
 [日本語](README_JA.md)
+
+## 3.9.9 — KJ Preview Override / Review continuation
+
+Fix new-Run v6 read-only with the separately audited upstream KJ profile, and
+show saved reasons when reuse is unavailable. Keep the original local profile,
+Sampling v6 guards, old Takes and official workflow bytes.
+
+CPU: **2,075 passed / 2 skipped / 2 known expected failures**, plus overlapping
+90-case JS coverage. Upstream KJ GPU and normal-ComfyUI browser Continue both
+passed: **Chunk 1 preserved, Chunk 2 generated, one reused / one new**; all four
+AV outputs fully decoded. Browser checks used the existing local KJ profile.
+These are targeted repair checks, not general quality or all-provider acceptance.
+
+Restart ComfyUI and hard-refresh after updating. On Preview Override, disconnect
+optional VAE/Audio VAE and set Tiny VAE `none`; retain generation VAEs. Correct
+unsupported settings before starting a new Run. Old unsafe/v5 Takes remain
+readable and are not automatically made reusable. No workflow rewiring or Take
+deletion is required. [Full release notes](docs/RELEASE_NOTES_V399.md).
 
 ## Getting started video
 
@@ -52,7 +70,7 @@ git pull --ff-only origin main
 If Manager owns your installation, update that copy through Manager.
 Restart ComfyUI and refresh the browser after updating.
 Registry review, Manager's selected version and GitHub Releases are separate;
-the fixed-version links above identify the exact v3.9.8 package.
+the fixed-version links above identify the exact v3.9.9 package.
 
 The package declares Python **3.10+** and ComfyUI **0.32.0+**.
 The minimum declaration is not a GPU acceptance result for every Core version.
@@ -215,7 +233,7 @@ V3.8 Second Pass does not support partial Review sequences; V3.9 can inherit
 validated conditioning for its actual output groups.
 [Integration contract](docs/V38_OPEN_INTEGRATION_CONTRACT.md).
 
-## Compatibility and v3.9.8 scope
+## Compatibility and v3.9.9 scope
 
 | Area | Supported boundary |
 | --- | --- |
@@ -224,7 +242,7 @@ validated conditioning for its actual output groups.
 | Attention / Spectrum | Finite audited profiles support Core PyTorch/Kitchen and specified Spectrum implementations, including upstream v0.2.29. [Exact scope](docs/ISSUE31_SAMPLING_SIGNATURES.md). |
 | KJ Model Preview Override | Only the pinned KJ/Core source profile: **VAE / Audio VAE disconnected, Tiny VAE `none`**, Core NoPreviews/Auto/Latent2RGB. KJNodes 1.5.2 alone is insufficient; the audited local source differs from upstream. [Supported hashes](docs/KJ_PREVIEW_OVERRIDE_V398.md). |
 
-Published **v3.9.8** passed new-Run, separate-Queue Chunk 1→2 GPU continuation
+Published **v3.9.9** passed new-Run, separate-Queue Chunk 1→2 GPU continuation
 with **PyTorch + KJ** and **Comfy Kitchen INT8 + audited local Spectrum + KJ**.
 Preview images remained held, original Chunk 1 data/contracts stayed unchanged,
 and all four video/audio outputs decoded successfully.
@@ -245,7 +263,7 @@ They do not establish support for other KJ/Spectrum builds or preview-VAE paths.
   are not guaranteed. Some long continuations have known quality limits.
 - **Acceptance:** browser Run-button/save-reload, the reporter's exact full graph,
   other provider builds, subjective quality and speed/VRAM benchmarks were not
-  established by the targeted v3.9.8 GPU recheck.
+  established by the targeted v3.9.9 GPU recheck.
 
 ## Detailed documentation
 
@@ -255,11 +273,11 @@ They do not establish support for other KJ/Spectrum builds or preview-VAE paths.
 | Current Reference Images | [V3.9 Reference guide](docs/V39_REFERENCE_INLINE.md) |
 | Updating from V3.8X2 | [Migration and retained contracts](docs/V38_RELEASE_AND_MIGRATION.md) |
 | History, earlier screenshots and implementation notes | [README history](docs/README_HISTORY.md) / [CHANGELOG](CHANGELOG.md) |
-| Current release and GPU verification | [v3.9.8 notes](docs/RELEASE_NOTES_V398.md) / [package validation](PACKAGE_VALIDATION.txt) |
+| Current release and GPU verification | [v3.9.9 notes](docs/RELEASE_NOTES_V398.md) / [package validation](PACKAGE_VALIDATION.txt) |
 | Bug reports | [GitHub Issues](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues) — include the workflow, status text and `auto-resume disabled:` reason |
 
 Historical Releases and tags remain available. Documentation updates on `main`
-do not replace the published v3.9.8 tag or package assets.
+do not replace the published v3.9.9 tag or package assets.
 This condensed README changes documentation only; public nodes, official
 workflow JSON/ZIP files, Sampling v6 and existing Runs/Takes are unchanged.
 

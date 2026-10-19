@@ -1,13 +1,27 @@
-# ComfyUI-H3-Continuum 3.9.8 — V3.9
+# ComfyUI-H3-Continuum 3.9.9 — V3.9
 
 MiniMax H3の映像・音声をチャンクに分けて生成し、結果を確認しながら
 一部分の再生成や、互換性のある保存Takeからの継続ができます。
 **現在のWorkflowはV3.9です。V3.8X2も別のWorkflowとして保持しています。**
 
-[v3.9.8本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/ComfyUI-H3-Continuum-v3.9.8.zip) ·
-[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.8) ·
-[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/SHA256SUMS.txt) ·
+[v3.9.9本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.9/ComfyUI-H3-Continuum-v3.9.9.zip) ·
+[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.9) ·
+[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.9/SHA256SUMS.txt) ·
 [English](README.md)
+
+## 3.9.9の修正と検証
+
+確認済みの公開KJ Preview Overrideで、新規Runまでv6 read-onlyとなる対応漏れを修正。
+再利用不可のTakeには保存時の理由を表示します。安全判定・既存Take・Workflowは維持します。
+
+CPU **2,075成功／2スキップ／既知の期待失敗2件**。公開KJのGPU継続と、既設KJを維持した
+実ブラウザーのReviewボタン・Continue From Here→Runを確認し、**Chunk 1保持・Chunk 2生成
+（1再利用・1新規生成）**に成功。4本の映像・音声を全デコードしました。
+
+更新後は再起動とブラウザー強制再読込を行ってください。Preview Override側の任意VAE／Audio VAEは
+未接続、Tiny VAEはnoneにし、通常の生成用VAEは維持してください。旧unsafe／v5 Takeは保持されますが
+更新だけで再利用可能にはなりません。設定修正後は新Runで開始します。配線変更・Take削除は不要です。
+[検証条件と制約・Release notes](docs/RELEASE_NOTES_V399.md)。
 
 ## 基本操作を動画で見る
 
@@ -51,7 +65,7 @@ git pull --ff-only origin main
 Managerで導入した場合は、そのコピーをManagerから更新してください。
 更新後はComfyUIを再起動し、ブラウザーを再読込します。
 Registry審査・Managerが選択する版・GitHub Releaseの状態は別です。
-正確なv3.9.8を使う場合は、冒頭の固定版リンクを参照してください。
+正確なv3.9.9を使う場合は、冒頭の固定版リンクを参照してください。
 
 パッケージの宣言上の最低要件は**Python 3.10以降・ComfyUI 0.32.0以降**です。
 この最低要件の宣言だけで、すべてのCore版でのGPU動作確認を意味するものではありません。
@@ -201,7 +215,7 @@ Run／Takeや完成動画は移動しません。変更・削除は実行中／�
 V3.8ではReview途中のpartial sequenceに対応しません。V3.9は検証済みの実出力groupの条件を継承できます。
 [外部連携の仕様](docs/V38_OPEN_INTEGRATION_CONTRACT.md)。
 
-## 互換性・v3.9.8の対応範囲
+## 互換性・v3.9.9の対応範囲
 
 | 対象 | 対応条件 |
 | --- | --- |
@@ -210,7 +224,7 @@ V3.8ではReview途中のpartial sequenceに対応しません。V3.9は検証�
 | Attention／Spectrum | Core PyTorch／Kitchenと、公式v0.2.29を含む指定Spectrum実装の監査済みプロファイルに対応します。[厳密な範囲](docs/ISSUE31_SAMPLING_SIGNATURES.md)。 |
 | KJ Model Preview Override | 固定したKJ／Core実装のみ。**VAE／Audio VAE未接続・Tiny VAE `none`**、Core NoPreviews／Auto／Latent2RGB。監査済みローカルソースはupstreamと異なり、KJNodes 1.5.2全般の合格ではありません。[対応ハッシュ](docs/KJ_PREVIEW_OVERRIDE_V398.md)。 |
 
-公開版**v3.9.8**は、新Run・別QueueでのChunk 1→2継続を
+公開版**v3.9.9**は、新Run・別QueueでのChunk 1→2継続を
 **PyTorch＋KJ**と**Comfy Kitchen INT8＋監査済みローカルSpectrum＋KJ**で確認しています。
 プレビュー画像を保持し、元Chunk 1と契約を維持、映像・音声4本は全デコード成功でした。
 条件はRTX 5060 Ti 16 GB、512×512、24fps、2×5秒、8-step Turbo、Core API経由です。
@@ -237,10 +251,10 @@ V3.8ではReview途中のpartial sequenceに対応しません。V3.9は検証�
 | 現行Reference Images | [V3.9 Referenceガイド](docs/V39_REFERENCE_INLINE.md) |
 | V3.8X2からの更新 | [移行・保持する仕様](docs/V38_RELEASE_AND_MIGRATION.md) |
 | 更新履歴・旧版画像・実装説明 | [日本語の履歴資料](docs/README_HISTORY_JA.md) / [CHANGELOG](CHANGELOG.md) |
-| 最新版の検証記録 | [v3.9.8詳細](docs/RELEASE_NOTES_V398.md) / [配布検証](PACKAGE_VALIDATION.txt) |
+| 最新版の検証記録 | [v3.9.9詳細](docs/RELEASE_NOTES_V398.md) / [配布検証](PACKAGE_VALIDATION.txt) |
 | 不具合報告 | [GitHub Issues](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues) — Workflow、Status、`auto-resume disabled:`の理由を添えてください |
 
-過去のRelease・タグは保持しています。mainの文書更新で、公開済みv3.9.8のタグや配布物を置き換えることはありません。
+過去のRelease・タグは保持しています。mainの文書更新で、公開済みv3.9.9のタグや配布物を置き換えることはありません。
 この整理は文書のみであり、公開ノード・公式Workflow JSON／ZIP・Sampling v6・既存Run／Takeは変更しません。
 
 ## ライセンス
