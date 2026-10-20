@@ -47,7 +47,7 @@ Python combination. An independent Attention-observation failure in an older
 Core/Kitchen environment can still disable reuse even when Spectrum is recognized.
 The reporting user's exact environment has not been reproduced.
 
-See the [compatibility guide](ISSUE31_SAMPLING_SIGNATURES.md) for audit details.
+See the [compatibility guide](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/blob/v3.9.10/docs/ISSUE31_SAMPLING_SIGNATURES.md) for audit details.
 
 ## 日本語
 
