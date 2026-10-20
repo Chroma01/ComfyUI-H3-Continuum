@@ -1,3 +1,13 @@
+ComfyUI-H3-Continuum 3.9.11 — Spectrum signature stability
+CPU/JS: 2139 passed / 2 skipped / 2 known Inspector xfailed; unexpected failures 0.
+Targeted Spectrum + Kitchen browser/GPU: Review enabled; Chunk 1 retained,
+Chunk 2 generated (1 reused / 1 new); both audio/video outputs fully decoded.
+Existing Takes and official workflows retained. Unknown-code reuse remains refused.
+Restart ComfyUI, hard-refresh browser, and check a new unique Run.
+Scope, limits and separate MP4-menu workaround: docs/RELEASE_NOTES_V3911.md
+
+Historical package records follow; their test counts describe their own versions.
+------------------------------------------------------------------------
 ComfyUI-H3-Continuum 3.9.9 — public KJ / Review continuation
 CPU 2075 passed / 2 skipped / 2 known xfailed; upstream KJ GPU and installed local-KJ browser Continue PASS.
 既存Take・Workflowは維持。更新後は再起動・ブラウザー再読込。旧unsafe/v5は自動変換しません。

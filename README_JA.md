@@ -1,13 +1,36 @@
-# ComfyUI-H3-Continuum 3.9.10 — V3.9
+# ComfyUI-H3-Continuum 3.9.11 — V3.9
 
 MiniMax H3の映像・音声をチャンクに分けて生成し、結果を確認しながら
 一部分の再生成や、互換性のある保存Takeからの継続ができます。
 **現在のWorkflowはV3.9です。V3.8X2も別のWorkflowとして保持しています。**
 
-[v3.9.10本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.10/ComfyUI-H3-Continuum-v3.9.10.zip) ·
-[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.10) ·
-[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.10/SHA256SUMS.txt) ·
+[v3.9.11本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.11/ComfyUI-H3-Continuum-v3.9.11.zip) ·
+[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.11) ·
+[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.11/SHA256SUMS.txt) ·
 [English](README.md)
+
+## 3.9.11 — Spectrum署名の安定化／Review継続
+
+監査済みSpectrumを再読込すると、同じコードでもmarshalの表現が変わり、
+新規Takeが誤って「v6 read-only」になる条件を修正しました。旧監査を優先し、
+必要な場合だけ固定プロファイルで読込済みコード全体を検査します。
+正常な既存v6 Takeの署名は維持し、未知・改変コードの再利用拒否は緩めません。
+
+CPU／JSは **2,139成功／2スキップ／既知Inspector期待失敗2件**。
+**Spectrum＋Comfy Kitchen Attention**のブラウザー／GPU検証ではReviewボタンが有効となり、
+**Chunk 1保持・Chunk 2生成（再利用1／新規1）**と両出力の映像・音声の全デコードを確認しました。
+対象はPython 3.13.12、Core 0.42.1、Kitchen 0.2.39、監査済みローカルSpectrum、
+512×512・24fps・5秒×2・8-step Turbo・First Passのみです。
+全構成、画質、速度の受入を意味するものではありません。
+
+Managerまたは既存custom-nodeフォルダーの更新後、**ComfyUIを再起動し、Ctrl+F5でブラウザー更新**。
+一意な新しいRun NameでSpectrumとReview Each Chunkを有効にしてChunk 1→2を確認してください。
+既存Take・ワークフローは維持します。過去のunsafe／v5 Takeの再利用許可は変更しません。
+
+別拡張Custom ScriptsのメニューがMP4を画像として取得してHTTPエラーになる場合は、
+**Settingsで「Show Image On Menu」をOFF**にする回避方法を確認済みです。
+Continuumのコード修正ではなく、設定を自動変更する更新でもありません。
+[詳細・検証範囲](docs/RELEASE_NOTES_V3911.md)。
 
 ## 3.9.10 — Spectrum再利用とReference割り当て表示
 
@@ -82,7 +105,7 @@ git pull --ff-only origin main
 Managerで導入した場合は、そのコピーをManagerから更新してください。
 更新後はComfyUIを再起動し、ブラウザーを再読込します。
 Registry審査・Managerが選択する版・GitHub Releaseの状態は別です。
-正確なv3.9.9を使う場合は、冒頭の固定版リンクを参照してください。
+正確なv3.9.11を使う場合は、冒頭の固定版リンクを参照してください。
 
 パッケージの宣言上の最低要件は**Python 3.10以降・ComfyUI 0.32.0以降**です。
 この最低要件の宣言だけで、すべてのCore版でのGPU動作確認を意味するものではありません。

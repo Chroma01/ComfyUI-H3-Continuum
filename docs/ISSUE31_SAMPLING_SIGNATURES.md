@@ -1,5 +1,66 @@
 # Issue #31 — Attention and Spectrum reuse signatures (3.9.5)
 
+## 3.9.11 — stable supplemental loaded-code audit
+
+Repeated imports of unchanged audited Spectrum source can produce different
+marshal bytes for equivalent normalized code objects, observed with Python
+3.13.12. This can mark a new Run read-only even though no source or settings
+changed. It is a signature observation failure; the reporter's exact environment
+has not been reproduced.
+
+The original audit remains the first path. Only differences in function
+`code_sha256` fields can trigger a supplemental audit. Fixed
+`spectrum_code_audit_v1_py312.json` and `spectrum_code_audit_v1_py313.json`
+profiles check all loaded provider module descriptors: typed code fields and
+nested constants, defaults, keyword defaults, closures, class members and
+provider references. Float/complex bits and constant types are preserved.
+Source hashes, exact Python file sets, module provenance and runtime-state
+checks remain required. Unknown constants or missing/invalid profiles reject
+reuse; independent Attention failures remain failures.
+
+The profiles are bound to the original metadata digest and complete audited
+source set. They are generated offline with `tools/build_spectrum_code_audit.py`,
+using explicit audited provider roots; opposite provider/module import orders
+must produce identical bytes. The runtime never builds a profile, executes
+provider functions, imports Spectrum or learns an approval from current code.
+
+All four legacy provider metadata files and the returned persistent identity
+remain unchanged. Normal pre-repair v6 Takes retain compatibility. Stored unsafe
+Takes and v5 history stay readable and read-only; the repair never edits their
+flags or manifests. Use a new Run when checking a previously rejected setup.
+Sampling v6, Graph v4, Run Storage, public inputs and shipped workflows are
+unchanged. Targeted browser/GPU Review continuation passed with the audited
+local Spectrum provider and Kitchen Attention: Chunk 1 retained, Chunk 2
+generated, one reused / one new, both AV outputs fully decoded. The supplemental
+path is proven by CPU reproduction; its use during GPU execution is not traced.
+See RELEASE_NOTES_V3911.md for environment, limits and the separate third-party
+MP4 menu-thumbnail workaround.
+
+CPU/JS validation: **2,139 passed / 2 skipped / 2 known Inspector expected
+failures**, zero unexpected failures or CUDA initialization attempts. This
+includes the existing 90-case Queue JS fixture. An additional 53 real-Core
+observer/storage cases matched the production UI's read-only predicate: 30
+reusable and 23 intentionally rejected. These use tiny CPU fixtures and actual
+Core function references; no Attention kernel or H3 inference runs. Four normal
+v6 Takes saved by pre-repair code kept identical full contracts and reused
+Chunk 1 without changing their source files. Existing tests also preserve
+unsafe/v5 history and reject reuse through the storage entry points.
+
+Python 3.12 component coverage passed 155 tests with one skip; 21 tests tied to
+the older Core's separate Attention limitation were excluded. The storage matrix
+still checks that environment's eight Kitchen cases remain non-reusable for
+its unobservable helper. This repair does not resolve that independent failure.
+
+### 日本語 — 3.9.11の補助監査
+
+同じ監査済みSpectrumを再読込した際、同等のコードでもmarshalの保存表現が変わり、
+再利用不可になる条件へ対応します。旧監査を優先し、関数のコードハッシュだけが
+異なる場合に限り、固定プロファイルでコードと読込済み記述全体を再検査します。
+未知のコード・既定値やclosureの変更・追加状態の拒否は維持します。
+旧署名を変更せず、正常な既存v6 Takeの互換性を保ちます。過去のunsafe／v5 Takeを
+自動的に再利用可能にはしません。対象を限定したSpectrum＋Kitchenの実ブラウザー・GPU検証で、
+Review操作とChunk 1保持／Chunk 2生成を確認しました。詳細と制約はRELEASE_NOTES_V3911.mdを参照。
+
 ## 3.9.10 — Spectrum audit portability
 
 The repair treats source CRLF and LF line endings as equivalent

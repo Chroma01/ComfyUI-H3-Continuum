@@ -1,13 +1,39 @@
-# ComfyUI-H3-Continuum 3.9.10 — V3.9
+# ComfyUI-H3-Continuum 3.9.11 — V3.9
 
 Generate long-form MiniMax H3 video and audio in chunks, review each result,
 retry a section, and continue from compatible saved Takes.
 **V3.9 is the current workflow; V3.8X2 remains available separately.**
 
-[Download v3.9.10](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.10/ComfyUI-H3-Continuum-v3.9.10.zip) ·
-[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.10) ·
-[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.10/SHA256SUMS.txt) ·
+[Download v3.9.11](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.11/ComfyUI-H3-Continuum-v3.9.11.zip) ·
+[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.11) ·
+[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.11/SHA256SUMS.txt) ·
 [日本語](README_JA.md)
+
+## 3.9.11 — Spectrum signature stability / Review continuation
+
+Fix another confirmed cause of false Sampling v6 read-only: repeated imports of
+unchanged audited Spectrum code can have different marshal encodings. A fixed,
+Python-specific supplemental audit checks the complete loaded descriptors while
+preserving the original saved identity. Unknown or modified code remains
+non-reusable; existing safe v6 Takes keep their compatibility.
+
+CPU/JS: **2,139 passed / 2 skipped / 2 known Inspector expected failures**.
+Targeted browser/GPU checks with **Spectrum + Comfy Kitchen Attention** passed:
+Review buttons enabled, **Chunk 1 preserved / Chunk 2 generated, one reused and
+one new**, both audio/video outputs fully decoded. Scope: Python 3.13.12,
+Core 0.42.1, Kitchen 0.2.39, audited local Spectrum, 512×512, 24 fps,
+two 5-second chunks, 8-step Turbo, first pass only. These are targeted repair
+checks, not all-provider, quality or performance acceptance.
+
+Update the existing installation through Manager or replace its custom-node
+package, **restart ComfyUI and hard-refresh the browser (Ctrl+F5)**. Use a new,
+unique Run Name with Spectrum and Review Each Chunk to verify Chunk 1 → 2.
+Keep existing Takes and workflows; old unsafe/v5 Takes are not promoted.
+
+If a separate Custom Scripts menu thumbnail tries to load MP4 as an image,
+turn **Settings → Show Image On Menu OFF**. This tested workaround prevents
+new thumbnail HTTP errors; it is not a Continuum code fix and is not applied
+automatically. [Full release notes and limits](docs/RELEASE_NOTES_V3911.md).
 
 ## 3.9.10 — Spectrum reuse and Reference assignments
 
@@ -90,7 +116,7 @@ git pull --ff-only origin main
 If Manager owns your installation, update that copy through Manager.
 Restart ComfyUI and refresh the browser after updating.
 Registry review, Manager's selected version and GitHub Releases are separate;
-the fixed-version links above identify the exact v3.9.9 package.
+the fixed-version links above identify the exact v3.9.11 package.
 
 The package declares Python **3.10+** and ComfyUI **0.32.0+**.
 The minimum declaration is not a GPU acceptance result for every Core version.

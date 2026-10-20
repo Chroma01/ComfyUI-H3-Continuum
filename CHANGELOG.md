@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.9.11 — Spectrum loaded-code audit stability (2026-10-20)
+
+- Avoid rejecting an unchanged audited Spectrum implementation when repeated
+  imports produce different marshal encodings of equivalent code objects.
+  Keep the legacy audit first; only code-digest differences can use the fixed,
+  Python-specific supplemental audit of complete loaded descriptors.
+- Preserve the original provider metadata and persisted Sampling v6 identity.
+  Existing safe Takes remain compatible; old unsafe/v5 history remains read-only.
+  Unknown source, changed code/defaults/closures and extra runtime state remain
+  non-reusable. Public inputs, workflows and generation/storage code are unchanged.
+- CPU/JS: 2,139 passed / 2 skipped / 2 known Inspector expected failures, zero unexpected failures. Targeted Spectrum + Kitchen browser/GPU continuation passed: enabled Review buttons, Chunk 1 preserved, Chunk 2 generated, one reused / one new; both AV outputs fully decoded. See docs/RELEASE_NOTES_V3911.md for scope and a separate third-party MP4 menu-thumbnail workaround.
+
 ## 3.9.10 — Spectrum reuse and Reference assignment display (2026-10-20)
 
 - Normalize CRLF source line endings in both Spectrum file and module-closure audits. Keep the pinned source identities and existing Python 3.13 profile bytes unchanged.

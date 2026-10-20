@@ -11,6 +11,7 @@ import inspect
 import json
 import marshal
 import math
+import struct
 import sys
 import types
 from pathlib import Path
@@ -92,19 +93,19 @@ def _relative_name(value):
     return module + "." + getattr(value, "__qualname__", type(value).__qualname__)
 
 
-def _callable_value(value, seen=(), provider_prefix=None):
+def _callable_value(value, seen=(), provider_prefix=None, *, code_digest=None):
     if inspect.ismethod(value):
         owner = value.__self__
         state = {"class": _relative_name(owner)} if inspect.isclass(owner) else {
             "type": _relative_name(type(owner)), "state": _scalar(vars(owner))}
-        return {"bound_method": _callable_value(value.__func__, seen, provider_prefix), "owner": state}
+        return {"bound_method": _callable_value(value.__func__, seen, provider_prefix, code_digest=code_digest), "owner": state}
     if inspect.isfunction(value):
         if id(value) in seen:
             return {"reference": _relative_name(value)}
         seen = (*seen, id(value))
-        return {"function": _relative_name(value), "code_sha256": _code_digest(value.__code__),
+        return {"function": _relative_name(value), "code_sha256": (code_digest or _code_digest)(value.__code__),
                 "defaults": _scalar(value.__defaults__), "kwdefaults": _scalar(value.__kwdefaults__),
-                "closure": [_callable_value(cell.cell_contents, seen, provider_prefix) for cell in (value.__closure__ or ())]}
+                "closure": [_callable_value(cell.cell_contents, seen, provider_prefix, code_digest=code_digest) for cell in (value.__closure__ or ())]}
     if inspect.isclass(value):
         return {"class": _relative_name(value)}
     if value is object.__setattr__:
@@ -127,17 +128,17 @@ def _callable_value(value, seen=(), provider_prefix=None):
     return _scalar(value)
 
 
-def _module_callables(module):
+def _module_callables(module, *, code_digest=None):
     values, members, references = {}, {}, {}
     prefix = module.__name__.split(".comfyui_spectrum_h3", 1)[0] + ".comfyui_spectrum_h3"
     for name, value in sorted(vars(module).items()):
         owner = getattr(value, "__module__", "")
         if owner != module.__name__:
             if ".comfyui_spectrum_h3" in owner and (inspect.isfunction(value) or inspect.isclass(value)):
-                references[name] = _callable_value(value, provider_prefix=prefix)
+                references[name] = _callable_value(value, provider_prefix=prefix, code_digest=code_digest)
             continue
         if inspect.isfunction(value):
-            values[name] = _callable_value(value, provider_prefix=prefix)
+            values[name] = _callable_value(value, provider_prefix=prefix, code_digest=code_digest)
         elif inspect.isclass(value):
             node_classes = tuple(getattr(module, "NODE_CLASS_MAPPINGS", {}).values())
             registration = {"RELATIVE_PYTHON_MODULE"} if value in node_classes else set()
@@ -148,8 +149,83 @@ def _module_callables(module):
                 elif isinstance(method, property):
                     method = method.fget
                 if inspect.isfunction(method):
-                    values[name + "." + member] = _callable_value(method, provider_prefix=prefix)
+                    values[name + "." + member] = _callable_value(method, provider_prefix=prefix, code_digest=code_digest)
     return {"callables": values, "class_members": members, "provider_references": references}
+
+
+_CODE_AUDIT_FIELDS = (
+    "co_argcount", "co_posonlyargcount", "co_kwonlyargcount", "co_nlocals", "co_stacksize", "co_flags",
+    "co_code", "co_consts", "co_names", "co_varnames", "co_freevars", "co_cellvars", "co_name", "co_qualname",
+    "co_linetable", "co_exceptiontable",
+)
+
+
+def _audit_json(value):
+    return json.dumps(value, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+
+
+def _code_audit_value(value):
+    kind = type(value)
+    if value is None:
+        return ["none"]
+    if value is Ellipsis:
+        return ["ellipsis"]
+    if kind is bool:
+        return ["bool", value]
+    if kind is int:
+        return ["int", str(value)]
+    if kind is str:
+        return ["str", value]
+    if kind is bytes:
+        return ["bytes", value.hex()]
+    if kind is float:
+        return ["float64", struct.pack(">d", value).hex()]
+    if kind is complex:
+        return ["complex", _code_audit_value(value.real), _code_audit_value(value.imag)]
+    if kind is tuple:
+        return ["tuple", [_code_audit_value(item) for item in value]]
+    if kind is frozenset:
+        return ["frozenset", sorted((_code_audit_value(item) for item in value), key=_audit_json)]
+    if kind is types.CodeType:
+        return ["code-v1", {name: _code_audit_value(getattr(value, name)) for name in _CODE_AUDIT_FIELDS}]
+    raise ValueError("unsupported code audit constant: " + kind.__name__)
+
+
+def _stable_code_digest(code):
+    # marshal can encode equivalent objects differently after another import.
+    # Audit explicit typed fields without changing the persisted legacy digest.
+    payload = "H3-SPECTRUM-CODE-AUDIT/1\n" + _audit_json(_code_audit_value(code))
+    return hashlib.sha256(payload.encode("ascii")).hexdigest()
+
+
+def _same_except_code_digest(actual, expected):
+    if type(actual) is not type(expected):
+        return False
+    if isinstance(actual, dict):
+        if actual.keys() != expected.keys():
+            return False
+        return all((key == "code_sha256" and "function" in actual) or
+                   _same_except_code_digest(actual[key], expected[key]) for key in actual)
+    if isinstance(actual, list):
+        return len(actual) == len(expected) and all(_same_except_code_digest(a, b) for a, b in zip(actual, expected))
+    return actual == expected
+
+
+def _verify_stable_code_audit(source, metadata_content, loaded):
+    minor = list(sys.version_info[:2])
+    if minor not in ([3, 12], [3, 13]):
+        raise ValueError("unsupported provider Python runtime")
+    path = Path(__file__).with_name(f"spectrum_code_audit_v1_py{minor[0]}{minor[1]}.json")
+    audit = json.loads(path.read_bytes())
+    if audit.get("format_version") != 1 or audit.get("python_minor") != minor:
+        raise ValueError("unsupported Spectrum code audit profile")
+    original_digest = hashlib.sha256(metadata_content).hexdigest()
+    profile = audit.get("profiles", {}).get(original_digest)
+    if not profile or profile.get("source_sha256") != source or set(profile.get("modules", {})) != set(source):
+        raise ValueError("Spectrum code audit provenance differs")
+    for filename, module in loaded.items():
+        if _module_callables(module, code_digest=_stable_code_digest) != profile["modules"][filename]:
+            raise ValueError("provider stable implementation differs: " + filename)
 
 
 def _provider(prefix, folder):
@@ -157,7 +233,8 @@ def _provider(prefix, folder):
     metadata_file = _runtime_metadata_file(metadata_file)
     metadata_content = Path(__file__).with_name(metadata_file).read_bytes()
     metadata = json.loads(metadata_content)
-    constants = {}
+    constants, loaded = {}, {}
+    needs_code_audit = False
     for filename, digest in sorted(source.items()):
         path = folder / filename
         if _source_digest(path) != digest:
@@ -167,13 +244,21 @@ def _provider(prefix, folder):
             continue
         if Path(module.__file__).resolve() != path.resolve():
             raise ValueError("provider module provenance differs")
-        if _module_callables(module) != metadata["modules"].get(filename):
-            raise ValueError("provider loaded implementation differs: " + filename)
+        actual = _module_callables(module)
+        expected = metadata["modules"].get(filename)
+        if actual != expected:
+            if not _same_except_code_digest(actual, expected):
+                raise ValueError("provider loaded implementation differs: " + filename)
+            needs_code_audit = True
+        loaded[filename] = module
         if path.stem in {"sampling", "runtime", "config", "forecast", "model_aware"}:
             for name, value in sorted(vars(module).items()):
                 if name.isupper() and name not in {"LOG", "_PROFILE_CACHE", "_PROFILE_CACHE_LOCK"} and not inspect.isclass(value) and not callable(value):
                     try: constants[path.stem + "." + name] = _scalar(value)
                     except ValueError as exc: raise ValueError(path.stem + "." + name + ": " + str(exc)) from exc
+    if needs_code_audit:
+        _verify_stable_code_audit(source, metadata_content, loaded)
+    # Supplemental audits never enter the persistent generation identity.
     # The audited source set, not the current subset of lazy imports, is identity.
     return {"source_sha256": source,
             "loaded_implementation_contract_sha256": hashlib.sha256(metadata_content).hexdigest(),

@@ -1,5 +1,15 @@
 # Public source status
 
+## 3.9.11 — Spectrum code audit stability
+
+Supplement the legacy code audit only for code-digest differences in the two
+already-audited Spectrum implementations on Python 3.12/3.13. Preserve the old
+provider metadata, persisted identity, safe Take reuse and unknown-code rejection.
+CPU/JS: 2,139 passed / 2 skipped / 2 known Inspector expected failures. Targeted
+Spectrum + Kitchen browser/GPU Review continuation passed with Chunk 1 preserved
+and one reused / one new chunk. Existing workflows and stored Takes are unchanged.
+Publication and asset integrity are verified separately; see docs/RELEASE_NOTES_V3911.md.
+
 ## 3.9.10 — Spectrum reuse and Reference assignment display
 
 Normalize Spectrum CRLF source auditing and add fixed Python 3.12 profiles while

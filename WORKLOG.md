@@ -1,5 +1,30 @@
 # Public development log
 
+## 3.9.11 — Spectrum loaded-code audit stability
+
+Retain the legacy marshal audit and its four metadata files. If only function
+code digests differ, compare complete loaded descriptors using fixed typed-code
+profiles for Python 3.12/3.13 and the two already-audited provider source sets.
+Validate profile provenance against the original metadata digest and full source
+set; do not generate profiles, import providers or learn identities at runtime.
+The supplemental audit never enters the stored contract. Preserve safe v6 Take
+reuse and unsafe/v5 read-only history, with no workflow or storage migration.
+Targeted browser/GPU checks passed with audited local Spectrum + Kitchen
+Attention: enabled Review buttons, Chunk 1 retained, Chunk 2 generated, one
+reused / one new; both AV outputs fully decoded. Generation completed without
+execution errors or OOM. Separate third-party MP4 menu-thumbnail HTTP errors
+were avoided by disabling Show Image On Menu, without product code changes.
+See docs/RELEASE_NOTES_V3911.md for exact scope and remaining limits.
+
+Full CPU/JS gate: 2,139 passed / 2 skipped / 2 existing Inspector expected failures,
+with zero unexpected failures or CUDA initialization attempts. Python 3.12
+component checks: 155 passed / 1 skip, excluding 21 tests tied to the older
+Core's independent Attention limitation. Real-Core observer/storage fixtures
+matched 53 expected reuse/refusal decisions and the production JS predicate.
+Four normal pre-repair v6 Takes retained full contracts and reused Chunk 1;
+unsafe/v5 histories stayed read-only. Both supplemental profiles reproduced
+byte-for-byte with reverse import order. Compile/offline registration passed.
+
 ## 3.9.9 — KJ Preview Override / Review continuation
 
 Fix new-Run v6 read-only with the separately audited upstream KJ profile, and
