@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.9.10 — Spectrum reuse and Reference assignment display (2026-10-20)
+
+- Normalize CRLF source line endings in both Spectrum file and module-closure audits. Keep the pinned source identities and existing Python 3.13 profile bytes unchanged.
+- Add separate audited Python 3.12 profiles for the supported local and upstream 0.2.29 implementations. Keep unknown source/runtime state non-reusable, preserve old unsafe/v5 Takes, and require a new Run for newly supported configurations. Sampling v6, Graph v4, public nodes and workflow bytes are unchanged. No new GPU acceptance is claimed for this repair.
+
+## Unreleased — external Chunks Reference assignment table
+
+- Treat externally connected Chunks as unresolved in the V3.9 Reference Images
+  helper. Display assignment range 1–16 with the reason and explicit All/Off
+  range labels; retain direct-count tables and saved future assignments.
+- Keep existing selectors, backend routing, Sampling/Run Storage contracts,
+  public inputs and official workflows unchanged. Loading or refreshing does
+  not automatically expand old selections.
+
 ## 3.9.9 — upstream KJ Preview Override / Review continuation (2026-10-20)
 
 Fix new-Run v6 read-only with the separately audited upstream KJ profile, and

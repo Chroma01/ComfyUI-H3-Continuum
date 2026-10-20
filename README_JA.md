@@ -1,13 +1,30 @@
-# ComfyUI-H3-Continuum 3.9.9 — V3.9
+# ComfyUI-H3-Continuum 3.9.10 — V3.9
 
 MiniMax H3の映像・音声をチャンクに分けて生成し、結果を確認しながら
 一部分の再生成や、互換性のある保存Takeからの継続ができます。
 **現在のWorkflowはV3.9です。V3.8X2も別のWorkflowとして保持しています。**
 
-[v3.9.9本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.9/ComfyUI-H3-Continuum-v3.9.9.zip) ·
-[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.9) ·
-[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.9/SHA256SUMS.txt) ·
+[v3.9.10本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.10/ComfyUI-H3-Continuum-v3.9.10.zip) ·
+[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.10) ·
+[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.10/SHA256SUMS.txt) ·
 [English](README.md)
+
+## 3.9.10 — Spectrum再利用とReference割り当て表示
+
+SpectrumソースのCRLF改行でSampling v6 read-onlyになる判定を修正し、対応済みの
+2種類の実装にPython 3.12用の監査済みプロファイルを追加しました。既存3.13の
+プロファイルと正常なTakeの識別値は維持します。未知のコード・追加状態は拒否します。
+
+外部Chunks接続時のReference Imagesは、古いWidget値の代わりに割り当て範囲1–16を
+表示します。生成チャンク数や保存済みの選択内容は変更しません。
+
+CPU/JS：**2,096成功・2スキップ・既知の期待失敗2件**。Python 3.12の対象試験、
+保存・継続と実JS照合も成功。Reference表示は実ブラウザー確認済みです。
+**3.9.10としての新たなGPU受入は未実施です。**
+
+更新後はComfyUIを再起動し、ブラウザーを更新してください。既存WorkflowとTakeは
+そのまま保持できます。新しく対応した構成は新規Runで確認してください。
+旧unsafe/v5 Takeは閲覧用として保持し、自動変換しません。[詳細と制約](docs/RELEASE_NOTES_V3910.md)。
 
 ## 3.9.9の修正と検証
 

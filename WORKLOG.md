@@ -167,3 +167,23 @@ Added a dedicated, fail-closed Spectrum binding adapter without changing the gen
 
 
 Issue #31 Phase 3 validation: the final standard CPU entry point passed 1,834 tests, 1 skip and 2 existing expected Inspector failures, with zero CUDA initialization attempts. The 57 new Spectrum tests cover all 27 config fields, transient-state/process stability, implementation/extra-state refusal, unaffected v6 contract identity and old unsafe Take protection; the 36 Phase 1 attention tests also pass. Under one audited local provider implementation, both PyTorch+Spectrum and Kitchen+Spectrum persisted new Chunk 1 Takes and reused them from a separate Queue to generate Chunk 2, with unchanged prefix hashes, identical safe contracts and fully decodable 10-second AV output. This is a targeted local GPU gate, not acceptance of other providers, KJ, browser behavior, subjective quality or benchmarks. No commit, push or publication occurred.
+
+
+## 2026-10-20 — External Chunks Reference assignment table candidate
+
+Only the V3.9 Reference Images helper presentation changes: external Chunks links make the destination count unresolved, expose assignment range 1–16, and label All/Off with that range. Direct counts retain the existing table. The frontend does not resolve arbitrary upstream values or alter native Chunks, saved selectors, Sampling identity or stored Takes. Added 21 JavaScript cases and four public-input CPU cases cover stale widget counts, zero/unrestored links, multiple Samplers, range actions, future assignments and callback stability. Existing CPU coverage passed 310 tests with two known Inspector expected failures; the four added CPU cases and metadata checks also pass. Targeted browser acceptance passed for external INT with stale widget values, live disconnection/restoration, actual KJ Set/Get routing, all-page All/Off actions, saving/reloading and workflow tab switching. The candidate display code was deployed to the chosen runtime and reloaded without restarting its backend. Existing saved Takes and workflows were preserved. No GPU generation, commit, push or public release occurred.
+
+## 2026-10-20 — Spectrum source/runtime audit portability candidate
+
+Normalize CRLF to LF in Spectrum provider-file and module-closure source checks. Add fixed Python 3.12 profiles generated from the same hash-verified 44-file and upstream 0.2.29 55-file sources. Retain the original Python 3.13 profile bytes and valid identity descriptors. Unknown code, file sets, closures and runtime extensions remain non-reusable; unsupported Python runtimes are not promoted. Old unsafe/v5 Takes remain readable without conversion, and public nodes, Sampling v6, Graph v4 and official workflows are unchanged.
+
+The full standard CPU/JS gate passed 2,096 tests with two skips and two existing Inspector expected failures; compile and offline runtime verification passed with twelve public nodes. Targeted Spectrum/Attention coverage passed 169 tests with one legacy-profile skip. Python 3.12 component coverage passed 112 tests with one legacy-profile skip, checking all 27 configuration fields, code/state refusal and newline parity; 21 independent older-Core/Attention cases were outside that component gate. Separate-process storage checks passed 16 PyTorch/Kitchen cases on Python 3.13 and eight Spectrum/default-model cases on Python 3.12. Actual Take read-only JavaScript agreed with all 24 storage results, and all six previously valid complete Sampling Contracts remained identical. No CUDA initialization, new GPU generation, browser acceptance, commit, push or publication is claimed. The older Core/Kitchen observation limitation remains separate from Spectrum recognition.
+
+## 2026-10-20 — 3.9.10 publication preparation
+
+Prepare the tested Spectrum audit portability and Reference assignment display
+repairs as the next 3.9 patch. Use SemVer 3.9.10 for GitHub and Registry while
+reserving 4.0 for the major update. Preserve existing 3.9.9 and historical tags,
+assets and official workflow bytes. Publish CPU/browser scope explicitly without
+claiming new GPU acceptance. Version metadata, release workflows and package
+manifests identify the same candidate; public asset and CI checks follow upload.

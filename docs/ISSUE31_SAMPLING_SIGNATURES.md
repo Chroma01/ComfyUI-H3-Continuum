@@ -1,5 +1,42 @@
 # Issue #31 — Attention and Spectrum reuse signatures (3.9.5)
 
+## 3.9.10 — Spectrum audit portability
+
+The repair treats source CRLF and LF line endings as equivalent
+in both the provider-file audit and provider module closures. All other source
+bytes and the exact supported Python file sets remain checked. The canonical
+source hashes are unchanged, so existing valid Python 3.13 signatures retain
+their identities.
+
+Separate `spectrum_provider_v1_py312.json` and
+`spectrum_provider_v029_py312.json` profiles identify the same audited source sets
+under Python 3.12. They were generated and checked with Python 3.12.10; the
+original profiles remain byte-identical for Python 3.13.12. Other Python runtimes,
+altered implementations, foreign closures and unknown runtime fields remain
+non-reusable. The adapter does not execute provider functions to approve reuse.
+
+This repairs Spectrum observation, not every Core/Kitchen/KJ combination.
+Independent Attention/provider checks must also pass. In particular, an older
+Core/Kitchen environment can still fail its own Attention observation even when
+Spectrum is recognized. Do not upgrade Python or replace Attention solely to
+make an old Take reusable. Keep old history and start a new Run after updating.
+No new GPU or reporter-exact acceptance is claimed for this repair.
+
+The standard CPU/JS gate passed **2,096 tests / 2 skips / 2 known expected
+Inspector failures**, with compile and offline registration checks passing.
+Separate-process storage probes passed 16 Python 3.13 PyTorch/Kitchen cases and
+eight Python 3.12 Spectrum/default-model cases; actual Take read-only JavaScript
+matched all 24. The six previously valid full Sampling Contracts stayed exact.
+These CPU checks execute no Attention kernel or H3 checkpoint inference.
+
+### 日本語 — 3.9.10の局所修正
+
+Spectrum監査でCRLF／LFの改行差を同一として扱い、対応済みソースにPython 3.12用の
+固定プロファイルを追加します。既存3.13の正常な識別値と旧Takeは維持します。
+未知のコード・追加状態の拒否は継続します。Spectrumが識別可能でも、Core／Kitchenなど
+別の観測に失敗する環境は再利用不可のままです。適用後は新規Runで確認してください。
+旧履歴を利用可能にする目的でPythonやAttentionを変更する必要はありません。
+
 ## 3.9.8 Preview Override Phase A (2026-10-16)
 
 The new adapter is restricted to the KJ source profile in `preview_override_provider_v1.json`: Preview Override SHA-256 `d07c8e5ff7d7abd3e31acefe2cf29f618b5da5341b3b434e72ec2ac0953230b0`, audited sibling helpers and Core preview/dispatcher files. The complete profile digest is part of the persistent identity, so later dependency-profile upgrades cannot retain the same identity accidentally. It compares loaded functions, nested code, defaults and supported classes with the pinned source; it never imports KJNodes, executes a preview callback, loads a VAE or initializes CUDA during signature observation. Source line endings are normalized to LF for provider auditing.

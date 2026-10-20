@@ -1,5 +1,18 @@
 # Public source status
 
+## 3.9.10 — Spectrum reuse and Reference assignment display
+
+Normalize Spectrum CRLF source auditing and add fixed Python 3.12 profiles while
+preserving the existing 3.13 profiles, valid Sampling v6 identities, old Takes
+and official workflows. Correct the Reference assignment display for externally
+connected Chunks without changing generation count or saved selectors.
+
+Full local CPU/JS: 2,096 passed / 2 skipped / 2 known expected Inspector failures.
+Python 3.12 component: 112 passed / 1 skip; 24 independent storage cases and
+actual-JS checks passed. Reference browser checks passed. No new GPU acceptance
+is claimed. Restart ComfyUI and refresh the browser; use a new Run for newly
+supported configurations. See docs/RELEASE_NOTES_V3910.md.
+
 ## 3.9.9 — KJ Preview Override / Review continuation
 
 Fix new-Run v6 read-only with the separately audited upstream KJ profile, and

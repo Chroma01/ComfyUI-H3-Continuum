@@ -298,7 +298,15 @@ def test_original_local_profile_descriptor_is_unchanged(spectrum):
     scope={"__file__":adapter.__file__}
     fixture=Path(__file__).parent/"fixtures"/"issue31_local_spectrum_signature.py.txt"
     exec(compile(fixture.read_text(),str(fixture),"exec"),scope)
-    assert scope["spectrum_binding_signature"](item)==adapter.spectrum_binding_signature(item)
+    previous = scope["spectrum_binding_signature"](item)
+    current = adapter.spectrum_binding_signature(item)
+    if sys.version_info[:2] == (3, 13):
+        assert previous == current
+    else:
+        # Python 3.12 was never accepted by the original 3.13-only profile.
+        # New support changes current observation, never a stored unsafe Take.
+        assert sys.version_info[:2] == (3, 12)
+        assert previous[1] is False and current[1] is True
 
 def test_foreign_provider_file_set_stays_unsafe(tmp_path):
     (tmp_path/"unknown.py").write_text("pass")

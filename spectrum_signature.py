@@ -34,6 +34,21 @@ def _select_source_profile(folder):
     raise ValueError("unsupported provider source set")
 
 
+def _source_digest(path):
+    # Python treats CRLF and LF identically; keep every other source byte audited.
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def _runtime_metadata_file(filename):
+    version = tuple(sys.version_info[:2])
+    if version == (3, 13):
+        # Preserve existing profile bytes and generation identities.
+        return filename
+    if version == (3, 12):
+        return Path(filename).stem + "_py312.json"
+    raise ValueError("unsupported provider Python runtime")
+
+
 def _code_digest(code):
     constants = tuple(_normal_code(item) if isinstance(item, types.CodeType) else item
                       for item in code.co_consts)
@@ -104,7 +119,7 @@ def _callable_value(value, seen=(), provider_prefix=None):
         source, _ = _select_source_profile(root)
         if path.parent != root or path.name not in source:
             raise ValueError("provider module closure provenance differs")
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        digest = _source_digest(path)
         if digest != source[path.name]:
             raise ValueError("provider module closure source differs")
         name = "comfyui_spectrum_h3" + value.__name__.split(".comfyui_spectrum_h3", 1)[1]
@@ -139,12 +154,13 @@ def _module_callables(module):
 
 def _provider(prefix, folder):
     source, metadata_file = _select_source_profile(folder)
+    metadata_file = _runtime_metadata_file(metadata_file)
     metadata_content = Path(__file__).with_name(metadata_file).read_bytes()
     metadata = json.loads(metadata_content)
     constants = {}
     for filename, digest in sorted(source.items()):
         path = folder / filename
-        if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+        if _source_digest(path) != digest:
             raise ValueError("unsupported provider source change")
         module = sys.modules.get(prefix if filename == "__init__.py" else prefix + "." + path.stem)
         if module is None:

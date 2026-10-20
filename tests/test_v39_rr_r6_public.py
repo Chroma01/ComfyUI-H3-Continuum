@@ -177,6 +177,28 @@ def test_inline_helper_keeps_sparse_slot_ids_and_saved_future_chunks():
     assert bundle.selectors[0] == "1,3,6"
 
 
+@pytest.mark.parametrize("saved,expected", [
+    ("1,2", [("R1",), ("R1",), ()]),
+    ("1,2,3", [("R1",), ("R1",), ("R1",)]),
+    (",".join(str(n) for n in range(1, 17)), [("R1",), ("R1",), ("R1",)]),
+    ("off", [(), (), ()]),
+])
+def test_external_assignment_range_uses_actual_chunks_without_rewriting_saved_value(saved, expected):
+    bundle, = H3ContinuumReferenceImagesV39().pack(
+        reference_use="Per chunk", reference_r1_chunks=saved,
+        reference_image_1=object(),
+    )
+    original = bundle.selectors
+    _, _, selectors = effective_reference_inputs(bundle, chunks=3)
+    schedule = compile_reference_routing_schedule(
+        total_chunks=3, terminal_merge_enabled=False,
+        mode="Custom", selectors_by_slot=selectors,
+    )
+    assert schedule.valid
+    assert [route.reference_slot_ids for route in schedule.logical_routes] == expected
+    assert bundle.selectors == original
+
+
 def test_new_workflow_rewires_all_nine_slots_and_isolates_saved_runs():
     directory = Path(__file__).resolve().parents[1] / "examples" / "workflows"
     old = json.loads((directory / "MiniMax_H3_Continuum_V38X2.json").read_text(encoding="utf-8"))

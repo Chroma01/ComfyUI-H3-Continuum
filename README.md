@@ -1,13 +1,33 @@
-# ComfyUI-H3-Continuum 3.9.9 — V3.9
+# ComfyUI-H3-Continuum 3.9.10 — V3.9
 
 Generate long-form MiniMax H3 video and audio in chunks, review each result,
 retry a section, and continue from compatible saved Takes.
 **V3.9 is the current workflow; V3.8X2 remains available separately.**
 
-[Download v3.9.9](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.9/ComfyUI-H3-Continuum-v3.9.9.zip) ·
-[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.9) ·
-[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.9/SHA256SUMS.txt) ·
+[Download v3.9.10](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.10/ComfyUI-H3-Continuum-v3.9.10.zip) ·
+[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.10) ·
+[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.10/SHA256SUMS.txt) ·
 [日本語](README_JA.md)
+
+## 3.9.10 — Spectrum reuse and Reference assignments
+
+Fix false Sampling v6 read-only caused by Spectrum source CRLF line endings,
+and add separate audited Python 3.12 profiles for the two supported Spectrum
+implementations. Existing Python 3.13 profiles and valid Take identities stay exact.
+Unknown code or runtime state remains non-reusable.
+
+With external Chunks inputs, the V3.9 Reference Images table shows an assignment
+range of 1–16 instead of a stale widget count. This does not change the number
+of generated chunks or expand saved selections automatically.
+
+CPU/JS: **2,096 passed / 2 skipped / 2 known expected failures**. Separate
+Python 3.12 component, storage and actual-JS checks passed. Reference table
+browser acceptance passed. **No new GPU acceptance is claimed for 3.9.10.**
+
+Restart ComfyUI and refresh the browser after updating. Keep existing workflows
+and Takes. Start a new Run for a newly supported configuration; old unsafe/v5
+Takes remain readable and are not automatically made reusable.
+[Release notes and limits](docs/RELEASE_NOTES_V3910.md).
 
 ## 3.9.9 — KJ Preview Override / Review continuation
 

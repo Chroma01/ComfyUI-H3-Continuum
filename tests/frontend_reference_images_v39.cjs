@@ -193,4 +193,115 @@ oldSampler.inputs[0].link = null;
 assert.equal(pruneV39LegacyReferenceInputs(oldSampler), 1);
 assert.deepEqual(oldSampler.inputs.map((input) => input.name), ['reference_images']);
 assert.equal(pruneV39LegacyReferenceInputs({ ...oldSampler, comfyClass: 'H3ContinuumSamplerV38' }), 0);
+// External INT values are not frontend widget values. Exercise the production
+// helper in fresh graphs without resolving or guessing any upstream value.
+function assignmentFixture({ value = 3, external = false, link = 90, saved = 'off', missing = false, other = null } = {}) {
+    const graph = { links: {}, nodes: new Map(), getNodeById(id) { return this.nodes.get(id); } };
+    const calls = { native: 0, notify: 0, size: 0 };
+    const controls = Array.from({ length: 9 }, (_, i) => ({ name: `reference_r${i + 1}_chunks`,
+        value: i === 0 ? saved : 'off', options: {}, callback() { calls.native++; } }));
+    const helper = { id: 1, graph, comfyClass: 'H3ContinuumReferenceImagesV39', size: [440, 500],
+        widgets: [{ name: 'reference_use', value: 'Per chunk' }, ...controls],
+        inputs: [{ name: 'reference_image_1', link: 100 }], outputs: [{ name: 'reference_images', links: [10] }],
+        addDOMWidget(_name, _type, host) { this.panel = host.children[0]; this.display = { options: {} }; return this.display; },
+        computeSize() { return [440, 310 + this.display.computeSize(440)[1]]; },
+        setSize(value) { calls.size++; this.size = value; }, setDirtyCanvas() {},
+    };
+    const sampler = { id: 2, graph, comfyClass: 'H3ContinuumSamplerV39',
+        widgets: missing ? [] : [{ name: 'chunks', value }],
+        inputs: [{ name: 'reference_images', link: 10 }, { name: 'chunks', link: external ? link : null }],
+        __h3ContinuumIntuitiveUxRefresh() { calls.notify++; }, setDirtyCanvas() {},
+    };
+    graph.nodes.set(1, helper); graph.nodes.set(2, sampler); graph.links[10] = { origin_id: 1, target_id: 2 };
+    if (other !== null) {
+        const second = { ...sampler, id: 3, widgets: [{ name: 'chunks', value: other }],
+            inputs: [{ name: 'reference_images', link: 11 }, { name: 'chunks', link: null }] };
+        graph.nodes.set(3, second); graph.links[11] = { origin_id: 1, target_id: 3 }; helper.outputs[0].links.push(11);
+    }
+    configureV39ReferenceImages(helper);
+    return { graph, helper, sampler, calls, control: controls[0],
+        text() { const values = []; const collect = (node) => { values.push(node.textContent || ''); (node.children || []).forEach(collect); }; collect(helper.panel); return values.join('\n'); },
+        checkbox(n) { return visit(helper.panel, (item) => item['aria-label'] === `Image 1, Chunk ${n}`); },
+        action(label) { const button = visit(helper.panel, (item) => item.tag === 'button' && item.textContent === label); assert(button && !button.disabled, label); button.onclick(); },
+        refresh() { refreshV39ReferenceImagesForSampler(sampler); },
+    };
+}
+const externalCases = [];
+function externalCase(name, run) {
+    try { run(); externalCases.push({ name, pass: true }); }
+    catch (error) { externalCases.push({ name, pass: false, error: error.message }); }
+}
+function unknown(f, reason) {
+    assert.match(f.text(), /range 1–16/);
+    assert.match(f.text(), reason);
+    assert(f.checkbox(3));
+    assert(!f.text().includes('saved beyond range'));
+}
+externalCase('J01 direct three keeps native range', () => {
+    const f = assignmentFixture(); assert.match(f.text(), /3 chunks/); assert(f.checkbox(3)); assert(!f.checkbox(4));
+    f.action('All'); assert.equal(f.control.value, '1,2,3'); f.action('Off'); assert.equal(f.control.value, 'off');
+});
+externalCase('J02 external three and widget two allow C3', () => unknown(assignmentFixture({ value: 2, external: true }), /connected node/));
+externalCase('J03 external with matching widget remains unresolved', () => unknown(assignmentFixture({ external: true }), /connected node/));
+externalCase('J04 link zero is external', () => unknown(assignmentFixture({ external: true, link: 0 }), /connected node/));
+externalCase('J05 unrestored link stays external', () => unknown(assignmentFixture({ external: true, link: 99999 }), /connected node/));
+externalCase('J06 disconnected or absent socket uses direct value', () => {
+    const f = assignmentFixture(); f.sampler.inputs.pop(); f.refresh(); assert.match(f.text(), /3 chunks/);
+});
+externalCase('J07 unavailable or invalid widget preserves selection', () => {
+    for (const options of [{ missing: true }, { value: 0 }, { value: 17 }, { value: 2.5 }, { value: 'bad' }]) {
+        const f = assignmentFixture({ ...options, saved: '1,2,3' }); unknown(f, /not available/); assert.equal(f.control.value, '1,2,3');
+    }
+});
+externalCase('J08 multiple direct three targets agree', () => assert.match(assignmentFixture({ other: 3 }).text(), /3 chunks/));
+externalCase('J09 multiple different direct counts stay unresolved', () => unknown(assignmentFixture({ other: 2 }), /different chunk counts/));
+externalCase('J10 any externally connected target makes range unresolved', () => unknown(assignmentFixture({ external: true, other: 3 }), /connected node/));
+externalCase('J11 unknown reason refreshes even when range is unchanged', () => {
+    const f = assignmentFixture({ external: true }); unknown(f, /connected node/);
+    f.helper.outputs[0].links = []; f.helper.onConnectionsChange(); unknown(f, /Connect this helper to a Sampler/);
+    assert(!f.text().includes('connected node'));
+});
+externalCase('J12 upstream value changes do not rewrite or rebuild', () => {
+    const f = assignmentFixture({ external: true, saved: '1,2' }); const first = f.helper.panel.children[0];
+    const counts = { ...f.calls }; f.graph.nodes.set(90, { value: 4 }); f.refresh();
+    assert.equal(f.helper.panel.children[0], first); assert.equal(f.control.value, '1,2'); assert.deepEqual(f.calls, counts);
+});
+externalCase('J13 saved C3 remains visible and is not called outside range', () => {
+    const f = assignmentFixture({ value: 2, external: true, saved: '1,2,3' }); f.refresh();
+    assert.equal(f.control.value, '1,2,3'); assert(f.checkbox(3).checked); assert.match(f.text(), /Saved assignments: 1, 2, 3/);
+});
+externalCase('J14 old one-two is never automatically expanded', () => {
+    const f = assignmentFixture({ value: 2, external: true, saved: '1,2' }); configureV39ReferenceImages(f.helper); f.refresh();
+    assert.equal(f.control.value, '1,2'); assert(!f.checkbox(3).checked);
+});
+externalCase('J15 unknown All operates over all pages', () => {
+    const f = assignmentFixture({ external: true }); f.action('▶'); f.action('▶'); f.action('All 1–16');
+    assert.equal(f.control.value, Array.from({ length: 16 }, (_, i) => i + 1).join(','));
+});
+externalCase('J16 unknown Off clears future saved assignments', () => {
+    const f = assignmentFixture({ external: true, saved: '1,2,3,16' }); f.action('Off 1–16'); assert.equal(f.control.value, 'off');
+});
+externalCase('J17 direct All and Off preserve saved future six', () => {
+    const f = assignmentFixture({ saved: '6' }); f.action('All'); assert.equal(f.control.value, '1,2,3,6'); f.action('Off'); assert.equal(f.control.value, '6');
+});
+externalCase('J18 C3 updates native value and notifies once', () => {
+    const f = assignmentFixture({ value: 2, external: true }); const counts = { ...f.calls }; const box = f.checkbox(3);
+    assert(box); box.checked = true; box.onchange(); assert.equal(f.control.value, '3');
+    assert.equal(f.calls.native, counts.native + 1); assert.equal(f.calls.notify, counts.notify + 1); assert.equal(f.calls.size, counts.size);
+});
+externalCase('J19 independent helpers and multiple targets stay independent', () => {
+    const f = assignmentFixture({ external: true, other: 3 }), g = assignmentFixture({ external: true });
+    f.action('All 1–16'); assert.equal(f.calls.notify, 2); assert.equal(g.control.value, 'off'); assert.equal(g.calls.notify, 0);
+});
+externalCase('J20 repeated configure keeps callbacks layout and width', () => {
+    const f = assignmentFixture({ external: true }); const callback = f.control.callback, sizes = f.calls.size;
+    for (let i = 0; i < 100; i++) configureV39ReferenceImages(f.helper);
+    assert.equal(f.control.callback, callback); assert.equal(f.calls.size, sizes); assert.equal(f.helper.size[0], 440);
+});
+externalCase('J21 malformed saved selector remains disabled and unchanged', () => {
+    const f = assignmentFixture({ external: true, saved: 'invalid' }); assert.equal(f.control.value, 'invalid');
+    assert(f.checkbox(3).disabled); assert(visit(f.helper.panel, (item) => item.textContent === 'All 1–16').disabled);
+});
+console.log(JSON.stringify(externalCases));
+assert.equal(externalCases.filter((item) => !item.pass).length, 0, 'external Chunk assignment contracts failed');
 console.log('V3.9 Reference Images UI contract PASS');
