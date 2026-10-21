@@ -1,5 +1,24 @@
 # Public source status
 
+## 3.9.12 — Reference Plan Inspector refresh (2026-10-22)
+
+Fix stale verified Reference Plan text after the Sampler UI is reconfigured,
+including workflow save/reload. Changing Reference assignments now invalidates
+the old Inspector display; the next backend result supplies the verified plan.
+Refresh callbacks do not accumulate, and Inspector text is not saved as workflow data.
+
+CPU/JavaScript: **2,148 passed / 2 skipped / 0 failures or expected failures**.
+Chrome save/reload checks passed. After actual GPU sampling, unchecking the
+Reference assignment changed the visible Inspector heading from **runtime verified**
+to **Configured only — Queue has not verified...**, without another Queue.
+The 140 protected existing files and all three files of the new Run remained
+hash-identical. This is targeted UI acceptance, not video-quality acceptance.
+
+Update through Manager or replace the existing custom-node package, then
+**restart ComfyUI and hard-refresh the browser (Ctrl+F5)**. Existing Takes and
+workflows can be kept; no rewiring, deletion or new Run is required for this UI fix.
+[Validation conditions and limits](docs/RELEASE_NOTES_V3912.md).
+
 ## 3.9.11 — Spectrum code audit stability
 
 Supplement the legacy code audit only for code-digest differences in the two
@@ -91,10 +110,11 @@ Finite loaded-implementation signatures identify the Core PyTorch/Kitchen attent
 
 ## GitHub and Registry publication status
 
-**Latest package: 3.9.8.** Use the fixed-version GitHub downloads below. Registry publication is verified separately.
+**Latest package: 3.9.12.** Use the fixed-version GitHub downloads below. Registry publication is verified separately. Unreleased source changes do not replace these published assets.
 
 | Version | Release | Custom-node ZIP | SHA-256 checksum |
 | --- | --- | --- | --- |
+| 3.9.12 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) |
 | 3.9.8 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.8) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/ComfyUI-H3-Continuum-v3.9.8.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/SHA256SUMS.txt) |
 | 3.9.7 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.7) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.7/ComfyUI-H3-Continuum-v3.9.7.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.7/SHA256SUMS.txt) |
 | 3.9.6 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.6) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.6/ComfyUI-H3-Continuum-v3.9.6.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.6/SHA256SUMS.txt) |

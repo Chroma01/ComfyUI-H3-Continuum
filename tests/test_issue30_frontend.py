@@ -1,4 +1,4 @@
-"""Issue #30 overhead regression, with the independent Inspector bug tracked."""
+"""Issue #30 overhead and Reference Inspector reconfiguration regressions."""
 import json
 import os
 from pathlib import Path
@@ -31,9 +31,6 @@ def issue30_results():
     assert result.returncode == 0, result.stdout + result.stderr
     records = json.loads(result.stdout)
     assert len(records) == 9
-    for record in records:
-        if record["knownIssue"] and not record["pass"]:
-            assert "an invalidated plan must not keep its verified display" in record.get("error", ""), record
     return {record["name"]: record for record in records}
 
 
@@ -44,10 +41,8 @@ def issue30_results():
       for node_class in ("H3ContinuumSamplerV38", "H3ContinuumSamplerV39")
       for change in ("widget", "link")],
     "Reference Inspector stays current after 1 configure passes",
-    pytest.param("Reference Inspector stays current after 2 configure passes", marks=pytest.mark.xfail(
-        strict=True, reason="Independent Inspector refresh hook is lost on Sampler reconfigure")),
-    pytest.param("Reference Inspector stays current after 100 configure passes", marks=pytest.mark.xfail(
-        strict=True, reason="Independent Inspector refresh hook is lost on Sampler reconfigure")),
+    "Reference Inspector stays current after 2 configure passes",
+    "Reference Inspector stays current after 100 configure passes",
 ])
 def test_issue30_frontend_paths(issue30_results, name):
     record = issue30_results[name]

@@ -1,3 +1,12 @@
+ComfyUI-H3-Continuum 3.9.12 — Reference Plan Inspector refresh
+CPU/JS: 2148 passed / 2 skipped / 0 failed / 0 expected failures.
+Chrome save/reload and targeted GPU-generated Plan invalidation confirmed.
+Existing Takes and official workflows retained; generation/storage unchanged.
+Restart ComfyUI and hard-refresh browser; no new Run required for this UI fix.
+Conditions, first-attempt resource error and limits: docs/RELEASE_NOTES_V3912.md
+
+Historical package records follow; their counts describe their own versions.
+------------------------------------------------------------------------
 ComfyUI-H3-Continuum 3.9.11 — Spectrum signature stability
 CPU/JS: 2139 passed / 2 skipped / 2 known Inspector xfailed; unexpected failures 0.
 Targeted Spectrum + Kitchen browser/GPU: Review enabled; Chunk 1 retained,
@@ -31,10 +40,12 @@ Previous 3.9.5 validation: 1,893 CPU passed / 2 skipped / 2 existing Inspector x
 ComfyUI-H3-Continuum 3.9.5 / Issue #31 保存Take継続
 パッケージmetadata: 3.9.5（2026-10-15）。公開登録は12ノード。
 
-**最新版パッケージは3.9.5です。** 固定版のGitHub配布は下表を参照してください。Registryの公開状態は別に確認します。
+--- 現行パッケージの配布と共通仕様 ---
+**最新版パッケージは3.9.12です。** 固定版のGitHub配布は下表を参照してください。Registryの公開状態は別に確認します。上の旧版検証記録は当時の条件と件数です。
 
 | バージョン | Release | カスタムノード本体ZIP | SHA-256チェックサム |
 | --- | --- | --- | --- |
+| 3.9.12 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) |
 | 3.9.5 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.5) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.5/ComfyUI-H3-Continuum-v3.9.5.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.5/SHA256SUMS.txt) |
 | 3.9.4 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.4) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.4/ComfyUI-H3-Continuum-v3.9.4.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.4/SHA256SUMS.txt) |
 | 3.9.3 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.3) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/ComfyUI-H3-Continuum-v3.9.3.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/SHA256SUMS.txt) |

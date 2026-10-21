@@ -1415,6 +1415,9 @@ function configureIntuitiveV38Ux(node) {
         }
         moveFacadeWidgetsToFront(node, orderedNames);
         node.__h3ContinuumProductionUxRefresh?.();
+        // Reconfiguration replaces this refresh function. Keep the Inspector
+        // as an explicit delegate instead of a one-time wrapper around it.
+        node.__h3ContinuumV39ReferenceUxRefresh?.();
         node.setDirtyCanvas?.(true, true);
     };
     node.__h3ContinuumIntuitiveUxRefresh = refresh;
@@ -2851,15 +2854,11 @@ function configureV39ReferenceUx(node) {
         }
         node.setDirtyCanvas?.(true, true);
     };
+    node.__h3ContinuumV39ReferenceUxRefresh = refresh;
     if (!node.__h3ContinuumV39ReferenceUxInstalled) {
-        const previousRefresh = node.__h3ContinuumIntuitiveUxRefresh;
-        node.__h3ContinuumIntuitiveUxRefresh = () => {
-            previousRefresh?.();
-            refresh();
-        };
         attachRefresh(findWidget(node, "chunks"), "__h3ContinuumV39ChunksRefresh", () => {
             refreshV39ReferenceImagesForSampler(node);
-            refresh();
+            node.__h3ContinuumV39ReferenceUxRefresh?.();
         });
         const previousExecuted = node.onExecuted;
         node.onExecuted = function(message, ...args) {
@@ -2867,7 +2866,7 @@ function configureV39ReferenceUx(node) {
             const text = message?.h3_reference_plan?.[0];
             if (typeof text === "string") {
                 this.__h3ContinuumReferencePlan = text;
-                refresh();
+                this.__h3ContinuumV39ReferenceUxRefresh?.();
             }
             return result;
         };
@@ -2876,7 +2875,7 @@ function configureV39ReferenceUx(node) {
             const result = previousConnectionsChange?.apply(this, args);
             this.__h3ContinuumReferencePlan = null;
             refreshV39ReferenceImagesForSampler(this);
-            refresh();
+            this.__h3ContinuumV39ReferenceUxRefresh?.();
             return result;
         };
         node.__h3ContinuumV39ReferenceUxInstalled = true;

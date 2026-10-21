@@ -24,10 +24,10 @@ const prefix = harness.slice(0, marker)
 vm.runInNewContext(prefix + '\nglobalThis.fixtures={environment,project};', scope);
 const { environment, project } = scope.fixtures;
 const results = [];
-async function test(name, body, knownIssue = null) {
+async function test(name, body) {
     const e = environment();
-    try { await body(e); results.push({ name, pass: true, knownIssue }); }
-    catch (error) { results.push({ name, pass: false, knownIssue, error: error.stack }); }
+    try { await body(e); results.push({ name, pass: true }); }
+    catch (error) { results.push({ name, pass: false, error: error.stack }); }
     finally { e.close(); }
 }
 function upstream(e, n, count = 20) {
@@ -117,15 +117,36 @@ function helper(e, n) {
     for (const passes of [1, 2, 100]) {
         await test(`Reference Inspector stays current after ${passes} configure passes`, async e => {
             const n = e.makeNode(312, 'fixture', 'H3ContinuumSamplerV39', false), h = helper(e, n);
+            let executions = 0, connections = 0;
+            n.onExecuted = () => { executions++; return 'executed'; };
+            n.onConnectionsChange = () => { connections++; return 'connected'; };
+            const saved = n.serialize();
             for (let i = 0; i < passes; i++) e.f.configureNode(n);
-            n.onExecuted({ h3_reference_plan: ['fixture verified plan'] });
+            assert.deepEqual(n.serialize(), saved, 'configure preserves persistent widget values');
+            assert.equal(n.widgets.filter(w => w.name === 'Reference Plan Inspector').length, 1);
+            assert.equal(n.onExecuted({ h3_reference_plan: ['fixture verified plan'] }), 'executed');
             const plan = e.w(n, 'Reference Plan Inspector');
             assert.equal(plan.value, 'fixture verified plan');
             h.widgets[1].value = '1'; h.widgets[1].callback('1');
             assert.equal(n.__h3ContinuumReferencePlan, null);
             assert.notEqual(plan.value, 'fixture verified plan', 'an invalidated plan must not keep its verified display');
-        }, passes > 1 ? 'inspector-reconfigure' : null);
+            const unverified = plan.value;
+            n.onExecuted({ h3_reference_plan: ['new verified plan'] });
+            assert.equal(plan.value, 'new verified plan', 'the next execution publishes its new plan');
+            assert.equal(executions, 2, 'configure must not multiply execution callbacks');
+            let value = plan.value, writes = 0;
+            Object.defineProperty(plan, 'value', { configurable: true,
+                get() { return value; }, set(next) { writes++; value = next; } });
+            n.__h3ContinuumIntuitiveUxRefresh();
+            assert.equal(writes, 1, 'one UI refresh updates the Inspector once after any number of configure passes');
+            assert.equal(plan.value, 'new verified plan', 'unchanged settings keep the verified plan');
+            assert.equal(n.onConnectionsChange(), 'connected');
+            assert.equal(connections, 1, 'configure must not multiply connection callbacks');
+            assert.equal(plan.value, unverified, 'connection changes invalidate the displayed plan');
+            assert.deepEqual(n.serialize(), saved, 'Inspector updates do not enter saved widget values');
+            assert.equal(e.submissions.length, 0);
+        });
     }
     console.log(JSON.stringify(results));
-    if (results.some(item => !item.pass && !item.knownIssue)) process.exitCode = 1;
+    if (results.some(item => !item.pass)) process.exitCode = 1;
 })();

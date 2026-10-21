@@ -1,5 +1,24 @@
 # Public development log
 
+## 3.9.12 — Reference Plan Inspector refresh (2026-10-22)
+
+Fix stale verified Reference Plan text after the Sampler UI is reconfigured,
+including workflow save/reload. Changing Reference assignments now invalidates
+the old Inspector display; the next backend result supplies the verified plan.
+Refresh callbacks do not accumulate, and Inspector text is not saved as workflow data.
+
+CPU/JavaScript: **2,148 passed / 2 skipped / 0 failures or expected failures**.
+Chrome save/reload checks passed. After actual GPU sampling, unchecking the
+Reference assignment changed the visible Inspector heading from **runtime verified**
+to **Configured only — Queue has not verified...**, without another Queue.
+The 140 protected existing files and all three files of the new Run remained
+hash-identical. This is targeted UI acceptance, not video-quality acceptance.
+
+Update through Manager or replace the existing custom-node package, then
+**restart ComfyUI and hard-refresh the browser (Ctrl+F5)**. Existing Takes and
+workflows can be kept; no rewiring, deletion or new Run is required for this UI fix.
+[Validation conditions and limits](docs/RELEASE_NOTES_V3912.md).
+
 ## 3.9.11 — Spectrum loaded-code audit stability
 
 Retain the legacy marshal audit and its four metadata files. If only function

@@ -1,13 +1,32 @@
-# ComfyUI-H3-Continuum 3.9.11 — V3.9
+# ComfyUI-H3-Continuum 3.9.12 — V3.9
 
 Generate long-form MiniMax H3 video and audio in chunks, review each result,
 retry a section, and continue from compatible saved Takes.
 **V3.9 is the current workflow; V3.8X2 remains available separately.**
 
-[Download v3.9.11](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.11/ComfyUI-H3-Continuum-v3.9.11.zip) ·
-[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.11) ·
-[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.11/SHA256SUMS.txt) ·
+[Download v3.9.12](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) ·
+[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) ·
+[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) ·
 [日本語](README_JA.md)
+
+## 3.9.12 — Reference Plan Inspector refresh
+
+Fix stale verified Reference Plan text after the Sampler UI is reconfigured,
+including workflow save/reload. Changing Reference assignments now invalidates
+the old Inspector display; the next backend result supplies the verified plan.
+Refresh callbacks do not accumulate, and Inspector text is not saved as workflow data.
+
+CPU/JavaScript: **2,148 passed / 2 skipped / 0 failures or expected failures**.
+Chrome save/reload checks passed. After actual GPU sampling, unchecking the
+Reference assignment changed the visible Inspector heading from **runtime verified**
+to **Configured only — Queue has not verified...**, without another Queue.
+The 140 protected existing files and all three files of the new Run remained
+hash-identical. This is targeted UI acceptance, not video-quality acceptance.
+
+Update through Manager or replace the existing custom-node package, then
+**restart ComfyUI and hard-refresh the browser (Ctrl+F5)**. Existing Takes and
+workflows can be kept; no rewiring, deletion or new Run is required for this UI fix.
+[Validation conditions and limits](docs/RELEASE_NOTES_V3912.md).
 
 ## 3.9.11 — Spectrum signature stability / Review continuation
 
@@ -116,7 +135,7 @@ git pull --ff-only origin main
 If Manager owns your installation, update that copy through Manager.
 Restart ComfyUI and refresh the browser after updating.
 Registry review, Manager's selected version and GitHub Releases are separate;
-the fixed-version links above identify the exact v3.9.11 package.
+the fixed-version links above identify the exact v3.9.12 package.
 
 The package declares Python **3.10+** and ComfyUI **0.32.0+**.
 The minimum declaration is not a GPU acceptance result for every Core version.
@@ -279,16 +298,16 @@ V3.8 Second Pass does not support partial Review sequences; V3.9 can inherit
 validated conditioning for its actual output groups.
 [Integration contract](docs/V38_OPEN_INTEGRATION_CONTRACT.md).
 
-## Compatibility and v3.9.9 scope
+## Compatibility and verification scope
 
 | Area | Supported boundary |
 | --- | --- |
 | Saved history | Existing Takes stay readable. Old v5 or unsafe history is not repaired or promoted into reusable Sampling v6 history; start a new Run when required. |
 | Unknown MODEL wrappers | Fresh generation remains available; reuse requires observable, matching contracts. No blanket approval by class name or version. |
 | Attention / Spectrum | Finite audited profiles support Core PyTorch/Kitchen and specified Spectrum implementations, including upstream v0.2.29. [Exact scope](docs/ISSUE31_SAMPLING_SIGNATURES.md). |
-| KJ Model Preview Override | Only the pinned KJ/Core source profile: **VAE / Audio VAE disconnected, Tiny VAE `none`**, Core NoPreviews/Auto/Latent2RGB. KJNodes 1.5.2 alone is insufficient; the audited local source differs from upstream. [Supported hashes](docs/KJ_PREVIEW_OVERRIDE_V398.md). |
+| KJ Model Preview Override | Only the separately audited local and upstream KJ/Core profiles: **VAE / Audio VAE disconnected, Tiny VAE `none`**, Core NoPreviews/Auto/Latent2RGB. A KJNodes version number alone is insufficient. [3.9.9 support update](docs/RELEASE_NOTES_V399.md) / [supported hashes](docs/KJ_PREVIEW_OVERRIDE_V398.md). |
 
-Published **v3.9.9** passed new-Run, separate-Queue Chunk 1→2 GPU continuation
+Historical published **v3.9.8** verification passed new-Run, separate-Queue Chunk 1→2 GPU continuation
 with **PyTorch + KJ** and **Comfy Kitchen INT8 + audited local Spectrum + KJ**.
 Preview images remained held, original Chunk 1 data/contracts stayed unchanged,
 and all four video/audio outputs decoded successfully.
@@ -298,8 +317,6 @@ They do not establish support for other KJ/Spectrum builds or preview-VAE paths.
 
 ## Known limitations
 
-- **Reference Plan Inspector:** stale display after repeated Sampler configuration
-  remains a known issue; the two expected test failures do not mean it is fixed.
 - **Mobile:** reduced UI work is verified; mobile freeze resolution is unconfirmed.
 - **Resources:** nine high-resolution References or long final decoding can exhaust
   VRAM/RAM. Disk-backed Finalize does not prevent allocations in other nodes.
@@ -309,7 +326,8 @@ They do not establish support for other KJ/Spectrum builds or preview-VAE paths.
   are not guaranteed. Some long continuations have known quality limits.
 - **Acceptance:** browser Run-button/save-reload, the reporter's exact full graph,
   other provider builds, subjective quality and speed/VRAM benchmarks were not
-  established by the targeted v3.9.9 GPU recheck.
+  established by the historical v3.9.8 GPU recheck. Later targeted checks are
+  recorded separately in the release notes above.
 
 ## Detailed documentation
 
@@ -319,11 +337,11 @@ They do not establish support for other KJ/Spectrum builds or preview-VAE paths.
 | Current Reference Images | [V3.9 Reference guide](docs/V39_REFERENCE_INLINE.md) |
 | Updating from V3.8X2 | [Migration and retained contracts](docs/V38_RELEASE_AND_MIGRATION.md) |
 | History, earlier screenshots and implementation notes | [README history](docs/README_HISTORY.md) / [CHANGELOG](CHANGELOG.md) |
-| Current release and GPU verification | [v3.9.9 notes](docs/RELEASE_NOTES_V398.md) / [package validation](PACKAGE_VALIDATION.txt) |
+| Current release and GPU verification | [v3.9.12 notes](docs/RELEASE_NOTES_V3912.md) / [package validation](PACKAGE_VALIDATION.txt) |
 | Bug reports | [GitHub Issues](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues) — include the workflow, status text and `auto-resume disabled:` reason |
 
 Historical Releases and tags remain available. Documentation updates on `main`
-do not replace the published v3.9.9 tag or package assets.
+do not replace published tags or package assets.
 This condensed README changes documentation only; public nodes, official
 workflow JSON/ZIP files, Sampling v6 and existing Runs/Takes are unchanged.
 

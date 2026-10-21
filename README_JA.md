@@ -1,13 +1,30 @@
-# ComfyUI-H3-Continuum 3.9.11 — V3.9
+# ComfyUI-H3-Continuum 3.9.12 — V3.9
 
 MiniMax H3の映像・音声をチャンクに分けて生成し、結果を確認しながら
 一部分の再生成や、互換性のある保存Takeからの継続ができます。
 **現在のWorkflowはV3.9です。V3.8X2も別のWorkflowとして保持しています。**
 
-[v3.9.11本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.11/ComfyUI-H3-Continuum-v3.9.11.zip) ·
-[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.11) ·
-[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.11/SHA256SUMS.txt) ·
+[v3.9.12本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) ·
+[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) ·
+[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) ·
 [English](README.md)
+
+## 3.9.12 — Reference Plan Inspectorの表示更新
+
+SamplerのUI再構成やWorkflow保存・再読込後に、古い検証済みReference Planが
+残る問題を修正しました。参照割り当てを変更すると未検証表示へ戻り、次の生成で
+バックエンドが返すPlanへ更新します。コールバックの累積やInspector情報の保存は行いません。
+
+CPU・JavaScriptは **2,148成功／2スキップ／失敗・期待失敗0**。
+Chromeで保存・再読込を確認し、実GPU生成後に参照割り当てを解除すると、
+Inspectorの「runtime verified」が「Configured only — Queue has not verified...」
+へ切り替わることを確認しました。追加Queueは不要で、既存保護対象140ファイルと
+新規Runの3ファイルのハッシュは不変でした。画質全般の合格を示す検証ではありません。
+
+Managerまたは既存custom-nodeフォルダーの更新後、**ComfyUIを再起動し、
+ブラウザーをCtrl+F5で更新**してください。既存Take・Workflowはそのまま使えます。
+このUI修正のための配線変更・履歴削除・新規Runは不要です。
+[詳しい検証条件と制約](docs/RELEASE_NOTES_V3912.md)。
 
 ## 3.9.11 — Spectrum署名の安定化／Review継続
 
@@ -105,7 +122,7 @@ git pull --ff-only origin main
 Managerで導入した場合は、そのコピーをManagerから更新してください。
 更新後はComfyUIを再起動し、ブラウザーを再読込します。
 Registry審査・Managerが選択する版・GitHub Releaseの状態は別です。
-正確なv3.9.11を使う場合は、冒頭の固定版リンクを参照してください。
+正確なv3.9.12を使う場合は、冒頭の固定版リンクを参照してください。
 
 パッケージの宣言上の最低要件は**Python 3.10以降・ComfyUI 0.32.0以降**です。
 この最低要件の宣言だけで、すべてのCore版でのGPU動作確認を意味するものではありません。
@@ -255,16 +272,16 @@ Run／Takeや完成動画は移動しません。変更・削除は実行中／�
 V3.8ではReview途中のpartial sequenceに対応しません。V3.9は検証済みの実出力groupの条件を継承できます。
 [外部連携の仕様](docs/V38_OPEN_INTEGRATION_CONTRACT.md)。
 
-## 互換性・v3.9.9の対応範囲
+## 互換性・検証範囲
 
 | 対象 | 対応条件 |
 | --- | --- |
 | 保存履歴 | 既存Takeは読取可能です。旧v5・unsafe履歴をSampling v6の再利用可能履歴へ自動修復・昇格しません。必要に応じて新Runを使います。 |
 | 未知のMODEL wrapper | 新規生成は可能です。再利用には生成契約の完全な観測と一致が必要で、名前・版だけで許可しません。 |
 | Attention／Spectrum | Core PyTorch／Kitchenと、公式v0.2.29を含む指定Spectrum実装の監査済みプロファイルに対応します。[厳密な範囲](docs/ISSUE31_SAMPLING_SIGNATURES.md)。 |
-| KJ Model Preview Override | 固定したKJ／Core実装のみ。**VAE／Audio VAE未接続・Tiny VAE `none`**、Core NoPreviews／Auto／Latent2RGB。監査済みローカルソースはupstreamと異なり、KJNodes 1.5.2全般の合格ではありません。[対応ハッシュ](docs/KJ_PREVIEW_OVERRIDE_V398.md)。 |
+| KJ Model Preview Override | 個別に監査したローカル版と公開upstream版のKJ／Coreプロファイルのみ。**VAE／Audio VAE未接続・Tiny VAE `none`**、Core NoPreviews／Auto／Latent2RGB。KJNodesの版番号だけでは対応を判定できません。[3.9.9での対応追加](docs/RELEASE_NOTES_V399.md) / [対応ハッシュ](docs/KJ_PREVIEW_OVERRIDE_V398.md)。 |
 
-公開版**v3.9.9**は、新Run・別QueueでのChunk 1→2継続を
+過去の公開版**v3.9.8**の検証では、新Run・別QueueでのChunk 1→2継続を
 **PyTorch＋KJ**と**Comfy Kitchen INT8＋監査済みローカルSpectrum＋KJ**で確認しています。
 プレビュー画像を保持し、元Chunk 1と契約を維持、映像・音声4本は全デコード成功でした。
 条件はRTX 5060 Ti 16 GB、512×512、24fps、2×5秒、8-step Turbo、Core API経由です。
@@ -273,15 +290,13 @@ V3.8ではReview途中のpartial sequenceに対応しません。V3.9は検証�
 
 ## 既知の問題・制約
 
-- **Reference Plan Inspector：** Samplerの再configure後に古い表示が残る問題は未修正です。
-  2件の期待失敗は修正済みを意味しません。
 - **モバイル：** UI処理の削減は確認していますが、フリーズ解消は未確認です。
 - **メモリ：** 大きなReference画像9枚や長尺の最終DecodeでVRAM／RAM不足になる場合があります。
   Disk-backed Finalizeでも、他ノードの大きなメモリ確保は防げません。
 - **Refinement：** 高倍率のLatent Resizeでアーティファクトが残る場合があります。
   長いHi-Res／Hybrid条件と二重輪郭には制約・調査中の事項があります（[Issue #27](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues/27)）。
 - **連続性：** 完全な同一性・動作・口の同期・元動画の全フレーム再現は保証しません。長尺には既知の品質制約もあります。
-- **検証範囲：** ブラウザー実行／保存再読込、報告者の完全一致グラフ、他実装、主観画質・音質、速度・VRAM比較は、今回の限定GPU再検証で確立していません。
+- **検証範囲：** ブラウザー実行／保存再読込、報告者の完全一致グラフ、他実装、主観画質・音質、速度・VRAM比較は、上記の過去のv3.9.8 GPU再検証では確立していません。その後の限定検証は各版のリリースノートに分けて記録しています。
 
 ## 詳細資料
 
@@ -291,10 +306,10 @@ V3.8ではReview途中のpartial sequenceに対応しません。V3.9は検証�
 | 現行Reference Images | [V3.9 Referenceガイド](docs/V39_REFERENCE_INLINE.md) |
 | V3.8X2からの更新 | [移行・保持する仕様](docs/V38_RELEASE_AND_MIGRATION.md) |
 | 更新履歴・旧版画像・実装説明 | [日本語の履歴資料](docs/README_HISTORY_JA.md) / [CHANGELOG](CHANGELOG.md) |
-| 最新版の検証記録 | [v3.9.9詳細](docs/RELEASE_NOTES_V398.md) / [配布検証](PACKAGE_VALIDATION.txt) |
+| 最新版の検証記録 | [v3.9.12詳細](docs/RELEASE_NOTES_V3912.md) / [配布検証](PACKAGE_VALIDATION.txt) |
 | 不具合報告 | [GitHub Issues](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues) — Workflow、Status、`auto-resume disabled:`の理由を添えてください |
 
-過去のRelease・タグは保持しています。mainの文書更新で、公開済みv3.9.9のタグや配布物を置き換えることはありません。
+過去のRelease・タグは保持しています。mainの文書更新で、公開済みのタグや配布物を置き換えることはありません。
 この整理は文書のみであり、公開ノード・公式Workflow JSON／ZIP・Sampling v6・既存Run／Takeは変更しません。
 
 ## ライセンス

@@ -1,3 +1,12 @@
+ComfyUI-H3-Continuum 3.9.12 — Reference Plan Inspector refresh
+CPU/JS: 2148 passed / 2 skipped / 0 failed / 0 expected failures.
+Chrome save/reload and targeted GPU-generated Plan invalidation confirmed.
+Existing Takes and official workflows retained; generation/storage unchanged.
+Restart ComfyUI and hard-refresh browser; no new Run required for this UI fix.
+Conditions, first-attempt resource error and limits: docs/RELEASE_NOTES_V3912.md
+
+Historical package records follow; their counts describe their own versions.
+------------------------------------------------------------------------
 ComfyUI-H3-Continuum 3.9.11 — Spectrum signature stability
 CPU/JS: 2139 passed / 2 skipped / 2 known Inspector xfailed; unexpected failures 0.
 Targeted Spectrum + Kitchen browser/GPU: Review enabled; Chunk 1 retained,
@@ -40,10 +49,12 @@ Package metadata: 3.9.5. Public registration: twelve nodes. Existing V3.9
 and separate V3.8X2 workflows remain supported without schema migration.
 
 Release artifacts and integrity (2026-10-13)
-**Latest package: 3.9.5.** Use the fixed-version GitHub downloads below. Registry publication is verified separately.
+--- Current package downloads; historical validation records retain their original scope ---
+**Latest package: 3.9.12.** Use the fixed-version GitHub downloads below. Registry publication is verified separately. Current release validation is in docs/RELEASE_NOTES_V3911.md; the earlier records below describe their own versions.
 
 | Version | Release | Custom-node ZIP | SHA-256 checksum |
 | --- | --- | --- | --- |
+| 3.9.12 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) |
 | 3.9.5 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.5) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.5/ComfyUI-H3-Continuum-v3.9.5.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.5/SHA256SUMS.txt) |
 | 3.9.4 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.4) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.4/ComfyUI-H3-Continuum-v3.9.4.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.4/SHA256SUMS.txt) |
 | 3.9.3 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.3) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/ComfyUI-H3-Continuum-v3.9.3.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.3/SHA256SUMS.txt) |
@@ -286,7 +297,7 @@ payloads. The V3.8 Sampler and official V38X2 workflow JSON/ZIP are unchanged.
 Older V3.9 prototype workflows need manual rewiring; saved Runs/Takes are not
 automatically migrated.
 
-The latest recorded Windows CPU run is 1536 passed, 1 skipped, 0 failed.
+The Windows CPU run recorded for this historical section was 1536 passed, 1 skipped, 0 failed.
 A separate Linux/Python 3.13.5 CPU audit reported 1534 passed, 3 skipped,
 0 failed; that external count was not rerun during this documentation edit.
 The selected workflow JSON has 32/39 nodes/links. The development Manifest
