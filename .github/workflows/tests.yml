@@ -39,4 +39,4 @@ jobs:
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
           python -m pip install numpy safetensors pytest psutil aiohttp
       - name: Windows file-backed and temporary storage regressions
-        run: python -m pytest -q -p no:cacheprovider tests/test_temporary_storage.py tests/test_storage_api.py tests/test_p20_file_backed_tensor_poc.py tests/test_p22_file_backed_buffer.py tests/decode_cache
+        run: python -m pytest -q -p no:cacheprovider tests/test_temporary_storage.py tests/test_storage_api.py tests/test_p20_file_backed_tensor_poc.py tests/test_p22_file_backed_buffer.py tests/decode_cache tests/test_project_manager.py tests/test_project_manager_api.py tests/test_project_manager_bridge.py tests/test_project_manager_panel.py

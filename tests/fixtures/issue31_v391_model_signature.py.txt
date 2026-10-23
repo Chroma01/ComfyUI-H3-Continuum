@@ -1,0 +1,41 @@
+def _model_signature(model: Any, legacy_fingerprint: str) -> tuple[dict[str, Any], bool]:
+    base = getattr(model, "model", None)
+    inner = getattr(base, "diffusion_model", None)
+    wrappers, wrappers_safe = _observe(getattr(model, "wrappers", {}) or {})
+    patches, patches_safe = _observe(getattr(model, "patches", {}) or {})
+    options = getattr(model, "model_options", {}) or {}
+    if not isinstance(options, dict):
+        return {"model_patcher": _qualified(model), "error": "model_options is not a mapping"}, False
+    observed_options = dict(options)
+    transformer = dict(observed_options.get("transformer_options", {}) or {})
+    transformer.pop("h3_continuum_join_context", None)
+    if "transformer_options" in observed_options:
+        observed_options["transformer_options"] = transformer
+    observed_options, options_safe = _observe(observed_options)
+    weights: list[dict[str, Any]] = []
+    weights_safe = True
+    try:
+        parameters = list(inner.named_parameters()) if inner is not None else []
+        for position in sorted({0, len(parameters) // 2, len(parameters) - 1}) if parameters else []:
+            name, parameter = parameters[position]
+            weights.append({"name": str(name), **_tensor_probe(parameter)})
+    except Exception:
+        weights_safe = False
+    descriptor = {
+        "legacy_fingerprint": str(legacy_fingerprint),
+        "model_patcher": _qualified(model),
+        "base": _qualified(base),
+        "inner": _qualified(inner),
+        "dtype": str(getattr(model, "model_dtype", lambda: "unknown")()),
+        "model_size": int(getattr(model, "model_size", lambda: 0)() or 0),
+        "wrappers": wrappers,
+        "model_options": observed_options,
+        "patches": patches,
+        "weight_probe": weights,
+        "runtime_observation": {
+            "wrappers_complete": bool(wrappers_safe),
+            "patches_complete": bool(patches_safe),
+            "model_options_complete": bool(options_safe),
+        },
+    }
+    return descriptor, weights_safe and bool(weights) and wrappers_safe and patches_safe and options_safe

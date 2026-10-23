@@ -103,3 +103,11 @@ write-h3-v39-reference-prompts/
 
 # Current Inspector repair and validation notes.
 !docs/RELEASE_NOTES_V3912.md
+
+# Optional Project / Take management guide.
+!docs/PROJECT_TAKE_MANAGER_V12.md
+!docs/RELEASE_NOTES_V3100.md
+
+# Images referenced directly by the optional Manager README walkthrough.
+!docs/images/project-manager-v12/
+!docs/images/project-manager-v12/*.png

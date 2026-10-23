@@ -9,7 +9,7 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "3.9.12"
+EXPECTED_VERSION = "3.10.0"
 
 
 def test_v35_release_metadata_is_consistent():

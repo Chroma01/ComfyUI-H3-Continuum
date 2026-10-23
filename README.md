@@ -1,13 +1,175 @@
-# ComfyUI-H3-Continuum 3.9.12 — V3.9
+# ComfyUI-H3-Continuum 3.10.0 — V3.9
 
 Generate long-form MiniMax H3 video and audio in chunks, review each result,
 retry a section, and continue from compatible saved Takes.
 **V3.9 is the current workflow; V3.8X2 remains available separately.**
 
-[Download v3.9.12](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) ·
-[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) ·
-[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) ·
+[Download v3.10.0](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/ComfyUI-H3-Continuum-v3.10.0.zip) ·
+[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.0) ·
+[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/SHA256SUMS.txt) ·
 [日本語](README_JA.md)
+
+## 3.10.0 — optional Project / Take Manager V1.2
+
+An optional right-side panel for named Projects, independent trials and immutable
+named Take savepoints. OFF by default; enable it in **Settings → H3Continuum →
+Project Manager**, then open **H3 Continuum → Project / Take**. Preparing a
+savepoint delegates to existing Review controls; generation starts with your
+normal Queue action. No new node or workflow rewiring is required.
+
+Final CPU/JavaScript regression, including panel reopening: **2,210 passed /
+2 skipped / 0 failures**, with zero CUDA initialization attempts. Chrome
+save/reload and four dedicated GPU Queues passed: Chunk 1 → Chunk 2 → alternate
+Chunk 2 from the same savepoint → independent trial. The original Chunk 1 raw
+hash and previous Takes were preserved; all four AV files decoded successfully.
+
+Existing generation works without Manager. Savepoints reference existing data;
+they are not backups or complete workflow restores. These are targeted functional
+checks, not general video-quality or performance acceptance.
+[Usage and safeguards](docs/PROJECT_TAKE_MANAGER_V12.md) ·
+[Changes, test conditions and limits](docs/RELEASE_NOTES_V3100.md).
+Manager V1.2 is included in package 3.10.0; the existing workflow remains V3.9.
+
+### Manager walkthrough with actual screenshots
+
+These Chrome screenshots show Manager V1.2 in English. Labels follow the
+ComfyUI English/Japanese locale. Use your existing V3.9 workflow: **no additional
+Sampler, graph node or rewiring is needed**.
+
+| Term | Meaning | Example |
+| --- | --- | --- |
+| Project | An organizational container for trials and savepoints | A scene or film |
+| Trial / Run | One generation history; independent trials use separate Runs | Idea A, Idea B |
+| Take | An actual saved generation candidate | First and second versions of Chunk 2 |
+| Named savepoint | A fixed name referencing a selected Take and its ancestry | Keep Chunk 1 |
+
+#### 1. Enable Manager
+
+1. Open ComfyUI **Settings** using the gear icon on the left.
+2. Select **H3Continuum**, then find **Project Manager**.
+3. Turn **Enable Project / Take Manager (experimental)** ON. It defaults to OFF;
+   the blue switch in the screenshot is ON.
+4. Close Settings. Other report/preview settings do not need to change.
+
+![Enable Project Manager in H3Continuum settings](docs/images/project-manager-v12/manager-guide-01-settings.png)
+
+#### 2. Open the panel and select the Sampler
+
+1. Open the ComfyUI menu at the upper left, then **H3 Continuum → Project / Take**.
+   **Open Project / Take** in Settings is another entry point. If closing Settings
+   hides the panel, reopen it from the menu.
+2. In the right-side panel, select **Target Sampler**. With multiple Samplers,
+   match its node number to the intended V3.9 node in the workflow.
+
+![Open Project / Take from the ComfyUI menu](docs/images/project-manager-v12/manager-guide-02-menu.png)
+
+The panel runs from **Target Sampler → Project → Trial / Run → Named savepoints**.
+This screenshot already has a test Project and two trials.
+
+![Project, trial and savepoint sections](docs/images/project-manager-v12/manager-guide-03-panel.png)
+
+#### 3. Create a Project and attach the current Run
+
+1. Give the Sampler a unique **Run Name**, use **Run Storage: Save + Auto Resume**
+   to retain Takes, and generate normally. For a first exercise, choose
+   **Review Each Chunk** and generate Chunk 1.
+2. Type a title in the **Project** name field and click **Create Project**.
+   Select the created Project, or select an existing one instead.
+3. Type a display label such as `Idea A` in the **Trial / Run** name field.
+4. Click **Add current Run** and select the added trial. This registers the
+   target Sampler's existing Run without copying video/raw data or changing Takes.
+
+Typing a name alone creates nothing and does not switch the Sampler's Run.
+Use the relevant action button, then confirm the new item appears in the list.
+
+#### 4. Name a Take you want to keep
+
+1. Open the Sampler's **Render History**. Use **Previous Take / Next Take** to
+   select the candidate you want to preserve.
+2. In Manager, select the trial attached to that same Run. Saving against a
+   different Run is rejected.
+3. Enter a label such as `Keep Chunk 1` in the **Named savepoints** name field.
+4. Click **Name selected Take**. Confirm its list entry and endpoint, such as
+   **Through Chunk 1**.
+
+Here, **Keep Chunk 1 · Through Chunk 1** is already saved. A savepoint at Chunk 2
+includes that Take's ancestry through Chunk 2. Generating later chunks does not
+move an existing savepoint to the latest Take.
+
+![A fixed Chunk 1 savepoint and its preparation button](docs/images/project-manager-v12/manager-guide-04-savepoint.png)
+
+#### 5. Continue from a savepoint
+
+1. Set up the intended workflow, models, prompts and references. Manager does
+   not restore these settings; prefix reuse still requires existing compatibility
+   checks to pass.
+2. Select **Project → trial → savepoint**.
+3. Click **Prepare from savepoint**.
+4. Confirm **Prepared. Check the Sampler and use the normal Queue button.**
+   Check the selected Take and prefix range in the Sampler's Render History.
+5. Press the normal **Run / Queue** button. Preparation alone starts no GPU job.
+
+The existing Review view shows the selected Take and **Continue From Here**
+range. Once Manager has prepared the action, you do not need to select another
+Take action. The screenshot below is the Sampler's existing Review UI.
+
+![Existing Sampler Review controls and selected Take](docs/images/project-manager-v12/manager-guide-06-review.png)
+
+**Example: keep Chunk 1 and make two alternatives for Chunk 2.** Name Chunk 1,
+prepare that savepoint and Queue to generate Chunk 2. Select the same savepoint,
+prepare and Queue again for another Chunk 2. Under the tested identical settings,
+the Chunk 1 raw hash stayed unchanged and Chunk 2 Variation advanced from 1 to 2.
+The previous Chunk 2 Take remained available. You can name each Chunk 2 candidate
+separately as well.
+
+#### 6. Start an independent idea
+
+1. In the same Project, type a new label such as `Idea B` in **Trial / Run**.
+2. Click **New trial** and select the created trial.
+3. Click **Prepare new trial**, then confirm the success message. Preparation
+   clears the Sampler's Run Name and applies a fresh Run UUID together.
+4. Check generation settings and press normal **Run**. This starts at Chunk 1
+   in a separate Run, preserving the previous trial.
+
+![New trial name field and explicit preparation action](docs/images/project-manager-v12/manager-guide-05-independent.png)
+
+`Trial C — new idea` in the screenshot is an input example. Typing it alone does
+not create Trial C or rename the selected Trial B. **New trial does not copy an
+old prefix.** To retain Chunk 1 and change the continuation, use step 5 instead.
+Browsing another Project/trial does not switch the Sampler either: select the
+intended savepoint and explicitly prepare it when returning to an earlier idea.
+
+#### 7. Organize names and close the panel
+
+| Action | Steps and effect |
+| --- | --- |
+| Rename | Select the Project/trial/savepoint, edit its own name field and click its **Rename** button. Run filenames and generation settings stay unchanged. |
+| Hide an item | Select it and click **Archive**. This does not delete videos, Takes or raw data. |
+| Restore an item | Enable **Show archived items**, select the item and click **Restore**. |
+| Reload management data | Click **Refresh**, especially after another tab has updated the Project. Review the new state before editing. |
+| Close | Click **Close** at the panel's top right. Saved management data remains; closing does not cancel generation. |
+| Work as before | Generate without opening the panel, or turn Manager OFF in Settings. |
+
+#### 8. If an action is unavailable
+
+- **Empty lists:** select the target Sampler, Project and trial; attach a Run if
+  you have not done so yet.
+- **Name selected Take fails:** select a Take in Render History and check that
+  the selected Manager trial references the same Run.
+- **Prepare new trial is disabled:** select a trial created with **New trial**;
+  this action is not used for an attached named Run.
+- **Preparation is refused:** wait for the target's queued/running job to finish.
+  Connected identity/action inputs or conflicting Run identities can also block
+  preparation. Do not force changes to an externally controlled workflow.
+- **Read-only or incompatible Take:** Manager does not bypass Sampling v6. Restore
+  the intended source conditions or start a new independent Run from Chunk 1.
+  Do not delete saved history or edit reuse flags.
+- **Missing/corrupt source:** savepoints require the original metadata and raw
+  data. They are references, not backups; keep their source Runs.
+
+Save your **workflow separately** to retain model, prompt and reference settings.
+Project metadata is not a complete workflow save. See the
+[Manager guide](docs/PROJECT_TAKE_MANAGER_V12.md) for additional safeguards.
 
 ## 3.9.12 — Reference Plan Inspector refresh
 
@@ -337,7 +499,7 @@ They do not establish support for other KJ/Spectrum builds or preview-VAE paths.
 | Current Reference Images | [V3.9 Reference guide](docs/V39_REFERENCE_INLINE.md) |
 | Updating from V3.8X2 | [Migration and retained contracts](docs/V38_RELEASE_AND_MIGRATION.md) |
 | History, earlier screenshots and implementation notes | [README history](docs/README_HISTORY.md) / [CHANGELOG](CHANGELOG.md) |
-| Current release and GPU verification | [v3.9.12 notes](docs/RELEASE_NOTES_V3912.md) / [package validation](PACKAGE_VALIDATION.txt) |
+| Current release and GPU verification | [v3.10.0 notes](docs/RELEASE_NOTES_V3100.md) / [package validation](PACKAGE_VALIDATION.txt) |
 | Bug reports | [GitHub Issues](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues) — include the workflow, status text and `auto-resume disabled:` reason |
 
 Historical Releases and tags remain available. Documentation updates on `main`

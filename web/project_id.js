@@ -1996,6 +1996,191 @@ function clearTakeSelection(node) {
     setExistingWidgetValue(findWidget(node, TAKE_ACTION_WIDGET), TAKE_ACTION_AUTOMATIC);
 }
 
+// Optional Project / Take Manager entry point. Merely installing this bridge
+// does not read storage, change widgets, submit a Queue or add event listeners.
+function configureManagerBridge(node) {
+    if (node.comfyClass !== V39_NODE_CLASS || node.__h3ContinuumManagerBridge) return;
+    const identityWidgets = [LEGACY_RUN_NAME_WIDGET, PROJECT_WIDGET];
+    const actionWidgets = [RUN_STORAGE_WIDGET, GENERATION_MODE_WIDGET, REVIEW_ACTION_WIDGET,
+        REGENERATE_WIDGET, REROLL_NONCE_WIDGET, TAKE_GROUP_WIDGET, TAKE_REVISION_WIDGET, TAKE_ACTION_WIDGET];
+    const required = [...identityWidgets, ...actionWidgets];
+    const storageSampler = name => [PRODUCTION_NODE_CLASS, TIMELINE_NODE_CLASS, V34_NODE_CLASS,
+        V35_NODE_CLASS, V36_NODE_CLASS, V37_NODE_CLASS, V38_NODE_CLASS, V39_NODE_CLASS].includes(name);
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    let preparing = false;
+    const describe = () => {
+        const selected = selectedTake(node);
+        return {
+            run_name: takeRunName(node),
+            project_id: String(findWidget(node, PROJECT_WIDGET)?.value || ""),
+            revision_id: selected?.revision_id || "",
+            busy: Boolean(preparing || activeReviewPrompt(node) || reviewSubmissionCount),
+            edited: reviewSettingsChanged(node),
+            takes: takeCatalog(node).map(item => ({revision_id: item.revision_id,
+                group: {...item.group}, label: takeLabel(item), read_only: takeReadOnly(item)})),
+        };
+    };
+    const stateKey = () => JSON.stringify([reviewSettingsSnapshot(node),
+        required.map(name => [name, findWidget(node, name)?.value]),
+        node.__h3ContinuumBrowseRevision, node.__h3ContinuumReviewedSettings]);
+    const checkLocal = () => {
+        if (!reviewNodeAttached(node) || reviewGraphHydrating || node.__h3ContinuumConfigurePending) {
+            throw new Error("Wait until the current workflow has finished loading.");
+        }
+        if (activeReviewPrompt(node) || reviewSubmissionCount) {
+            throw new Error("This Sampler is queued or running. Wait before preparing another Run.");
+        }
+        if (required.some(name => !findWidget(node, name)) || linkedInput(node, required)) {
+            throw new Error("Run identity and Review controls must use local widgets for Manager preparation.");
+        }
+    };
+    const checkDuplicate = (runName, projectId) => {
+        const graph = node.graph || app.graph;
+        for (const other of graph?._nodes || []) {
+            if (other === node || !storageSampler(other.comfyClass)) continue;
+            if ((projectId && String(findWidget(other, PROJECT_WIDGET)?.value || "").toLowerCase() === projectId)
+                    || takeRunName(other).toLowerCase() === runName.toLowerCase()) {
+                throw new Error("Another Sampler in this workflow already uses this Run or Project ID.");
+            }
+        }
+    };
+    const checkQueue = async (runNames) => {
+        const response = await api.fetchApi("/queue", {cache: "no-store"});
+        if (!response.ok) throw new Error("Could not verify the running and pending Queues.");
+        const queue = await response.json();
+        if (!Array.isArray(queue?.queue_running) || !Array.isArray(queue?.queue_pending)) {
+            throw new Error("Could not verify the running and pending Queues.");
+        }
+        for (const entry of [...queue.queue_running, ...queue.queue_pending]) {
+            // Core's queued entry stores accepted output IDs, not an optional
+            // UI selection. An empty accepted set executes no Sampler.
+            if (Array.isArray(entry?.[4]) && entry[4].length === 0) continue;
+            const output = entry?.[2];
+            if (!output || typeof output !== "object") throw new Error("Queue metadata is incomplete.");
+            for (const [id, submitted] of Object.entries(output)) {
+                if (!storageSampler(submitted?.class_type)
+                        || !reviewPromptIncludes(output, id, {partialExecutionTargets: entry[4]})) continue;
+                const runName = reviewPromptRunName(submitted.inputs).toLowerCase();
+                if (id === String(node.id) || runNames.includes(runName)) {
+                    throw new Error("This Sampler or Run is queued or running. Wait before preparing it.");
+                }
+            }
+        }
+    };
+    const prepareRun = async (target = {}) => {
+        if (preparing) throw new Error("Manager preparation is already in progress.");
+        const checkOwner = () => {
+            if (typeof target.isCurrent === "function" && !target.isCurrent()) {
+                throw new Error("Manager preparation was cancelled. No Run selection was applied.");
+            }
+        };
+        checkOwner();
+        checkLocal();
+        const runName = String(target.run_name || "");
+        const projectId = String(target.project_id || "").toLowerCase();
+        const revisionId = String(target.revision_id || "");
+        if ((projectId && !uuid.test(projectId)) || (!runName && !uuid.test(projectId))) {
+            throw new Error("A valid Project ID is required for an unnamed Run.");
+        }
+        if (runName && (runName !== runName.trim() || runName.length > 96
+                || /[\x00-\x1f<>:"/\\|?*]/.test(runName) || /[. ]$/.test(runName))) {
+            throw new Error("The saved Run Name is invalid.");
+        }
+        const storageName = runName || `run_${projectId.replaceAll("-", "")}`;
+        const oldRun = takeRunName(node);
+        if (!revisionId && (runName || storageName === oldRun)) {
+            throw new Error("A new trial must use a fresh Project ID and an empty Run Name.");
+        }
+        if (revisionId && oldRun === storageName && reviewSettingsChanged(node)) {
+            throw new Error("Settings changed. Restore this Run's settings before preparing its Take.");
+        }
+        checkDuplicate(storageName, projectId);
+        const graph = node.graph || app.graph;
+        const appGraph = app.graph;
+        const epoch = reviewGraphEpoch;
+        const key = stateKey();
+        const current = () => {
+            checkOwner();
+            checkLocal();
+            if (epoch !== reviewGraphEpoch || app.graph !== appGraph || (node.graph || app.graph) !== graph
+                    || stateKey() !== key) throw new Error("Workflow or selection changed during preparation. Try again.");
+            checkDuplicate(storageName, projectId);
+        };
+        preparing = true;
+        try {
+            await checkQueue([oldRun.toLowerCase(), storageName.toLowerCase()]);
+            current();
+            const response = await api.fetchApi(
+                `/view?filename=project.json&type=output&subfolder=${encodeURIComponent(`h3_continuum/runs/${storageName}`)}`,
+                {cache: "no-store"});
+            let project = null;
+            let selected = null;
+            if (revisionId) {
+                if (!response.ok) throw new Error("Saved Run history is unavailable.");
+                project = await response.json();
+                if (project?.run_name !== storageName || Number(project?.run_storage_schema_version) !== 3
+                        || Number(project?.branch_provenance_version) !== 1) {
+                    throw new Error("Saved Run identity or provenance is unsupported.");
+                }
+                const catalog = takeCatalog({__h3ContinuumTakeProject: project});
+                selected = catalog.find(item => item.revision_id === revisionId);
+                if (!selected || takeReadOnly(selected)
+                        || !takeAncestry(project, selected, catalog).length) {
+                    throw new Error("This saved Take cannot be reused by the current Review controls.");
+                }
+                if (target.group && ["physical_group", "start", "end"].some(
+                    name => Number(target.group[name]) !== selected.group[name])) {
+                    throw new Error("The saved Take group changed. Reload the savepoint.");
+                }
+            } else if (response.status !== 404) {
+                throw new Error(response.ok ? "This Run already exists; create another trial."
+                    : "Could not verify that the new Run is unused.");
+            }
+            current();
+            await checkQueue([oldRun.toLowerCase(), storageName.toLowerCase()]);
+            current();
+            // No asynchronous work after this point. Apply identity together,
+            // invalidate older history responses, then use the existing action.
+            node.__h3ContinuumTakeLoadToken = Number(node.__h3ContinuumTakeLoadToken || 0) + 1;
+            findWidget(node, LEGACY_RUN_NAME_WIDGET).value = runName;
+            findWidget(node, PROJECT_WIDGET).value = projectId;
+            findWidget(node, RUN_STORAGE_WIDGET).value = "Save + Auto Resume";
+            node.__h3ContinuumHistoryRun = storageName;
+            node.__h3ContinuumHistoryRunInitialized = true;
+            node.__h3ContinuumTakeInitialLoad = true;
+            node.__h3ContinuumTakeProject = project;
+            delete node.__h3ContinuumHistoryRequest;
+            for (const name of ["__h3ContinuumBrowseRevision", "__h3ContinuumTakeError",
+                "__h3ContinuumOutputFailure", "__h3ContinuumQueueNotice", "__h3ContinuumRestartSelected",
+                "__h3ContinuumRestartQueued", "__h3ContinuumModeSetup", REVIEW_UI_SELECTION,
+                REVIEW_PENDING_ACTION, TAKE_PENDING_ACTION]) delete node[name];
+            if (oldRun !== storageName) {
+                // A previous Run's browser edit baseline cannot describe this
+                // one. Do not invent a generated-settings baseline for it.
+                delete node.__h3ContinuumReviewedSettings;
+                delete node.__h3ContinuumReviewedSettingsKey;
+            }
+            clearTakeSelection(node);
+            setRegenerateProgrammatically(node, "Auto");
+            setExistingWidgetValue(findWidget(node, REROLL_NONCE_WIDGET), 0);
+            setExistingWidgetValue(findWidget(node, REVIEW_ACTION_WIDGET), REVIEW_ACTION_CONTINUE);
+            if (selected) {
+                node.__h3ContinuumBrowseRevision = selected.revision_id;
+                node.__h3ContinuumHistoryOpen = true;
+                node.__h3ContinuumReviewSettingsOpen = false;
+                selectTakeAction(node, TAKE_ACTION_CONTINUE);
+            }
+            node.__h3ContinuumIntuitiveUxRefresh?.();
+            node.__h3ContinuumProductionUxRefresh?.();
+            node.setDirtyCanvas?.(true, true);
+            return {...describe(), busy: false, prepared: true, queued: false};
+        } finally { preparing = false; }
+    };
+    Object.defineProperty(node, "__h3ContinuumManagerBridge", {
+        value: Object.freeze({describe, prepareRun}), configurable: true,
+    });
+}
+
 async function loadTakeHistory(node, options = {}) {
     // Creation precedes saved widget/link restoration. Never bind a Run or
     // settings baseline to that intermediate graph.
@@ -3365,6 +3550,7 @@ function configureNode(node) {
     configureIntuitiveV38Ux(node);
     configureProductionReviewUx(node);
     configureV39ReferenceUx(node);
+    configureManagerBridge(node);
     applyV38View(node);
     node.setDirtyCanvas?.(true, true);
     return projectWidget;

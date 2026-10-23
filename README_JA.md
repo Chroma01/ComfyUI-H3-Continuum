@@ -1,13 +1,169 @@
-# ComfyUI-H3-Continuum 3.9.12 — V3.9
+# ComfyUI-H3-Continuum 3.10.0 — V3.9
 
 MiniMax H3の映像・音声をチャンクに分けて生成し、結果を確認しながら
 一部分の再生成や、互換性のある保存Takeからの継続ができます。
 **現在のWorkflowはV3.9です。V3.8X2も別のWorkflowとして保持しています。**
 
-[v3.9.12本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) ·
-[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) ·
-[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) ·
+[v3.10.0本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/ComfyUI-H3-Continuum-v3.10.0.zip) ·
+[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.0) ·
+[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/SHA256SUMS.txt) ·
 [English](README.md)
+
+## 3.10.0 — Project / Take Manager V1.2
+
+Project・独立した試行・名前付きTake保存点を管理する右側パネルです。初期OFFで、
+**設定 → H3Continuum → Project Manager** で有効にし、メニューの
+**H3 Continuum → Project / Take** から開きます。保存点からの再開準備は既存Reviewへ
+渡し、生成は通常のQueue操作で開始します。ノード追加や配線変更は不要です。
+
+再表示修正を含む最終CPU・JavaScript回帰は **2,210成功／2スキップ／失敗0**、
+CUDA初期化試行0。Chromeで保存・再読込を確認し、専用Runで
+「Chunk 1 → Chunk 2継続 → 同じ保存点から別Chunk 2 → 独立試行」の4 Queueが成功しました。
+元Chunk 1のrawハッシュと以前のTakeを保持し、4本すべての映像・音声を正常にデコードできました。
+
+Managerを使わず従来どおり生成できます。保存点は既存データへの参照で、バックアップや
+Workflow全体の復元ではありません。今回の合格は管理機能の動作確認で、画質・速度全般を
+保証するものではありません。
+[操作方法・安全条件](docs/PROJECT_TAKE_MANAGER_V12.md)・
+[変更内容・検証条件と制限](docs/RELEASE_NOTES_V3100.md)。
+パッケージ3.10.0で追加した機能です。Workflowは引き続きV3.9です。
+
+### Managerの使い方 — 実画面で順番に操作
+
+以下はChromeで撮影したManager V1.2の実画面です。画面は英語ロケールですが、
+日本語ロケールでは対応する日本語名になります。既存のV3.9 Workflowをそのまま使い、
+**Samplerを増やしたり、配線を変更したりする必要はありません**。
+
+まず言葉を区別します。
+
+| 名前 | 何を管理するものか | 例 |
+| --- | --- | --- |
+| Project | 試行や保存点をまとめる管理用の箱 | 「ヘリコプターのシーン」 |
+| Trial / Run（試行） | 一つの生成履歴。独立試行には別のRunを使う | 「案A」「案B」 |
+| Take | 実際に生成して保存された候補 | Chunk 2の1回目・2回目の結果 |
+| Named savepoint（保存点） | 選択Takeまでの履歴に付ける固定の名前 | 「Chunk 1を採用」 |
+
+#### 1. Managerを有効にする
+
+1. ComfyUI左側の歯車 **Settings（設定）** を開きます。
+2. 設定カテゴリ **H3Continuum** を選びます。
+3. **Project Manager** の **Enable Project / Take Manager (experimental)** をONにします。
+   初期状態はOFFです。画像の青いスイッチがONの状態です。
+4. 設定を閉じます。他のDetailed Report・Sampling Preview等を変更する必要はありません。
+
+![設定のH3ContinuumでProject ManagerをONにする](docs/images/project-manager-v12/manager-guide-01-settings.png)
+
+#### 2. パネルを開き、対象Samplerを選ぶ
+
+1. 左上のComfyUIメニューを開き、**H3 Continuum → Project / Take** を選びます。
+   設定内の **Open Project / Take** からも開けます。設定画面を閉じてパネルが
+   見えなくなった場合は、メニューからもう一度開いてください。
+2. 右側に管理パネルが開きます。
+3. **Target Sampler（対象Sampler）** で、管理したいV3.9 Samplerを選びます。
+   複数ある場合は、末尾のノード番号をWorkflow内の番号と照合します。
+
+![左上メニューからH3 ContinuumのProject / Takeを開く](docs/images/project-manager-v12/manager-guide-02-menu.png)
+
+パネルは上から **対象Sampler → Project → Trial / Run → Named savepoints** の順です。
+画像には検証用に作成済みのProjectと二つの試行が表示されています。
+
+![Project、試行、保存点の三段構成の管理パネル](docs/images/project-manager-v12/manager-guide-03-panel.png)
+
+#### 3. Projectを作り、現在のRunを登録する
+
+既に生成中の動画を管理する場合の手順です。
+
+1. Sampler側で一意の **Run Name** を設定し、通常どおり生成します。
+   Takeを保存する **Run Storage: Save + Auto Resume** を使用します。
+   まず試すなら **Review Each Chunk** でChunk 1を生成して止めます。
+2. Managerの **Project** 欄の名前入力に、作品名などを入力し、**Create Project（Projectを作成）** を押します。
+   作成したProjectを上の一覧で選びます。既存Projectを使う場合は作成不要です。
+3. **Trial / Run** 欄の名前入力に「案A」などの表示名を入力します。
+4. **Add current Run（現在のRunを追加）** を押し、追加された試行を選びます。
+   これは対象SamplerのRunを管理一覧に登録する操作です。動画やrawをコピーせず、
+   既存Takeも変更しません。
+
+**Project名を入力するだけでは作成されません。試行名を入力するだけでもRunは切り替わりません。**
+それぞれの実行ボタンを押した後、一覧に追加されたことを確認します。
+
+#### 4. 残したいTakeに名前を付ける
+
+1. Samplerの **Render History** を開き、Previous Take／Next Takeで残したいTakeを選びます。
+   一覧が既に開いている場合は、その選択内容を確認します。
+2. Managerで、そのTakeと同じRunを登録した試行を選びます。
+   別Runの試行を選んだまま保存しようとすると拒否されます。
+3. **Named savepoints** の名前入力に「Chunk 1を採用」などを入力します。
+4. **Name selected Take（選択Takeに名前を付ける）** を押します。
+5. 一覧に保存点が追加され、**Through Chunk 1** など、どこまで保存したかを確認します。
+
+下の実例では **Keep Chunk 1 · Through Chunk 1** が保存済みです。
+Chunk 2のTakeを選んで保存すれば、そのTakeの祖先を含めたChunk 2までが対象になります。
+後から続きを生成しても、既に付けた保存点の終点は勝手に移動しません。
+
+![Chunk 1までの保存点とPrepare from savepointボタン](docs/images/project-manager-v12/manager-guide-04-savepoint.png)
+
+#### 5. 保存点を使って続きを作る
+
+1. 対象Samplerで、再開に使うWorkflow・モデル・プロンプトなどの条件を用意します。
+   Managerはそれらを自動復元しません。前半を再利用するには既存の互換性判定を満たす必要があります。
+2. **Project → 試行 → 保存点** の順に選びます。
+3. **Prepare from savepoint（保存点から再開準備）** を押します。
+4. 「Prepared. Check the Sampler and use the normal Queue button.」の成功表示と、
+   SamplerのRender Historyで選ばれたTakeを確認します。
+5. 通常の **Run／Queue** を押します。準備ボタンだけではGPU生成は始まりません。
+
+Sampler側では、選択Takeや **Continue From Here** に示される前半の再利用範囲を確認します。
+Managerから再開準備が済んでいる場合、別のTake操作を押し直す必要はありません。
+以下は既存Reviewの画面例で、Managerとは別の生成・履歴操作部分です。
+
+![SamplerのRender Historyで選択TakeとContinue From Hereを確認](docs/images/project-manager-v12/manager-guide-06-review.png)
+
+**具体例：Chunk 1を残して、Chunk 2を二通り作る**
+
+1. Chunk 1のTakeに「Chunk 1を採用」と名前を付けます。
+2. その保存点から再開準備し、Runを押してChunk 2を作ります。
+3. 別案も欲しければ、再び同じ保存点を選び、再開準備してRunを押します。
+4. 検証した同一条件では、Chunk 1のrawは不変で、Chunk 2のVariationが1→2へ進みました。
+   前のChunk 2のTakeも残ります。必要ならそれぞれのChunk 2 Takeにも別名を付けます。
+
+#### 6. 前の案を残して、独立した別案を始める
+
+1. 同じProject内の **Trial / Run** 名前入力に「案B」などを入力します。
+2. **New trial（新しい試行）** を押します。
+3. 作成した試行を一覧で選び、**Prepare new trial（新しい試行へ切替準備）** を押します。
+4. 成功表示を確認します。この操作はSamplerのRun Nameを空欄にし、新しいRun識別子を設定します。
+5. 必要な生成条件を確認して通常のRunを押すと、別RunのChunk 1から生成します。
+
+![独立試行の名前入力、New trialとPrepare new trial](docs/images/project-manager-v12/manager-guide-05-independent.png)
+
+画像の **Trial C — new idea** は新しい試行名の入力例です。名前を入力しただけでは、
+一覧で選択中のTrial Bを改名したり、新規試行を作成したりしません。
+**New trialは前半を複製する操作ではありません。Chunk 1を残して続きを変える場合は、
+手順5の保存点を使います。** 前の試行へ戻るときも、Project／試行を眺めるだけでは
+Samplerは切り替わらないため、使いたい保存点を選んで再開準備してください。
+
+#### 7. 名前の整理・非表示・閉じ方
+
+| 操作 | 手順と結果 |
+| --- | --- |
+| 表示名を変更 | 対象Project／試行／保存点を選び、その欄の名前を書き換えて **Rename**。元Runのファイル名や生成条件は変わりません。 |
+| 一覧から隠す | 対象を選んで **Archive**。動画・Take・rawを削除する操作ではありません。 |
+| 元に戻す | **Show archived items（アーカイブも表示）** をONにし、対象を選んで **Restore（戻す）**。 |
+| 他のタブで変更された情報を読む | **Refresh**。未確認の内容を上書きせず、再読込して確認します。 |
+| パネルを閉じる | 右上の **Close**。保存済み管理情報は残り、生成やQueueの停止にはなりません。 |
+| 従来どおり使う | パネルを開かずに生成できます。設定でManagerをOFFにもできます。 |
+
+#### 8. ボタンが押せない・再開できないとき
+
+- **一覧が空**：対象SamplerとProject、試行を選んでいるか確認します。まだRunを登録していなければ手順3へ進みます。
+- **Name selected Takeでエラー**：SamplerのRender HistoryでTakeを選び、Manager側の試行と同じRunか確認します。
+- **Prepare new trialが灰色**：既存の名前付きRunを登録した試行では使いません。**New trial** で作成した独立試行を選びます。
+- **再開準備を拒否**：対象SamplerのQueue実行・待機が終わってから操作します。Run識別・操作入力に外部接続がある場合や、同じRun識別子が競合している場合も拒否されます。外部制御しているWorkflowを無理に書き換えないでください。
+- **v6 read-only・互換性不一致**：Managerは再利用制限を解除しません。必要な元条件を用意するか、独立試行でChunk 1から生成します。既存Takeの削除やフラグの書換えは不要です。
+- **保存元が見つからない・破損**：保存点はバックアップではありません。元Runのメタデータとrawが必要です。名前を付けた後も元データを削除しないでください。
+
+Workflow保存とProject管理情報の保存は別です。**モデル・プロンプト・参照画像などは
+引き続きWorkflowとして保存**してください。詳細な制約は[Managerガイド](docs/PROJECT_TAKE_MANAGER_V12.md)を参照してください。
 
 ## 3.9.12 — Reference Plan Inspectorの表示更新
 
@@ -306,7 +462,7 @@ V3.8ではReview途中のpartial sequenceに対応しません。V3.9は検証�
 | 現行Reference Images | [V3.9 Referenceガイド](docs/V39_REFERENCE_INLINE.md) |
 | V3.8X2からの更新 | [移行・保持する仕様](docs/V38_RELEASE_AND_MIGRATION.md) |
 | 更新履歴・旧版画像・実装説明 | [日本語の履歴資料](docs/README_HISTORY_JA.md) / [CHANGELOG](CHANGELOG.md) |
-| 最新版の検証記録 | [v3.9.12詳細](docs/RELEASE_NOTES_V3912.md) / [配布検証](PACKAGE_VALIDATION.txt) |
+| 最新版の検証記録 | [v3.10.0詳細](docs/RELEASE_NOTES_V3100.md) / [配布検証](PACKAGE_VALIDATION.txt) |
 | 不具合報告 | [GitHub Issues](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues) — Workflow、Status、`auto-resume disabled:`の理由を添えてください |
 
 過去のRelease・タグは保持しています。mainの文書更新で、公開済みのタグや配布物を置き換えることはありません。

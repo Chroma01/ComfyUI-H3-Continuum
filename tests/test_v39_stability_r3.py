@@ -20,6 +20,9 @@ from . import test_v38_review_run_storage as review
 from . import test_p23_assembly_v35 as assembly
 
 
+pytestmark = pytest.mark.usefixtures("assembly_memory_headroom")
+
+
 def scope(*, chunk=2, finish=False):
     contract = review._contract(chunks=4)
     entries = [review._entry(position, contract) for position in range(3)]

@@ -53,3 +53,12 @@ def review_queue_results():
     failures = [item for item in records if not item["pass"]]
     assert result.returncode == 0 and not failures, result.stdout + result.stderr
     return {item["name"]: item for item in records}
+
+
+@pytest.fixture
+def assembly_memory_headroom(monkeypatch):
+    """Small tensor correctness tests do not depend on the host's free RAM."""
+    from ComfyUI_H3_Continuum_Join.v3 import file_backed_buffer
+
+    gib = 1024 ** 3
+    monkeypatch.setattr(file_backed_buffer, "_system_memory_bytes", lambda: (16 * gib, 32 * gib))

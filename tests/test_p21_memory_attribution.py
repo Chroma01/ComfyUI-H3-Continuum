@@ -21,6 +21,9 @@ from ComfyUI_H3_Continuum_Join.v3.driving_nodes import (
 from ComfyUI_H3_Continuum_Join.v3.plan import ASSEMBLY_PLAN_MAGIC
 
 
+pytestmark = pytest.mark.usefixtures("assembly_memory_headroom")
+
+
 def _terminal_plan():
     plan = enrich_assembly_plan(
         {

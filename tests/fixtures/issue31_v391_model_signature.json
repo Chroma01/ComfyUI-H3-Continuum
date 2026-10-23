@@ -1,0 +1,7 @@
+{
+  "source_commit": "190141e03ee3b696410f7f22a0e2838f4b8672b6",
+  "source_path": "run_storage.py",
+  "source_git_blob": "77e89282c8be9b56839751c8fe37935b0ca680e4",
+  "extraction": "ast.get_source_segment for _model_signature, followed by LF",
+  "fixture_sha256": "0a8de0d5ec51dcc5bb93a30a1a4447dcc493dba1b0a4e4d483ca277dd01f1ef6"
+}

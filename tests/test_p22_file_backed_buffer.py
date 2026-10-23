@@ -12,6 +12,9 @@ import torch
 from ComfyUI_H3_Continuum_Join.v3 import file_backed_buffer as buffer
 
 
+pytestmark = pytest.mark.usefixtures("assembly_memory_headroom")
+
+
 def _managed_files(root: Path) -> list[Path]:
     return sorted(
         path

@@ -1,5 +1,39 @@
 # Public source status
 
+## 3.10.0 — Project / Take Manager V1.2
+
+Optional default-OFF panel with independent management metadata. Named Projects,
+trials and fixed Take endpoints prepare the original Review controls without
+Queue submission. Sampling and storage identity contracts remain unchanged.
+CPU/JavaScript: 2,210 passed / 2 skipped / zero failures; CUDA initialization attempts: zero.
+This final full run includes the browser follow-up guard for reopening a
+host-detached panel. All 24 actual-JavaScript panel cases pass; the Manager's
+57 distinct JavaScript cases are included through pytest wrappers, not added
+to the full-suite total.
+Chrome dedicated-workflow save/reload and targeted four-Queue GPU acceptance
+passed: Manager OFF Chunk 1, saved-prefix Chunk 2, alternate Chunk 2, independent
+new-Run Chunk 1. Original raw/Takes were preserved; all four AV files decoded.
+Manager V1.2 is prepared for publication in package 3.10.0. These are
+targeted management checks, not general video-quality acceptance.
+See docs/PROJECT_TAKE_MANAGER_V12.md and docs/RELEASE_NOTES_V3100.md.
+
+## Unreleased — portable CPU regression tests
+
+Pin memory probe values only in small assembly/buffer correctness tests. Explicit
+low-memory and unavailable-counter tests still exercise the production guard.
+Replace the test-time Git/HEAD lookup with a SHA-256-checked model-signature
+fixture extracted from the actual v3.9.1 source, with commit/blob provenance.
+ZIP-based test runs no longer need Git metadata. Product RAM safety, generation,
+Take identity/storage and official workflows are unchanged. No new release.
+
+Validation: the original snapshot reproduced 44 RAM-reserve failures and one
+Git-metadata failure under a simulated 1 GiB memory probe without .git. The same
+203 cases passed after this test-only repair. Full CPU/JavaScript regression in
+an identical ZIP-extracted source copy: 2,148 passed / 2 skipped / zero failures;
+CUDA initialization attempts: zero. Targeted results overlap the full total.
+
+
+
 ## 3.9.12 — Reference Plan Inspector refresh (2026-10-22)
 
 Fix stale verified Reference Plan text after the Sampler UI is reconfigured,
@@ -110,10 +144,11 @@ Finite loaded-implementation signatures identify the Core PyTorch/Kitchen attent
 
 ## GitHub and Registry publication status
 
-**Latest package: 3.9.12.** Use the fixed-version GitHub downloads below. Registry publication is verified separately. Unreleased source changes do not replace these published assets.
+**Latest package: 3.10.0.** Use the fixed-version GitHub downloads below. Registry publication is verified separately. Manager V1.2 validation is recorded in docs/RELEASE_NOTES_V3100.md.
 
 | Version | Release | Custom-node ZIP | SHA-256 checksum |
 | --- | --- | --- | --- |
+| 3.10.0 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.0) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/ComfyUI-H3-Continuum-v3.10.0.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/SHA256SUMS.txt) |
 | 3.9.12 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) |
 | 3.9.8 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.8) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/ComfyUI-H3-Continuum-v3.9.8.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/SHA256SUMS.txt) |
 | 3.9.7 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.7) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.7/ComfyUI-H3-Continuum-v3.9.7.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.7/SHA256SUMS.txt) |

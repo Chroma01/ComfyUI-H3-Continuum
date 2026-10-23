@@ -1,3 +1,14 @@
+ComfyUI-H3-Continuum 3.10.0 — Project / Take Manager V1.2
+Optional default-OFF panel; no new graph node or workflow rewiring.
+CPU/JS: 2210 passed / 2 skipped / 0 failed; zero CUDA initialization attempts.
+Chrome save/reload and four dedicated Manager GPU Queues passed.
+Original prefix/Takes preserved; independent trial starts a new Run.
+Illustrated English/Japanese instructions: README.md / README_JA.md.
+Update, restart ComfyUI, hard-refresh browser. Keep existing Takes/workflows.
+Scope and limits: docs/RELEASE_NOTES_V3100.md
+
+Historical package records follow.
+------------------------------------------------------------------------
 ComfyUI-H3-Continuum 3.9.12 — Reference Plan Inspector refresh
 CPU/JS: 2148 passed / 2 skipped / 0 failed / 0 expected failures.
 Chrome save/reload and targeted GPU-generated Plan invalidation confirmed.
@@ -50,10 +61,11 @@ and separate V3.8X2 workflows remain supported without schema migration.
 
 Release artifacts and integrity (2026-10-13)
 --- Current package downloads; historical validation records retain their original scope ---
-**Latest package: 3.9.12.** Use the fixed-version GitHub downloads below. Registry publication is verified separately. Current release validation is in docs/RELEASE_NOTES_V3911.md; the earlier records below describe their own versions.
+**Latest package: 3.10.0.** Use the fixed-version GitHub downloads below. Registry publication is verified separately. Current release validation is in docs/RELEASE_NOTES_V3100.md; the earlier records below describe their own versions.
 
 | Version | Release | Custom-node ZIP | SHA-256 checksum |
 | --- | --- | --- | --- |
+| 3.10.0 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.0) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/ComfyUI-H3-Continuum-v3.10.0.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/SHA256SUMS.txt) |
 | 3.9.12 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) |
 | 3.9.5 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.5) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.5/ComfyUI-H3-Continuum-v3.9.5.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.5/SHA256SUMS.txt) |
 | 3.9.4 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.4) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.4/ComfyUI-H3-Continuum-v3.9.4.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.4/SHA256SUMS.txt) |

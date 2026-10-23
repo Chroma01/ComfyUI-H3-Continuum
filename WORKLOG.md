@@ -1,5 +1,89 @@
 # Public development log
 
+## 2026-10-23 — Package 3.10.0 publication preparation
+
+Prepare the authorized Manager V1.2 feature and illustrated bilingual README
+for package 3.10.0, retaining V3.9 workflow identity and the 3.9.12 historical
+release. Include the previously approved test portability repair; production
+RAM guards stay unchanged. Align metadata, installation guidance and release
+automation. Add Manager storage/API/JavaScript coverage to Windows CI. Existing
+Takes, workflow bytes and safe reuse contracts remain unchanged. Publication
+follows the final CPU gate, remote tree verification and successful CI.
+
+Final versioned source gate: 2,210 passed / 2 skipped / zero failures in 290.86
+seconds, with zero CUDA initialization attempts. Offline native-layout and
+twelve-node registration passed. All 21 official workflow files and protected
+existing Takes remain unchanged; six screenshots and source/package manifests
+were checked before committing. Remote CI and publication are checked separately.
+
+## 2026-10-23 — Illustrated Manager walkthrough
+
+Add six actual Chrome screenshots and step-by-step English/Japanese README
+instructions for enabling the panel, selecting a Sampler, creating a Project,
+attaching a Run, naming a Take, preparing continuation, starting an independent
+trial, archiving/restoring and resolving unavailable actions. Capture only
+relevant UI regions, without local paths or model selections. Separate browsing,
+preparation and Queue submission; describe savepoints as references, not backups
+or whole-workflow restores. This documentation stage changes no product code,
+stored Takes or existing workflow files, and submits no GPU Queue. No publication.
+
+## 2026-10-23 — Manager V1.2 final regression and documentation
+
+Freeze the candidate including the host-detached panel reopening repair. Full
+CPU/JavaScript regression: 2,210 passed, two skips, no failures or expected
+failures, one pytest import-rewrite warning; zero CUDA initialization attempts.
+The 62 Manager pytest cases include 57 distinct actual-JavaScript cases through
+wrappers; do not add those counts to the full-suite total. Document the separate
+Chrome save/reload and four-Queue GPU acceptance already completed, its data
+preservation evidence and its quality/performance limits. Update both READMEs,
+the feature guide and unreleased release notes. Keep package version 3.9.12,
+official workflows and tested product code unchanged. No commit or publication.
+
+## Unreleased — Project / Take Manager V1.2 implementation
+
+Implement the agreed optional right-side panel and separate per-Project metadata.
+New trials receive an independent Run identity, savepoints pin existing ancestry,
+and preparation delegates to the existing Review selection. No Queue wrapper,
+new node, Run marker or sampling/storage implementation change is introduced.
+Preserve prior test portability work. Fixed-source CPU/JavaScript regression:
+2,210 passed / 2 skipped / zero failures; CUDA initialization attempts: zero.
+Manager coverage includes 62 pytest cases and 56 distinct actual-JS cases
+(the JS cases run inside pytest and are not added to its total). Earlier test-count
+failures during fixture additions were corrected before this fixed-source run.
+Browser follow-up: guard reopening when a host removes the panel DOM without
+its Close callback. Preserve cancellation of obsolete asynchronous work. The
+panel's actual-JS gate now has 24 passing cases; the earlier full count above
+predates this follow-up and is not a new full-suite result for that guard.
+
+Chrome: dedicated workflow imported, saved and reloaded; default OFF, panel,
+target Sampler, named Project, attached Run, fixed Chunk 1 savepoint and new
+independent trial were operated through visible controls. Targeted GPU: four
+successful Queues at 512x512, 24 fps, two 5-second chunks, 8-step Euler/simple,
+Comfy Kitchen, Turbo model-only LoRA, no Spectrum/KJ override/Second Pass.
+Chunk 1 raw SHA-256 was unchanged; Chunk 2 variations 1 and 2 and all old Takes
+were retained. A fresh UUID with empty Run Name began at Chunk 1. Four MP4s
+fully decoded with matching AV durations of 5/10/10/5 seconds. Existing Takes
+and workflows were unchanged; only the explicit Manager enable preference and
+new dedicated test assets were added. Queue empty; no commit, push or release.
+These are functional management checks, not broad quality/performance acceptance.
+
+## Unreleased — portable CPU regression tests
+
+Pin memory probe values only in small assembly/buffer correctness tests. Explicit
+low-memory and unavailable-counter tests still exercise the production guard.
+Replace the test-time Git/HEAD lookup with a SHA-256-checked model-signature
+fixture extracted from the actual v3.9.1 source, with commit/blob provenance.
+ZIP-based test runs no longer need Git metadata. Product RAM safety, generation,
+Take identity/storage and official workflows are unchanged. No new release.
+
+Validation: the original snapshot reproduced 44 RAM-reserve failures and one
+Git-metadata failure under a simulated 1 GiB memory probe without .git. The same
+203 cases passed after this test-only repair. Full CPU/JavaScript regression in
+an identical ZIP-extracted source copy: 2,148 passed / 2 skipped / zero failures;
+CUDA initialization attempts: zero. Targeted results overlap the full total.
+
+
+
 ## 3.9.12 — Reference Plan Inspector refresh (2026-10-22)
 
 Fix stale verified Reference Plan text after the Sampler UI is reconfigured,

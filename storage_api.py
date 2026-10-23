@@ -94,4 +94,11 @@ def register_routes(server=None):
     server.routes.post("/h3-continuum/storage/cleanup")(cleanup)
     server._h3_storage_registered = True
     install_manager(manager)
+    # Optional management registration must never prevent existing generation,
+    # storage or Review from loading if its module is unavailable.
+    try:
+        from .project_manager_api import register_routes as register_project_routes
+        register_project_routes(server)
+    except Exception:
+        logging.getLogger("h3_continuum.project_manager").exception("Project / Take management routes unavailable")
     return manager

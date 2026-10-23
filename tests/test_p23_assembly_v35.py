@@ -36,6 +36,9 @@ from ComfyUI_H3_Continuum_Join.v3.file_backed_buffer import (
 from ComfyUI_H3_Continuum_Join.v3.plan import ASSEMBLY_PLAN_MAGIC
 
 
+pytestmark = pytest.mark.usefixtures("assembly_memory_headroom")
+
+
 _FPS = 24
 _SAMPLE_RATE = 240
 

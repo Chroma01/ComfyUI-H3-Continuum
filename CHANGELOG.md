@@ -1,5 +1,40 @@
 # Changelog
 
+## 3.10.0 — optional Project / Take Manager V1.2
+
+- Add a default-OFF right-side panel for named Projects, independent trials and
+  immutable named savepoints, with ComfyUI English/Japanese locale support.
+- Store management metadata separately in the user's profile using short
+  per-Project locks, atomic JSON updates, revision conflicts and operation IDs.
+- Verify saved ancestry and raw hashes, then prepare the existing Review action;
+  never automatically Queue, restore workflow settings or promote read-only Takes.
+- Keep sampling, Run Storage, contracts, node IDs and shipped workflows unchanged.
+- Reopen a panel whose DOM was detached by the host, cancelling obsolete requests
+  before replacing it. Include the repair in the final full regression gate.
+- Final CPU/JavaScript: 2,210 passed / 2 skipped / zero failures; no CUDA
+  initialization attempts. Chrome save/reload and four dedicated GPU Queues
+  passed, preserving the original Chunk 1 and earlier Takes. All four AV files
+  decoded with matching stream durations. This is targeted functional acceptance.
+  See [validation conditions and limits](docs/RELEASE_NOTES_V3100.md).
+  Manager V1.2 ships in package 3.10.0 and defaults OFF.
+
+### Portable CPU regression tests
+
+Pin memory probe values only in small assembly/buffer correctness tests. Explicit
+low-memory and unavailable-counter tests still exercise the production guard.
+Replace the test-time Git/HEAD lookup with a SHA-256-checked model-signature
+fixture extracted from the actual v3.9.1 source, with commit/blob provenance.
+ZIP-based test runs no longer need Git metadata. Product RAM safety, generation,
+Take identity/storage and official workflows are unchanged.
+
+Validation: the original snapshot reproduced 44 RAM-reserve failures and one
+Git-metadata failure under a simulated 1 GiB memory probe without .git. The same
+203 cases passed after this test-only repair. Full CPU/JavaScript regression in
+an identical ZIP-extracted source copy: 2,148 passed / 2 skipped / zero failures;
+CUDA initialization attempts: zero. Targeted results overlap the full total.
+
+
+
 ## 3.9.12 — Reference Plan Inspector refresh (2026-10-22)
 
 Fix stale verified Reference Plan text after the Sampler UI is reconfigured,
