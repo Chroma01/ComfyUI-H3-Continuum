@@ -1,5 +1,24 @@
 # Public development log
 
+## 2026-10-24 — Package 3.10.2 hotfix
+
+Protect sealed Take history with copy-on-write storage revisions and atomic
+finalization of status/provenance. Cover failures before/after a raw commit,
+atomic seal failure, project-index failure and abrupt child-process exit.
+Keep existing schema, signatures, raw references and immutable saved endpoints.
+Add narrow reachability validation for capped Review, linked Run Storage intent
+coverage, cryptographic Manager UUID fallback and CPU retention of refined video.
+Preserve normal CPU object identity and exact First Pass audio passthrough.
+This work does not refactor unrelated runtime paths or change official workflows.
+Final CPU/JavaScript: 2,248 passed / 2 skipped / zero failures in 310.55 seconds.
+CUDA initialization attempts: zero. Review Queue 90, linked-storage 42 and
+Manager panel 46 JavaScript cases are included through pytest wrappers, not
+added to that total. Offline twelve-node/native-layout checks passed.
+GPU testing requires separate approval.
+Prepare the authorized GitHub commit, push and hotfix Release with matching
+metadata, bilingual README, release notes and the existing verified release job.
+No runtime deployment. Registry resubmission remains held pending manual review.
+
 ## 2026-10-23 — Package 3.10.1: Manager refusal messages
 
 Identify actual revision conflicts with `project_revision_conflict`; other

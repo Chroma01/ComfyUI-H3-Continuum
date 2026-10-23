@@ -541,7 +541,12 @@ def run_second_pass_groups(
                 f"refined video group {group_index} contains NaN or Inf"
             )
         output_latent = dict(video_latent)
-        output_latent["samples"] = refined_video
+        # Accepted long-form outputs stay off VRAM even with Core --gpu-only.
+        output_latent["samples"] = (
+            refined_video.detach().to("cpu")
+            if refined_video.device.type != "cpu" or refined_video.requires_grad
+            else refined_video
+        )
         if selection_active:
             refined_videos[group_index] = output_latent
         else:

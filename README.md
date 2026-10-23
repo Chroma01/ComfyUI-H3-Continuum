@@ -1,13 +1,35 @@
-# ComfyUI-H3-Continuum 3.10.1 — V3.9
+# ComfyUI-H3-Continuum 3.10.2 — V3.9
 
 Generate long-form MiniMax H3 video and audio in chunks, review each result,
 retry a section, and continue from compatible saved Takes.
 **V3.9 is the current workflow; V3.8X2 remains available separately.**
 
-[Download v3.10.1](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/ComfyUI-H3-Continuum-v3.10.1.zip) ·
-[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.1) ·
-[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/SHA256SUMS.txt) ·
+[Download v3.10.2](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.2/ComfyUI-H3-Continuum-v3.10.2.zip) ·
+[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.2) ·
+[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.2/SHA256SUMS.txt) ·
 [日本語](README_JA.md)
+
+## 3.10.2 — hotfix: preserve Review history and regeneration requests
+
+- Keep finalized Takes and named savepoints available after interrupted or
+  failed continuation. New work uses separate storage revisions.
+- Reject unreachable regeneration targets before capped Review sampling; keep
+  regeneration requests when Run Storage comes from an external node.
+- Support Manager operations on HTTP LAN pages with a secure UUID fallback.
+- Keep accepted Second Pass video on CPU, including with `--gpu-only`, instead
+  of retaining earlier outputs in VRAM. First Pass audio is preserved.
+
+CPU/JavaScript: **2,248 passed / 2 skipped / 0 failures**, with zero CUDA
+initialization attempts. Offline twelve-node registration/layout passed.
+**No new live-browser or GPU acceptance**: real VRAM, OOM behavior and visual
+quality have not been measured for this hotfix.
+
+Existing Takes, workflows, Sampling v6 / Graph v4 and unknown-code refusal stay
+unchanged. Previously interrupted history is not automatically repaired, and
+read-only Takes are not promoted. Update, fully restart ComfyUI and hard-refresh
+the browser (Ctrl+F5). No history deletion or workflow rewiring is needed.
+**Registry resubmission remains held pending the 3.10.0 manual review; use the
+GitHub ZIP.** [Details and update instructions](docs/RELEASE_NOTES_V3102.md).
 
 ## 3.10.1 — accurate Project / Take Manager refusal messages
 
@@ -518,7 +540,7 @@ They do not establish support for other KJ/Spectrum builds or preview-VAE paths.
 | Current Reference Images | [V3.9 Reference guide](docs/V39_REFERENCE_INLINE.md) |
 | Updating from V3.8X2 | [Migration and retained contracts](docs/V38_RELEASE_AND_MIGRATION.md) |
 | History, earlier screenshots and implementation notes | [README history](docs/README_HISTORY.md) / [CHANGELOG](CHANGELOG.md) |
-| Current release and GPU verification | [v3.10.1 notes](docs/RELEASE_NOTES_V3101.md) / [package validation](PACKAGE_VALIDATION.txt) |
+| Current release and GPU verification | [v3.10.2 notes](docs/RELEASE_NOTES_V3102.md) / [package validation](PACKAGE_VALIDATION.txt) |
 | Bug reports | [GitHub Issues](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues) — include the workflow, status text and `auto-resume disabled:` reason |
 
 Historical Releases and tags remain available. Documentation updates on `main`

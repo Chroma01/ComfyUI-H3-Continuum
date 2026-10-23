@@ -1,13 +1,33 @@
-# ComfyUI-H3-Continuum 3.10.1 — V3.9
+# ComfyUI-H3-Continuum 3.10.2 — V3.9
 
 MiniMax H3の映像・音声をチャンクに分けて生成し、結果を確認しながら
 一部分の再生成や、互換性のある保存Takeからの継続ができます。
 **現在のWorkflowはV3.9です。V3.8X2も別のWorkflowとして保持しています。**
 
-[v3.10.1本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/ComfyUI-H3-Continuum-v3.10.1.zip) ·
-[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.1) ·
-[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/SHA256SUMS.txt) ·
+[v3.10.2本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.2/ComfyUI-H3-Continuum-v3.10.2.zip) ·
+[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.2) ·
+[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.2/SHA256SUMS.txt) ·
 [English](README.md)
+
+## 3.10.2 — ホットフィックス：Review履歴と再生成指定を保護
+
+- Continueの失敗・中断後も、確定済みTakeと名前付き保存点を保持します。
+  新しい処理は別の保存Revisionへ書き込みます。
+- Reviewの到達不能な再生成指定を計算前に拒否し、外部ノードからRun Storageを
+  接続した場合も、再生成チャンク・番号を勝手にリセットしません。
+- HTTPのLAN接続でも、暗号学的乱数によるUUID代替処理でManagerを操作できます。
+- `--gpu-only`を含め、Second Passの生成済み映像をCPUへ保持し、前区間の結果が
+  VRAMへ蓄積する経路を修正します。First Pass音声は維持します。
+
+CPU・JavaScriptは **2,248成功／2スキップ／失敗0**、CUDA初期化試行0。
+12ノードのオフライン登録・Layoutを確認しました。**今回の実ブラウザー・GPU受入は
+未実施**で、実VRAM使用量・OOM・画質への効果はまだ測定していません。
+
+既存Take・Workflow・Sampling v6／Graph v4・未知コードの拒否を維持します。
+過去の中断履歴の自動修復や読取専用Takeの再利用許可は行いません。
+更新後はComfyUIを完全に再起動し、Ctrl+F5でブラウザーを更新してください。
+履歴削除・配線変更は不要です。**Registry再送信は3.10.0の手動レビュー待ちで保留し、
+GitHub ZIPで配布します。** [修正内容・検証・更新手順](docs/RELEASE_NOTES_V3102.md)。
 
 ## 3.10.1 — Project / Take Managerの拒否理由を正しく表示
 
@@ -478,7 +498,7 @@ V3.8ではReview途中のpartial sequenceに対応しません。V3.9は検証�
 | 現行Reference Images | [V3.9 Referenceガイド](docs/V39_REFERENCE_INLINE.md) |
 | V3.8X2からの更新 | [移行・保持する仕様](docs/V38_RELEASE_AND_MIGRATION.md) |
 | 更新履歴・旧版画像・実装説明 | [日本語の履歴資料](docs/README_HISTORY_JA.md) / [CHANGELOG](CHANGELOG.md) |
-| 最新版の検証記録 | [v3.10.1詳細](docs/RELEASE_NOTES_V3101.md) / [配布検証](PACKAGE_VALIDATION.txt) |
+| 最新版の検証記録 | [v3.10.2詳細](docs/RELEASE_NOTES_V3102.md) / [配布検証](PACKAGE_VALIDATION.txt) |
 | 不具合報告 | [GitHub Issues](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues) — Workflow、Status、`auto-resume disabled:`の理由を添えてください |
 
 過去のRelease・タグは保持しています。mainの文書更新で、公開済みのタグや配布物を置き換えることはありません。

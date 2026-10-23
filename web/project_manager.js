@@ -21,6 +21,7 @@ const words = {
         missing: "Select a Project, trial or savepoint first.", requiredName: "Enter a name first.",
         wrongRun: "The selected Take must belong to the selected trial. Add the current Run or select its trial first.",
         noTake: "Select a saved Take in Render History first.", unavailable: "Project Manager is unavailable. Existing generation is unaffected.",
+        secureIds: "This browser cannot generate secure operation IDs. Use HTTPS, localhost, or a supported browser.",
         conflict: "This Project changed in another tab. Refresh and review it before trying a new update.",
         uncertain: "The update result is unknown. Retry pending update uses the same operation ID; do not create a second update.",
         enableLabel: "Experimental Project / Take Manager", empty: "No items yet", chunk: "Through Chunk", viewError: "Some Projects could not be read",
@@ -41,6 +42,7 @@ const words = {
         missing: "Project・試行・保存点を選択してください。", requiredName: "名前を入力してください。",
         wrongRun: "選択Takeと試行のRunが異なります。現在のRunを追加するか、対応する試行を選んでください。",
         noTake: "先にRender Historyで保存済みTakeを選択してください。", unavailable: "Project Managerを利用できません。従来の生成はそのまま利用できます。",
+        secureIds: "このブラウザーでは安全な操作IDを生成できません。HTTPS・localhost、または対応ブラウザーをご利用ください。",
         conflict: "別のタブでProjectが更新されました。更新して内容を確認してから操作してください。",
         uncertain: "更新結果を確認できません。同じ操作IDで再確認できます。新しい更新を重ねないでください。",
         enableLabel: "試験機能 Project / Take Manager", empty: "まだありません", chunk: "Chunk", viewError: "読み込めないProjectがあります",
@@ -65,8 +67,15 @@ function button(label, parent, action) {
     return node;
 }
 function uuid() {
-    if (typeof globalThis.crypto?.randomUUID !== "function") throw new Error("A secure browser context is required");
-    return globalThis.crypto.randomUUID();
+    const crypto = globalThis.crypto;
+    if (typeof crypto?.randomUUID === "function") return crypto.randomUUID();
+    if (typeof crypto?.getRandomValues !== "function") throw new Error(text().secureIds);
+    // getRandomValues also works where randomUUID requires a secure context.
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, b => b.toString(16).padStart(2, "0"));
+    return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
 }
 async function request(url, body) {
     let response;

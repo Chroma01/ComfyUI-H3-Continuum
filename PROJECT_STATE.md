@@ -1,5 +1,17 @@
 # Public source status
 
+## 3.10.2 — Review history and regeneration hotfix
+
+Protect finalized Take history through separate working storage revisions and
+atomic status/provenance publication. Validate capped Review reachability,
+preserve linked Run Storage intent, provide secure UUID fallback and keep
+accepted Second Pass video on CPU. Sampling v6 / Graph v4, stored schemas and
+official workflow bytes are unchanged. CPU/JavaScript: 2,248 passed / 2 skipped /
+zero failures; zero CUDA initialization attempts. Offline twelve-node/native
+layout checks passed. No new browser/GPU acceptance or runtime deployment.
+Prepare the authorized GitHub-only hotfix; Registry resubmission remains held
+pending the 3.10.0 manual review. See docs/RELEASE_NOTES_V3102.md.
+
 ## 3.10.1 — Project Manager refusal messages
 
 Identify actual revision conflicts with `project_revision_conflict`; other
@@ -161,10 +173,11 @@ Finite loaded-implementation signatures identify the Core PyTorch/Kitchen attent
 
 ## GitHub and Registry publication status
 
-**Latest package: 3.10.1.** Use the fixed-version GitHub downloads below. Registry publication is verified separately. Current patch validation is recorded in docs/RELEASE_NOTES_V3101.md.
+**Latest package: 3.10.2.** Use the fixed-version GitHub downloads below. Registry publication is verified separately. Current patch validation is recorded in docs/RELEASE_NOTES_V3102.md.
 
 | Version | Release | Custom-node ZIP | SHA-256 checksum |
 | --- | --- | --- | --- |
+| 3.10.2 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.2) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.2/ComfyUI-H3-Continuum-v3.10.2.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.2/SHA256SUMS.txt) |
 | 3.10.1 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.1) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/ComfyUI-H3-Continuum-v3.10.1.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/SHA256SUMS.txt) |
 | 3.10.0 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.0) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/ComfyUI-H3-Continuum-v3.10.0.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/SHA256SUMS.txt) |
 | 3.9.12 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) |

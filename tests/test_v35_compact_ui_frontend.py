@@ -95,7 +95,7 @@ def test_run_storage_off_normalizes_widgets_reload_and_queued_inputs(tmp_path):
             _function_source(source, "setWidgetVisible", "hidePersistentWidget"),
             _function_source(source, "linkedInput", "attachRefresh"),
                 _function_source(source, "attachRefresh", "normalizedV38View"),
-            _function_source(source, "normalizeRunStorageState", "configureConditionalWidgets"),
+            _function_source(source, "runStorageValue", "configureConditionalWidgets"),
             _function_source(source, "configureConditionalWidgets", "configureAssembler"),
         ]
     )

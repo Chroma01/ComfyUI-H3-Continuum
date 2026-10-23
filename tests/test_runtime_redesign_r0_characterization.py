@@ -371,7 +371,7 @@ def test_r0_failure_before_manifest_update_is_recovered_by_exception_handler(
     assert calls == 2
 
 
-def test_r0_failure_before_canonical_update_keeps_current_recovery_semantics(
+def test_failure_before_canonical_update_keeps_seal_and_recovers_index(
     monkeypatch, tmp_path
 ):
     contract = storage_cases._contract(chunks=1)
@@ -398,6 +398,7 @@ def test_r0_failure_before_canonical_update_keeps_current_recovery_semantics(
 
     manifest = json.loads(controller._manifest_path().read_text(encoding="utf-8"))
     project = json.loads((controller.run_root / "project.json").read_text(encoding="utf-8"))
-    assert manifest["status"] == "interrupted"
+    assert manifest["status"] == "complete"
     assert calls == 2
-    assert project["canonical_storage_revision_id"] is None
+    assert project["canonical_storage_revision_id"] == controller.revision_id
+    assert project["canonical_chain"] == manifest["branch_provenance"]["active_chain"]

@@ -14,7 +14,7 @@ function record() {
             { id: 'a2', name: 'Trial B', run_name: '', project_id: '22222222-2222-4222-8222-222222222222', storage_name: 'run_22222222222242228222222222222222', archived: false }],
         savepoints: [{ id: 's1', name: 'Keep beginning', attempt_id: 'a1', run_name: 'fixture', revision_id: 'revision1', group: { end: 1 }, archived: false }] };
 }
-function environment(locale = 'en') {
+function environment(locale = 'en', crypto = webcrypto) {
     const elements = [], requests = [], settings = new Map(), calls = [], alerts = [];
     let extension, enabled = false, state = record(), hook = null, fail = null;
     class Element extends EventTarget {
@@ -56,7 +56,7 @@ function environment(locale = 'en') {
         }
         return Response.json(url.endsWith('/projects') ? {projects:[state],errors:[]} : state);
     } };
-    const sandbox = {app,api,document,navigator:{language:locale},crypto:webcrypto,alert:m=>alerts.push(m),console};
+    const sandbox = {app,api,document,navigator:{language:locale},crypto,alert:m=>alerts.push(m),console};
     const source = fs.readFileSync(path.join(ROOT, 'web/project_manager.js'), 'utf8')
         .replace(/^import .*;\r?\n/gm, '').replace('export function openProjectManager', 'function openProjectManager');
     vm.runInNewContext(source, sandbox);
@@ -216,5 +216,36 @@ await test('names render as text instead of HTML',async()=>{
     const e=environment();await e.ready();e.find('input','Project Name').value='<img src=x onerror=alert(1)>';await e.action('Rename','Project');
     assert.equal(e.find('select','Project').children[1].textContent,'<img src=x onerror=alert(1)>');assert.equal(e.alerts.length,0);e.close();
 });
+for(const locale of ['en','ja']) {
+    for(const kind of ['native','getRandomValues-only','none']) {
+        await test(`${locale}: secure operation IDs with ${kind}`,async()=>{
+            const crypto=kind==='native'?webcrypto:kind==='none'?null:
+                {getRandomValues:webcrypto.getRandomValues.bind(webcrypto)};
+            const e=environment(locale,crypto);e.setEnabled();await e.open();
+            e.find('input',locale==='ja'?'Project 名前':'Project Name').value='Synthetic';
+            const before=e.requests.length;
+            await e.action(locale==='ja'?'Projectを作成':'Create Project');
+            if(kind==='none') {
+                assert.equal(e.requests.length,before);
+                assert.match(e.status(),locale==='ja'?/安全な操作ID/:/secure operation IDs/);
+            } else {
+                const body=e.requests.at(-1).body;
+                const pattern=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+                assert.equal(e.requests.length,before+1);
+                assert.match(body.project_id,pattern);assert.match(body.operation_id,pattern);
+                assert.notEqual(body.project_id,body.operation_id);
+            }
+            e.close();
+        });
+    }
+    await test(`${locale}: fallback UUID retry preserves operation identity`,async()=>{
+        const e=environment(locale,{getRandomValues:webcrypto.getRandomValues.bind(webcrypto)});
+        await e.ready();e.find('input',locale==='ja'?'Project 名前':'Project Name').value='Rename';
+        e.setFail('network');await e.action(locale==='ja'?'名前を変更':'Rename','Project');
+        const failed=e.requests.at(-1);assert(failed.body.operation_id);
+        e.setFail(null);await e.action(locale==='ja'?'未確認の更新を再確認':'Retry pending update');
+        assert.deepEqual(e.requests.at(-1).body,failed.body);e.close();
+    });
+}
 console.log(JSON.stringify(results,null,2));if(results.some(x=>!x.pass))process.exitCode=1;
 })();

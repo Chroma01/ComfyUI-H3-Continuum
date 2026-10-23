@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.10.2 — hotfix: Review history and regeneration boundaries
+
+- Keep published Take manifests immutable during continuation; stage work in
+  separate storage revisions using existing schema and raw references. Publish
+  finalized status and provenance together, preserving earlier Takes/savepoints
+  after interruption or project-index failure. Sampling identity is unchanged.
+- Reject unreachable manual targets before sampling in capped Review Continue;
+  retain valid next groups, terminal pairs and uncapped generation modes.
+- Preserve regeneration requests for linked Run Storage inputs; only a direct
+  literal Off resets the request. Core still resolves and validates links.
+- Generate Manager UUIDs with cryptographic getRandomValues when randomUUID is
+  unavailable, with English/Japanese errors if no secure random source exists.
+- Store accepted Second Pass video outputs on CPU, preserving normal CPU tensor
+  identity, First Pass audio and unselected groups. No Core device override.
+
+CPU/JavaScript: 2,248 passed / 2 skipped / zero failures, with zero CUDA
+initialization attempts. Offline registration/layout passed. This includes
+preserved safe v6 reuse, unknown-code refusal, legacy history, abrupt-exit and
+savepoint integrity checks. No live deployment, browser acceptance or GPU
+generation is claimed. GitHub-only hotfix; Registry resubmission remains held.
+See docs/RELEASE_NOTES_V3102.md.
+
 ## 3.10.1 — Project Manager refusal messages
 
 Identify actual revision conflicts with `project_revision_conflict`; other

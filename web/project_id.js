@@ -3096,10 +3096,17 @@ function configureV38ViewProperty(node) {
     return normalizedV38View(node);
 }
 
+function runStorageValue(node, apiInputs = null) {
+    if (apiInputs && Object.hasOwn(apiInputs, RUN_STORAGE_WIDGET)) {
+        return apiInputs[RUN_STORAGE_WIDGET];
+    }
+    // A connected socket is authoritative; its old hidden widget is not.
+    if (linkedInput(node, [RUN_STORAGE_WIDGET])) return null;
+    return findWidget(node, RUN_STORAGE_WIDGET)?.value;
+}
+
 function normalizeRunStorageState(node, apiInputs = null) {
-    const storageWidget = findWidget(node, RUN_STORAGE_WIDGET);
-    const storageEnabled = storageWidget?.value === "Save + Auto Resume";
-    if (storageEnabled) {
+    if (runStorageValue(node, apiInputs) !== "Off") {
         return true;
     }
     const nonceWidget = findWidget(node, REROLL_NONCE_WIDGET);
@@ -3141,7 +3148,7 @@ function configureConditionalWidgets(node) {
         removeUnusedLegacyInputs(node);
         const productionView = true;
         const storageEnabled = isModernSamplerClass(node.comfyClass)
-            ? storageWidget?.value === "Save + Auto Resume"
+            ? runStorageValue(node) !== "Off"
             : normalizeRunStorageState(node);
         const explicitRegeneration = storageEnabled
             && regenerateWidget?.value !== "Auto"
@@ -3379,7 +3386,7 @@ function buildReviewQueueInputs(node, apiInputs) {
     const result = { ...apiInputs };
     const value = (name, fallback) => result[name] ?? findWidget(node, name)?.value ?? fallback;
     const mode = value(GENERATION_MODE_WIDGET, GENERATION_MODE_FULL_RUN);
-    const storage = value(RUN_STORAGE_WIDGET, "Off");
+    const storage = runStorageValue(node, result);
     const setup = Boolean(node.__h3ContinuumModeSetup);
     const stale = reviewSettingsChanged(node);
     let from = value(REGENERATE_WIDGET, "Auto");
@@ -3399,7 +3406,7 @@ function buildReviewQueueInputs(node, apiInputs) {
     }
     // Backend rejects regeneration without Run Storage. Normalize the impossible
     // combination before submission and keep the visible controls consistent.
-    if (storage !== "Save + Auto Resume") {
+    if (storage === "Off") {
         from = "Auto";
         nonce = 0;
         setRegenerateProgrammatically(node, "Auto");

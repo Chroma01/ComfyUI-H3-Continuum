@@ -125,17 +125,14 @@ def main() -> None:
 
     controller.commit_group(entries, positions=(0, 1))
 
-    if stage in {"finalize_manifest_1", "finalize_manifest_2"}:
+    if stage in {"finalize_manifest_1", "finalize_manifest_before"}:
         original_finalize_write = controller._write_manifest
-        finalize_writes = 0
 
         def observed_finalize_write():
-            nonlocal finalize_writes
-            result = original_finalize_write()
-            finalize_writes += 1
-            expected = 1 if stage == "finalize_manifest_1" else 2
-            if finalize_writes == expected:
+            if stage == "finalize_manifest_before":
                 reached()
+            result = original_finalize_write()
+            reached()
             return result
 
         controller._write_manifest = observed_finalize_write

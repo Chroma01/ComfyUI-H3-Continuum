@@ -264,7 +264,7 @@ def test_r5_fresh_process_kill_never_exposes_a_partial_terminal_group(
     ("stage", "project_exists"),
     (
         ("finalize_manifest_1", False),
-        ("finalize_manifest_2", False),
+        ("finalize_manifest_before", False),
         ("project_before_replace", False),
         ("project_after_replace", True),
     ),
@@ -311,8 +311,13 @@ def test_r5_finalize_and_canonical_kill_windows_preserve_fresh_reader_selection(
         catalog=catalog,
         chains=chains,
     )
-    # The R0 fallback selects a complete legacy-style manifest even before its
-    # provenance and project pointer are published. R5 preserves that exact
-    # fresh-reader behavior; only commit_group raw publication changes.
-    assert selected_revision == manifest["revision_id"]
-    assert selected_chain
+    # Finalization now publishes status and provenance in one atomic switch.
+    # Before that switch raw groups are resumable, but never accepted Takes.
+    if stage == "finalize_manifest_before":
+        assert manifest["status"] == "in_progress"
+        assert selected_revision is None and not selected_chain
+    else:
+        assert manifest["status"] == "complete"
+        assert manifest["branch_provenance"]["active_chain"]
+        assert selected_revision == manifest["revision_id"]
+        assert selected_chain

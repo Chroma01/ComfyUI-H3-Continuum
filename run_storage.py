@@ -1769,6 +1769,18 @@ def _storage_revision_identity(
     )[:16]
 
 
+def _continuation_revision_identity(manifest: dict[str, Any]) -> str:
+    """Separate working storage from a sealed revision, without changing sampling."""
+    contract = manifest["contract"]
+    return _storage_revision_identity(
+        contract_sha256=manifest["contract_sha256"],
+        take_action=TAKE_ACTION_AUTOMATIC,
+        selected_revision_id=manifest["revision_id"],
+        effective_nonce=int(contract.get("effective_reroll_nonce", 0)),
+        branch_boundary=int(contract.get("reroll_from_chunk", 0)),
+    )
+
+
 class RunStorageController:
     def __init__(self, run_name: str):
         self.run_name = sanitize_run_name(run_name)
@@ -1787,6 +1799,7 @@ class RunStorageController:
         self.disabled_reasons: list[str] = []
         self.notes: list[str] = []
         self.resume_safe = False
+        self._preserve_manifest = False
         self.effective_reroll_nonce = 0
         self.nonce_decision = "inactive"
         self.prompt_graph: dict[str, Any] | None = None
@@ -1858,10 +1871,13 @@ class RunStorageController:
     def __exit__(self, exc_type, exc, traceback) -> None:
         try:
             if exc is not None and self.manifest is not None:
-                self.manifest.pop("review_unit", None)
-                self.manifest.pop("review_pause_reason", None)
-                self.manifest.update(status="interrupted", updated_utc=_now(), last_error=f"{type(exc).__name__}: {exc}"[:2048])
-                self._write_manifest()
+                if not self._preserve_manifest:
+                    self.manifest.pop("review_unit", None)
+                    self.manifest.pop("review_pause_reason", None)
+                    self.manifest.update(status="interrupted", updated_utc=_now(), last_error=f"{type(exc).__name__}: {exc}"[:2048])
+                    self._write_manifest()
+                # Rebuild the index from durable files, without reopening a seal.
+                self._manifest_snapshot = None
                 self._write_project()
         finally:
             if self.context_token is not None:
@@ -1880,6 +1896,25 @@ class RunStorageController:
         if self.manifest is not None:
             _write_json(self._manifest_path(), self.manifest)
             self._manifest_snapshot = None
+
+    def _working_revision(self, exact: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Select writable storage without modifying any published source."""
+        visited = set()
+        while exact is not None and exact.get("status") in {
+            REVISION_STATUS_REVIEW_READY, REVISION_STATUS_COMPLETE,
+        }:
+            visited.add(self.revision_id)
+            self.revision_id = _continuation_revision_identity(exact)
+            if self.revision_id in visited:
+                raise RunStorageError("continuation storage revision collision")
+            self.revision_root = self.revisions_root / self.revision_id
+            path = self._manifest_path()
+            exact = _read_json(path) if path.exists() else None
+            if exact is not None and str(exact.get("revision_id", "")) != self.revision_id:
+                raise RunStorageError("continuation storage path identity is invalid")
+            if exact is not None and exact.get("contract_sha256") != self.contract_sha256:
+                raise RunStorageError(f"short revision id collision: {self.revision_id}")
+        return exact
 
     def _read_manifests(self) -> dict[str, dict[str, Any]]:
         if self.context_token is not None and self._manifest_snapshot is not None:
@@ -2736,7 +2771,21 @@ class RunStorageController:
                 canonical_id = ""
         except (OSError, ValueError, RunStorageError):
             pass
+        # An interrupted continuation may have more durable raw groups than the
+        # canonical Take. Resume only its deterministic working child, retaining
+        # the canonical prefix and all existing integrity/reuse checks below.
+        working_id = ""
+        canonical = manifests.get(canonical_id) or {}
+        if canonical.get("status") in {REVISION_STATUS_REVIEW_READY, REVISION_STATUS_COMPLETE}:
+            child_id = _continuation_revision_identity(canonical)
+            child = manifests.get(child_id) or {}
+            prefix = list(canonical.get("chunks") or [])
+            if (child.get("status") in {REVISION_STATUS_IN_PROGRESS, REVISION_STATUS_INTERRUPTED}
+                    and child.get("contract_sha256") == canonical.get("contract_sha256")
+                    and list(child.get("chunks") or [])[:len(prefix)] == prefix):
+                working_id = child_id
         ordered = sorted(manifests.items(), key=lambda item: (
+            item[0] == working_id,
             item[0] == canonical_id,
             int((item[1].get("contract") or {}).get("effective_reroll_nonce", 0)),
             str(item[1].get("updated_utc", "")), item[0],
@@ -3229,7 +3278,6 @@ class RunStorageController:
         )
 
         self.revision_root = self.revisions_root / self.revision_id
-        self.revision_root.mkdir(parents=True, exist_ok=True)
         exact = None
         if self._manifest_path().exists():
             try:
@@ -3238,6 +3286,11 @@ class RunStorageController:
                 self.notes.append(f"exact manifest rejected: {exc}")
             if exact is not None and exact.get("contract_sha256") != self.contract_sha256:
                 raise RunStorageError(f"short revision id collision: {self.revision_id}")
+
+        sealed_exact = exact
+        # The working child keeps the sampling contract/nonce and references
+        # old raw files. No tensor copy or historical-data migration is needed.
+        exact = self._working_revision(exact)
 
         hashes = list(contract["chunk_contract_hashes"])
         best_entries: list[dict[str, Any]] = []
@@ -3268,7 +3321,8 @@ class RunStorageController:
             best_entries = list(self._plan_import["entries"])
             best_records = []  # Populated with new-plan-owned copies after manifest creation.
         else:
-            candidates = [exact] if exact is not None and safe else []
+            candidates = [candidate for candidate in (exact, sealed_exact)
+                          if candidate is not None and safe]
             if safe and exact is None and self.revisions_root.exists():
                 if isinstance(head_manifest, dict):
                     candidates.append(head_manifest)
@@ -3306,6 +3360,29 @@ class RunStorageController:
                     best_entries, best_records = entries, records
 
         self.reused_count = len(best_entries)
+        if (sealed_exact is not None
+                and sealed_exact.get("status") in {REVISION_STATUS_REVIEW_READY, REVISION_STATUS_COMPLETE}
+                and best_records == list(sealed_exact.get("chunks") or [])
+                and (len(best_entries) == len(hashes)
+                     or (self.review_execution is not None
+                         and self.review_execution.max_new_physical_groups == 0))):
+            # Fully reused/no-op execution must not reopen or rewrite a Take.
+            self.revision_id = str(sealed_exact["revision_id"])
+            self.revision_root = self.revisions_root / self.revision_id
+            self.manifest = copy.deepcopy(sealed_exact)
+            self._preserve_manifest = True
+            return make_session(
+                chunks=best_entries, width=int(width), height=int(height),
+                chunk_seconds=float(chunk_seconds), identity_hash=str(identity_hash),
+                model_fingerprint_value=str(model_fingerprint_value),
+                parent_session_id=None, reroll_from_chunk=0,
+                settings=_resume_session_settings(
+                    contract=contract, revision_id=self.revision_id,
+                    first_frame_hash=first_frame_hash, last_frame_hash=last_frame_hash,
+                    reference_storage_plan=reference_storage_plan,
+                    accepted_chunks=len(best_entries),
+                ),
+            )
         now = _now()
         self.manifest = {
             "run_storage_schema_version": RUN_STORAGE_SCHEMA_VERSION,
@@ -3483,6 +3560,20 @@ class RunStorageController:
                 "Run Storage cannot commit physical group starting at chunk "
                 f"{first_position + 1} before chunk {first_position}"
             )
+        if self._preserve_manifest:
+            # Internal callers may append directly after finalize, without a new
+            # prepare(). Apply the same seal protection at the commit boundary.
+            exact = self._working_revision(self.manifest)
+            self.manifest = copy.deepcopy(self.manifest)
+            self.manifest.update(
+                revision_id=self.revision_id, status=REVISION_STATUS_IN_PROGRESS,
+                sampling_revision_id=revision_identity(self.contract)[0],
+                created_utc=(exact or {}).get("created_utc", _now()),
+            )
+            self.manifest.pop("review_unit", None)
+            self.manifest.pop("review_pause_reason", None)
+            self._preserve_manifest = False
+            self.generated_count = 0
         chunks_root = self.revision_root / "chunks"
         chunks_root.mkdir(parents=True, exist_ok=True)
         revision_id = str(self.revision_id or "")
@@ -3561,6 +3652,13 @@ class RunStorageController:
             updated_utc=_now(),
             status="in_progress",
         )
+        if candidate_manifest.get("branch_provenance"):
+            provenance = dict(candidate_manifest.pop("branch_provenance"))
+            manifests = dict(self._read_manifests())
+            manifests[revision_id] = candidate_manifest
+            provenance["active_chain"] = [item["revision_id"] for item in
+                self._manifest_provenance_chain(candidate_manifest, manifests)]
+            candidate_manifest["branch_provenance"] = provenance
         # Assign only after every raw in the physical group is complete and
         # verified. __exit__ may then recover this complete candidate after a
         # catchable manifest-write exception, preserving the R0 contract.
@@ -3688,6 +3786,10 @@ class RunStorageController:
         if intentional_review_pause:
             status = REVISION_STATUS_REVIEW_READY
 
+        if self._preserve_manifest:
+            self._write_project(set_canonical=True)
+            return
+
         for key in ("review_unit", "review_pause_reason"):
             self.manifest.pop(key, None)
         if canonical_pause is not None and status in {
@@ -3710,8 +3812,10 @@ class RunStorageController:
             session_id=str(session.get("session_id", "")),
             report_summary=str(report)[-8192:],
         )
-        self._write_manifest()
-        manifests = self._read_manifests()
+        # Validate the complete candidate before publishing a sealed manifest.
+        # Publishing status and provenance separately creates an unsafe crash gap.
+        manifests = dict(self._read_manifests())
+        manifests[self.revision_id] = self.manifest
         try:
             active_chain = self._manifest_provenance_chain(self.manifest, manifests)
         except (BranchProvenanceError, RunStorageError) as exc:
@@ -3735,6 +3839,10 @@ class RunStorageController:
         if self.pending_branch_cut is not None:
             provenance["branch_cut"] = dict(self.pending_branch_cut)
         self.manifest["branch_provenance"] = provenance
+        # A failed atomic write may already have replaced the destination (e.g.
+        # directory fsync failure). Never downgrade it in __exit__; an old
+        # in_progress file is still safely resumable if publication did not occur.
+        self._preserve_manifest = status in {REVISION_STATUS_REVIEW_READY, REVISION_STATUS_COMPLETE}
         self._write_manifest()
         self._write_project(set_canonical=True)
 

@@ -617,6 +617,18 @@ def resolve_review_execution(
             ),
         )
 
+    manual_unit = None
+    if manual_from and review_action == REVIEW_ACTION_CONTINUE:
+        manual_unit = _review_unit_for_chunk(
+            manual_from, configured_chunks=chunks, terminal_pair_start=pair_start,
+        )
+        if manual_unit.start > prefix + 1:
+            raise ReviewControlError(
+                f"Regenerate From Chunk {manual_from} is beyond the accepted prefix "
+                f"({prefix} chunks). Generate the next physical group starting at "
+                f"Chunk {prefix + 1} first, or choose an earlier chunk."
+            )
+
     nonce_policy, branch_start, requested_nonce = _nonce_decision(
         manual_regenerate_from=manual_from,
         smart_regenerate=False,
@@ -647,12 +659,8 @@ def resolve_review_execution(
             ),
         )
 
-    if manual_from:
-        next_unit = _review_unit_for_chunk(
-            manual_from,
-            configured_chunks=chunks,
-            terminal_pair_start=pair_start,
-        )
+    if manual_unit is not None:
+        next_unit = manual_unit
     else:
         next_unit = resolve_next_review_unit(
             configured_chunks=chunks,

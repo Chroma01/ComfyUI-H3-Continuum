@@ -184,6 +184,8 @@ def test_labels_archive_and_prepare_do_not_change_takes(tmp_path, manager):
 def test_append_keeps_savepoint_endpoint_and_resume_valid(tmp_path, manager):
     controller, project, saved = saved_fixture(tmp_path, manager, prefix=1)
     original_saved = deepcopy(saved)
+    source_root = controller.revision_root
+    before = hashes(source_root)
     controller.commit_group((_entry(1, controller.contract),), positions=(1,))
     controller.review_execution.next_review_unit_start = 2
     controller.review_execution.next_review_unit_end = 2
@@ -195,6 +197,8 @@ def test_append_keeps_savepoint_endpoint_and_resume_valid(tmp_path, manager):
     result = manager.prepare(project["id"], saved["id"])
     assert result["group"]["end"] == 1
     assert manager.get(project["id"])["savepoints"][0] == original_saved
+    assert controller.revision_root != source_root
+    assert hashes(source_root) == before
 
 
 def test_raw_corruption_is_rejected_without_touching_metadata(tmp_path, manager):
