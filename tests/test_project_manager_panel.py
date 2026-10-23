@@ -17,5 +17,5 @@ def test_project_manager_panel_cpu_javascript():
     )
     assert result.returncode == 0, result.stdout + result.stderr
     records = json.loads(result.stdout)
-    assert len(records) == 24
+    assert len(records) == 38
     assert all(item["pass"] for item in records), records

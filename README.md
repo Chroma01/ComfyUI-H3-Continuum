@@ -1,13 +1,32 @@
-# ComfyUI-H3-Continuum 3.10.0 — V3.9
+# ComfyUI-H3-Continuum 3.10.1 — V3.9
 
 Generate long-form MiniMax H3 video and audio in chunks, review each result,
 retry a section, and continue from compatible saved Takes.
 **V3.9 is the current workflow; V3.8X2 remains available separately.**
 
-[Download v3.10.0](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/ComfyUI-H3-Continuum-v3.10.0.zip) ·
-[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.0) ·
-[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/SHA256SUMS.txt) ·
+[Download v3.10.1](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/ComfyUI-H3-Continuum-v3.10.1.zip) ·
+[Release notes](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.1) ·
+[Checksums](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/SHA256SUMS.txt) ·
 [日本語](README_JA.md)
+
+## 3.10.1 — accurate Project / Take Manager refusal messages
+
+Manager now shows the actual reason when an operation is refused. Previously,
+every HTTP 409 appeared as a change made in another tab, including read-only
+Takes, raw-data integrity failures, busy Runs and capacity limits. Only an actual
+Project revision conflict now receives that localized message. Other refusals
+retain the server's explanation, in its original English even in Japanese UI.
+
+CPU/JavaScript: **2,214 passed / 2 skipped / 0 failures**, with zero CUDA
+initialization attempts. Chrome checks in English and Japanese confirmed real
+revision conflicts and duplicate Run attachment. Other refusal reasons are
+covered by CPU/API/JavaScript tests. No new GPU generation was performed.
+
+Existing Takes, workflows and Sampling v6 safety checks are unchanged. Update
+the package, fully restart ComfyUI and hard-refresh the browser (Ctrl+F5).
+No new Run or history deletion is needed. **Registry submission is held pending
+the manual review of 3.10.0; use this GitHub release for 3.10.1.**
+[Fix, validation and update instructions](docs/RELEASE_NOTES_V3101.md).
 
 ## 3.10.0 — optional Project / Take Manager V1.2
 
@@ -499,7 +518,7 @@ They do not establish support for other KJ/Spectrum builds or preview-VAE paths.
 | Current Reference Images | [V3.9 Reference guide](docs/V39_REFERENCE_INLINE.md) |
 | Updating from V3.8X2 | [Migration and retained contracts](docs/V38_RELEASE_AND_MIGRATION.md) |
 | History, earlier screenshots and implementation notes | [README history](docs/README_HISTORY.md) / [CHANGELOG](CHANGELOG.md) |
-| Current release and GPU verification | [v3.10.0 notes](docs/RELEASE_NOTES_V3100.md) / [package validation](PACKAGE_VALIDATION.txt) |
+| Current release and GPU verification | [v3.10.1 notes](docs/RELEASE_NOTES_V3101.md) / [package validation](PACKAGE_VALIDATION.txt) |
 | Bug reports | [GitHub Issues](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues) — include the workflow, status text and `auto-resume disabled:` reason |
 
 Historical Releases and tags remain available. Documentation updates on `main`

@@ -46,7 +46,7 @@ function environment(locale = 'en') {
         if (body) {
             if (url.endsWith('/projects')) { state = {id:body.project_id,name:body.name,revision:1,attempts:[],savepoints:[]}; }
             else {
-                if (body.revision !== state.revision) return Response.json({error:'conflict'}, {status:409});
+                if (body.revision !== state.revision) return Response.json({error:'conflict',code:'project_revision_conflict'}, {status:409});
                 state = structuredClone(state); state.revision++;
                 if (body.action === 'rename_project') state.name = body.name;
                 if (body.action === 'new_attempt') { const item={id:'new-attempt',name:body.name,run_name:'',project_id:'33333333-3333-4333-8333-333333333333',storage_name:'run_33333333333343338333333333333333'}; state.attempts.push(item); state.last_result={attempt_id:item.id}; }
@@ -71,8 +71,8 @@ function environment(locale = 'en') {
         setEnabled(v=true) { enabled=v;settings.get('H3Continuum.ProjectManager.Enabled').onChange(v); },
         async open() { extension.commands[0].function(); await settle(); },
         async chooseProject() { find('select','Project').change(projectId); await settle(); },
-        selectAttempt(id='a1') { find('select','Trial / Run').change(id); },
-        selectPoint(id='s1') { find('select','Named savepoints').change(id); },
+        selectAttempt(id='a1') { find('select',locale==='ja'?'試行 / Run':'Trial / Run').change(id); },
+        selectPoint(id='s1') { find('select',locale==='ja'?'名前付き保存点':'Named savepoints').change(id); },
         setFail(v) { fail=v; }, setHook(h) {hook=h;}, getState:()=>state,
         async action(label,sectionLabel) { assert(control(label,sectionLabel),label);control(label,sectionLabel).click();await settle(); },
         async ready() { this.setEnabled();await this.open();await this.chooseProject();this.selectAttempt();this.selectPoint(); },
@@ -173,9 +173,37 @@ await test('original write settling after reopen unlocks and updates the new pan
     assert(e.control('Retry pending update').hidden);assert.equal(e.find('select','Project').children[1].textContent,'Renamed');assert.match(e.status(),/saved/);e.close();
 });
 await test('revision conflict requires explicit refresh not silent overwrite',async()=>{
-    const e=environment();await e.ready();e.find('input','Project Name').value='Rename';e.setHook(()=>Promise.resolve(Response.json({error:'conflict'},{status:409})));
+    const e=environment();await e.ready();e.find('input','Project Name').value='Rename';e.setHook(()=>Promise.resolve(Response.json({error:'conflict',code:'project_revision_conflict'},{status:409})));
     await e.action('Rename','Project');assert.match(e.status(),/another tab/);assert(e.control('Rename','Project').disabled);assert(!e.control('Refresh').disabled);assert.equal(e.calls.length,0);e.close();
 });
+for (const locale of ['en','ja']) {
+    const reasons = [
+        ['read-only', {error:'This saved Take is read-only for Sampling v6; use a new attempt'}, true],
+        ['raw integrity', {error:'Saved raw data failed its size/SHA-256 check'}, true],
+        ['busy Run', {error:'This Run is queued or running; wait before preparing Review'}, true],
+        ['journal limit', {error:'Project operation journal is full; create another Project'}, false],
+        ['revision conflict', {error:'Project changed in another tab; refresh before saving',code:'project_revision_conflict'}, false],
+        ['unknown error code', {error:'Future refusal reason',code:'future_reason'}, false],
+        ['missing reason', {}, false],
+    ];
+    for (const [name, body, preparing] of reasons) {
+        await test(`${locale}: 409 ${name} displays the right reason without Queue or automatic retry`,async()=>{
+            const e=environment(locale);await e.ready();
+            const state=JSON.stringify(e.getState()), widgets=JSON.stringify(e.node.widgets), requests=e.requests.length;
+            e.setHook(()=>Promise.resolve(Response.json(body,{status:409})));
+            if (preparing) await e.action(locale==='ja'?'保存点から再開準備':'Prepare from savepoint');
+            else await e.action(locale==='ja'?'名前を変更':'Rename','Project');
+            const expected=body.code==='project_revision_conflict'
+                ? (locale==='ja'?'別のタブでProjectが更新されました。更新して内容を確認してから操作してください。':'This Project changed in another tab. Refresh and review it before trying a new update.')
+                : (body.error || 'HTTP 409');
+            assert.equal(e.status(),expected);
+            assert.equal(e.requests.length,requests+1);assert.equal(e.calls.length,0);
+            assert.equal(JSON.stringify(e.getState()),state);assert.equal(JSON.stringify(e.node.widgets),widgets);
+            assert(e.control(locale==='ja'?'未確認の更新を再確認':'Retry pending update').hidden);
+            e.close();
+        });
+    }
+}
 await test('missing backend leaves generator available and manual refresh recovers',async()=>{
     const e=environment();e.setEnabled();e.setFail(404);await e.open();assert.match(e.status(),/HTTP 404/);assert(!e.control('Refresh').disabled);
     e.setFail(null);await e.action('Refresh');await e.chooseProject();assert.equal(e.find('select','Trial / Run').children.length,3);assert.equal(e.calls.length,0);e.close();

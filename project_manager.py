@@ -19,9 +19,10 @@ from .branch_provenance import PhysicalGroup, make_group_revision, resolve_chain
 
 
 class ProjectManagerError(ValueError):
-    def __init__(self, message, status=400):
+    def __init__(self, message, status=400, *, code=None):
         super().__init__(message)
         self.status = status
+        self.code = code
 
 
 MAX_JSON_BYTES = 16 * 1024 * 1024
@@ -424,7 +425,8 @@ class ProjectManager:
             if replay is not None:
                 return replay
             if project["revision"] != revision:
-                raise ProjectManagerError("Project changed in another tab; refresh before saving", 409)
+                raise ProjectManagerError("Project changed in another tab; refresh before saving", 409,
+                                          code="project_revision_conflict")
             result = {"action": action}
             if action in ("rename_project", "archive_project"):
                 project.update(payload)

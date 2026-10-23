@@ -1,13 +1,29 @@
-# ComfyUI-H3-Continuum 3.10.0 — V3.9
+# ComfyUI-H3-Continuum 3.10.1 — V3.9
 
 MiniMax H3の映像・音声をチャンクに分けて生成し、結果を確認しながら
 一部分の再生成や、互換性のある保存Takeからの継続ができます。
 **現在のWorkflowはV3.9です。V3.8X2も別のWorkflowとして保持しています。**
 
-[v3.10.0本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/ComfyUI-H3-Continuum-v3.10.0.zip) ·
-[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.0) ·
-[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/SHA256SUMS.txt) ·
+[v3.10.1本体ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/ComfyUI-H3-Continuum-v3.10.1.zip) ·
+[Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.1) ·
+[チェックサム](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/SHA256SUMS.txt) ·
 [English](README.md)
+
+## 3.10.1 — Project / Take Managerの拒否理由を正しく表示
+
+読取専用Take、rawデータの不整合、実行中Run、容量上限などのHTTP 409を、
+すべて「別タブでProjectが更新された」と表示する不具合を修正しました。
+本当の更新競合だけをその案内にし、その他はサーバーの具体的な拒否理由を表示します。
+日本語UIでも、サーバー由来の説明文は英語の原文です。
+
+CPU・JavaScriptは **2,214成功／2スキップ／失敗0**、CUDA初期化試行0。
+Chromeの英語・日本語UIで、実際の更新競合とRun重複登録の表示を確認しました。
+その他の拒否理由はCPU・API・JavaScriptで検証し、新しいGPU生成は行っていません。
+
+既存Take・Workflow・Sampling v6の安全判定を維持します。更新後はComfyUIを完全に
+再起動し、Ctrl+F5でブラウザーを更新してください。新規Runや履歴削除は不要です。
+**Registry送信は3.10.0の手動レビュー結果が出るまで保留し、3.10.1はGitHubで配布します。**
+[修正内容・検証・更新手順](docs/RELEASE_NOTES_V3101.md)。
 
 ## 3.10.0 — Project / Take Manager V1.2
 
@@ -462,7 +478,7 @@ V3.8ではReview途中のpartial sequenceに対応しません。V3.9は検証�
 | 現行Reference Images | [V3.9 Referenceガイド](docs/V39_REFERENCE_INLINE.md) |
 | V3.8X2からの更新 | [移行・保持する仕様](docs/V38_RELEASE_AND_MIGRATION.md) |
 | 更新履歴・旧版画像・実装説明 | [日本語の履歴資料](docs/README_HISTORY_JA.md) / [CHANGELOG](CHANGELOG.md) |
-| 最新版の検証記録 | [v3.10.0詳細](docs/RELEASE_NOTES_V3100.md) / [配布検証](PACKAGE_VALIDATION.txt) |
+| 最新版の検証記録 | [v3.10.1詳細](docs/RELEASE_NOTES_V3101.md) / [配布検証](PACKAGE_VALIDATION.txt) |
 | 不具合報告 | [GitHub Issues](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/issues) — Workflow、Status、`auto-resume disabled:`の理由を添えてください |
 
 過去のRelease・タグは保持しています。mainの文書更新で、公開済みのタグや配布物を置き換えることはありません。

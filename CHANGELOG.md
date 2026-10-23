@@ -1,5 +1,22 @@
 # Changelog
 
+## 3.10.1 — Project Manager refusal messages
+
+Identify actual revision conflicts with `project_revision_conflict`; other
+HTTP 409 refusals retain the server's specific reason. Refusal checks, retry
+behavior, sampling contracts and saved schemas are unchanged.
+CPU/JavaScript: 2,214 passed / 2 skipped / zero failures or expected failures,
+zero CUDA initialization attempts. Manager subset: 66 pytest cases; 38 panel
+JavaScript cases are included through wrappers, not added to the total.
+Live Chrome/backend checks in English and Japanese distinguished actual revision
+conflicts from duplicate Run attachment. The same repaired modules were deployed
+for those checks before the version bump. All 184 protected data/settings files
+and 21 official workflows retained their hashes. No new GPU generation.
+Prepare package 3.10.1 for GitHub-only publication. The automatic release job has
+no Registry build/upload. The separate manual 3.10.0 Registry workflow remains
+unchanged and is not dispatched; resubmission is held pending manual review.
+See docs/RELEASE_NOTES_V3101.md.
+
 ## 3.10.0 — optional Project / Take Manager V1.2
 
 - Add a default-OFF right-side panel for named Projects, independent trials and

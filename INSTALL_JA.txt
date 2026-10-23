@@ -1,3 +1,14 @@
+ComfyUI-H3-Continuum 3.10.1 — Project Manager refusal messages
+Actual refusal reasons; localized messages for genuine revision conflicts only.
+CPU/JS: 2214 passed / 2 skipped / 0 failed; zero CUDA initialization attempts.
+Chrome English/Japanese: revision conflict and duplicate Run reason confirmed.
+Existing Takes/workflows and Sampling v6 safety retained. No new GPU generation.
+GitHub only; Registry submission held pending the 3.10.0 manual review.
+Fully restart ComfyUI and hard-refresh browser after updating.
+Scope: docs/RELEASE_NOTES_V3101.md
+
+Historical package records follow.
+------------------------------------------------------------------------
 ComfyUI-H3-Continuum 3.10.0 — Project / Take Manager V1.2
 Optional default-OFF panel; no new graph node or workflow rewiring.
 CPU/JS: 2210 passed / 2 skipped / 0 failed; zero CUDA initialization attempts.
@@ -39,10 +50,11 @@ CPU 2075 passed / 2 skipped / 2 known xfailed; upstream KJ GPU and installed loc
 --- 現行パッケージのインストール案内 ---
 ComfyUI-H3-Continuum 3.9.12 — V3.9 / V3.8X2 インストール
 
-**最新版パッケージは3.10.0です。** 固定版のGitHub配布は下表を参照してください。Registryの公開状態は別に確認します。
+**最新版パッケージは3.10.1です。** 固定版のGitHub配布は下表を参照してください。Registryの公開状態は別に確認します。
 
 | バージョン | Release | カスタムノード本体ZIP | SHA-256チェックサム |
 | --- | --- | --- | --- |
+| 3.10.1 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.1) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/ComfyUI-H3-Continuum-v3.10.1.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/SHA256SUMS.txt) |
 | 3.10.0 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.0) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/ComfyUI-H3-Continuum-v3.10.0.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/SHA256SUMS.txt) |
 | 3.9.12 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) |
 | 3.9.8 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.8) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/ComfyUI-H3-Continuum-v3.9.8.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/SHA256SUMS.txt) |
@@ -57,7 +69,7 @@ ComfyUI-H3-Continuum 3.9.12 — V3.9 / V3.8X2 インストール
 
 3.9.12は参照割り当て変更後のInspector更新を修正します。対応条件と検証範囲は docs/RELEASE_NOTES_V3912.md を参照してください。KJ Preview Overrideを併用する場合は、VAE／Audio VAE未接続・Tiny VAE noneなどの対応条件も維持します。KJNodes全般への対応ではありません。
 
-ManagerでH3 Continuumを検索し、Registryの検査・一覧反映を確認して3.10.0を選択するか、`comfy node install comfyui-h3-continuum@3.10.0`を使用します。未表示の場合は上表のGitHub ZIPを使用できます。更新後はComfyUIを再起動し、ブラウザーも再読込して、更新を確認してください。Managerは初期OFFで、使う場合だけ設定で有効にします。更新のための新規Runは不要です。既存Run／Takeの削除は不要です。旧markerなしChunk 1／Nonce 0は選び直して保存してください。旧unsafe履歴は引き続き再利用不可です。
+現在3.10.1のRegistry送信は手動レビュー待ちで保留中です。現時点では上表のGitHub ZIP、またはGit導入のリポジトリ更新を使用してください。Registry公開が再開され3.10.1の掲載を確認できた場合に限り、Managerの版選択または `comfy node install comfyui-h3-continuum@3.10.1` を使用できます。更新後はComfyUIを完全に再起動し、Ctrl+F5でブラウザーを更新してください。既存Run／Take・Workflowを保持し、新規Runや履歴削除は不要です。旧unsafe履歴は引き続き再利用不可です。
 
 3.9.3は一時ストレージの保存先設定と状態表示・未使用削除を追加した版です。V3.9ノードと3.9.1／3.9.2のWorkflowはそのまま使用できます。旧v5 Takeと履歴は読めますが、新しいv6生成の前半には再利用できません。新規Full VideoまたはStart again from Chunk 1で開始してください。新しいGitHub Release／Registry公開は別工程で、過去のRelease／tagは残します。V3.8X2 WorkflowをV3.9へ自動変換せず、別々のWorkflowとして保存してください。保存済みRun／Takeも自動移行しません。
 

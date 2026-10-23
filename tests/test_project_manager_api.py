@@ -84,7 +84,12 @@ def test_create_retry_revision_conflict_and_user_separation(manager_server):
             value = await response.json()
             assert value["attempts"][-1]["run_name"] == ""
             stale = {**op, "operation_id": str(uuid.uuid4())}
-            assert (await client.post(uri, json=stale)).status == 409
+            conflict = await client.post(uri, json=stale)
+            assert conflict.status == 409
+            assert await conflict.json() == {
+                "error": "Project changed in another tab; refresh before saving",
+                "code": "project_revision_conflict",
+            }
             retry = await client.post(uri, json=op)
             assert retry.status == 200 and len((await retry.json())["attempts"]) == 1
     asyncio.run(scenario())
@@ -151,6 +156,7 @@ def test_prepare_checks_queued_run_without_mutating_queue(manager_server, monkey
             uri = api.PREFIX + "/" + str(uuid.uuid4()) + "/prepare"
             response = await client.post(uri, json={"savepoint_id": str(uuid.uuid4())})
             assert response.status == 409
+            assert await response.json() == {"error": "This Run is queued or running; wait before preparing Review"}
             assert server.prompt_queue.pending == [queue_item]
             server.prompt_queue.pending.clear()
             assert (await client.post(uri, json={"savepoint_id": str(uuid.uuid4())})).status == 200
@@ -179,6 +185,27 @@ def test_only_upstream_of_accepted_outputs_blocks_preparation(manager_server, ac
              "other": {"class_type": "SaveImage", "inputs": {}}}
     server.prompt_queue.pending.append([0, "p", graph, {}, accepted])
     assert api._run_busy(server, "saved") is expected
+
+
+@pytest.mark.parametrize("reason", [
+    "This saved Take is read-only for Sampling v6; use a new attempt",
+    "Saved raw data failed its size/SHA-256 check",
+    "This Run is queued or running; wait before preparing Review",
+    "Project operation journal is full; create another Project",
+])
+def test_non_revision_409_preserves_specific_reason(manager_server, monkeypatch, reason):
+    app, _, profile, output = manager_server
+    module = importlib.import_module("ComfyUI_H3_Continuum_Join.project_manager")
+    def refused(*args):
+        raise module.ProjectManagerError(reason, 409)
+    monkeypatch.setattr(module.ProjectManager, "get", refused)
+    async def scenario():
+        async with TestClient(TestServer(app)) as client:
+            response = await client.get(api.PREFIX + "/" + str(uuid.uuid4()))
+            assert response.status == 409
+            assert await response.json() == {"error": reason}
+    asyncio.run(scenario())
+    assert not profile.exists() and not output.exists()
 
 
 def test_manager_registration_failure_does_not_break_existing_storage(tmp_path, monkeypatch):

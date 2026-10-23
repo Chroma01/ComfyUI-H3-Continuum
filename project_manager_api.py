@@ -134,7 +134,10 @@ def register_routes(server):
         except KeyError:
             return web.json_response({"error": "Unknown user or invalid management data"}, status=403)
         except (ProjectManagerError, ValueError, TypeError, OSError) as exc:
-            return web.json_response({"error": str(exc)}, status=getattr(exc, "status", 400))
+            error = {"error": str(exc)}
+            if isinstance(exc, ProjectManagerError) and exc.code is not None:
+                error["code"] = exc.code
+            return web.json_response(error, status=getattr(exc, "status", 400))
         except Exception:
             logging.getLogger("h3_continuum.project_manager").exception("Project / Take request failed")
             return web.json_response({"error": "Project / Take management is unavailable; see server log"}, status=500)

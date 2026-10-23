@@ -1,5 +1,22 @@
 # Public source status
 
+## 3.10.1 — Project Manager refusal messages
+
+Identify actual revision conflicts with `project_revision_conflict`; other
+HTTP 409 refusals retain the server's specific reason. Refusal checks, retry
+behavior, sampling contracts and saved schemas are unchanged.
+CPU/JavaScript: 2,214 passed / 2 skipped / zero failures or expected failures,
+zero CUDA initialization attempts. Manager subset: 66 pytest cases; 38 panel
+JavaScript cases are included through wrappers, not added to the total.
+Live Chrome/backend checks in English and Japanese distinguished actual revision
+conflicts from duplicate Run attachment. The same repaired modules were deployed
+for those checks before the version bump. All 184 protected data/settings files
+and 21 official workflows retained their hashes. No new GPU generation.
+Prepare package 3.10.1 for GitHub-only publication. The automatic release job has
+no Registry build/upload. The separate manual 3.10.0 Registry workflow remains
+unchanged and is not dispatched; resubmission is held pending manual review.
+See docs/RELEASE_NOTES_V3101.md.
+
 ## 3.10.0 — Project / Take Manager V1.2
 
 Optional default-OFF panel with independent management metadata. Named Projects,
@@ -144,10 +161,11 @@ Finite loaded-implementation signatures identify the Core PyTorch/Kitchen attent
 
 ## GitHub and Registry publication status
 
-**Latest package: 3.10.0.** Use the fixed-version GitHub downloads below. Registry publication is verified separately. Manager V1.2 validation is recorded in docs/RELEASE_NOTES_V3100.md.
+**Latest package: 3.10.1.** Use the fixed-version GitHub downloads below. Registry publication is verified separately. Current patch validation is recorded in docs/RELEASE_NOTES_V3101.md.
 
 | Version | Release | Custom-node ZIP | SHA-256 checksum |
 | --- | --- | --- | --- |
+| 3.10.1 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.1) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/ComfyUI-H3-Continuum-v3.10.1.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.1/SHA256SUMS.txt) |
 | 3.10.0 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.10.0) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/ComfyUI-H3-Continuum-v3.10.0.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.10.0/SHA256SUMS.txt) |
 | 3.9.12 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.12) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/ComfyUI-H3-Continuum-v3.9.12.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.12/SHA256SUMS.txt) |
 | 3.9.8 | [Release](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/tag/v3.9.8) | [ZIP](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/ComfyUI-H3-Continuum-v3.9.8.zip) | [SHA256SUMS.txt](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/releases/download/v3.9.8/SHA256SUMS.txt) |

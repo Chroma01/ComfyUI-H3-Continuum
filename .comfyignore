@@ -111,3 +111,6 @@ write-h3-v39-reference-prompts/
 # Images referenced directly by the optional Manager README walkthrough.
 !docs/images/project-manager-v12/
 !docs/images/project-manager-v12/*.png
+
+# Current refusal-message repair notes. Registry submission is held.
+!docs/RELEASE_NOTES_V3101.md

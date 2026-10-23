@@ -80,7 +80,8 @@ async function request(url, body) {
         throw Object.assign(new Error(`${text().unavailable} (HTTP ${response.status})`), { uncertain: body !== undefined && (response.ok || response.status >= 500) });
     }
     if (!response.ok) {
-        throw Object.assign(new Error(response.status === 409 ? text().conflict : (value?.error || `HTTP ${response.status}`)), {
+        const conflict = response.status === 409 && value?.code === "project_revision_conflict";
+        throw Object.assign(new Error(conflict ? text().conflict : (value?.error || `HTTP ${response.status}`)), {
             status: response.status, uncertain: body !== undefined && response.status >= 500,
         });
     }
