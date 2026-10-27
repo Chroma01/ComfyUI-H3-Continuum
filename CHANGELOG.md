@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Second Pass documentation
+
+Add current V3.9 English/Japanese wiring diagrams, socket tables, low-denoise
+schedule guidance and latent/pixel upscaler boundaries. Correct stale V3.8-only
+partial-Review restrictions in the user guide. Product code, package version,
+saved Takes and official workflow files are unchanged. No new GPU acceptance.
+
 ## 3.10.2 — hotfix: Review history and regeneration boundaries
 
 - Keep published Take manifests immutable during continuation; stage work in

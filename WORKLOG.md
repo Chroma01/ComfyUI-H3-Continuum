@@ -1,5 +1,19 @@
 # Public development log
 
+## 2026-10-27 — Issue #37 Second Pass guide (documentation-only)
+
+Check the registered Second Pass and V3.9 Sampler against existing documents.
+Add bilingual diagrams and exact connections, list/physical-group requirements,
+explicit Second Pass MODEL/LoRA choice, context validation/fallback, low-denoise
+SIGMAS and external upscaling constraints. Update README entry points and old
+V3.8-specific blanket restrictions. Publish the source documentation separately
+from the existing 3.10.2 Release; verify public guide links before replying to
+Issue #35. No product code, saved Takes or workflows change. No deployment,
+Queue, new Release or Registry submission.
+Targeted CPU regression: 63 passed, zero CUDA initialization attempts.
+Sixteen guide links and two diagram structures checked; no browser rendering.
+Source/Registry manifests matched; product code and workflow bytes unchanged.
+
 ## 2026-10-24 — Package 3.10.2 hotfix
 
 Protect sealed Take history with copy-on-write storage revisions and atomic

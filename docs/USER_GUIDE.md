@@ -394,7 +394,7 @@ The small arrow/triangle seen beside `audio_references` is ComfyUI's connection 
 
 ### H3 Continuum Finalize
 
-Finalize is normally left wired in the workflow rather than operated repeatedly. It assembles the decoded physical groups into the exact requested timeline. Required inputs are decoded `images`, decoded `audio`, and the Sampler's `assembly_plan`; optional `driving_audio` preserves the selected source track.
+Finalize is normally left wired in the workflow rather than operated repeatedly. It assembles the decoded physical groups into the exact requested timeline. Required inputs are decoded `images`, decoded `audio`, and their matching `assembly_plan` (the Sampler's plan for First Pass, or Second Pass `updated_assembly_plan` after refinement); optional `driving_audio` preserves the selected source track.
 
 | Control | Meaning | Normal choice |
 |---|---|---|
@@ -406,9 +406,9 @@ Finalize is normally left wired in the workflow rather than operated repeatedly.
 
 ### H3 Continuum Second Pass
 
-Second Pass is the Advanced bridge after the complete first pass. It takes `model`, `clip`, `sampler`, low-denoise `sigmas`, externally processed `video_latents`, the matching first-pass `audio_latents`, the original `assembly_plan`, and a separate `refine_seed`. Optional `refine_context` restores the physical group's First/Last/Reference conditioning; optional `video_vae` is used only when that context requires image re-encoding.
+Second Pass is the Advanced bridge for matching First Pass physical groups. See the current [diagram and connection checklist](SECOND_PASS_GUIDE.md) ([日本語](SECOND_PASS_GUIDE_JA.md)). It takes `model`, `clip`, `sampler`, low-denoise `sigmas`, externally processed `video_latents`, the matching first-pass `audio_latents`, the original `assembly_plan`, and a separate `refine_seed`. Optional `refine_context` restores the physical group's First/Last/Reference conditioning; optional `video_vae` is used only when that context requires image re-encoding.
 
-Its outputs are `refined_video_latents`, bit-exact first-pass `audio_latents`, an `updated_assembly_plan`, and `status`. Complete Review first: Second Pass is not supported on a partial Review sequence. It is not an automatic Hi-Res button and does not include an upscaler.
+Its outputs are `refined_video_latents`, bit-exact first-pass `audio_latents`, an `updated_assembly_plan`, and `status`. V3.8 requires a complete Review sequence for context inheritance. V3.9 can inherit validated context projected onto the actual partial-Review output groups; keep the matching latent lists, Plan and context together. Missing or unavailable context can produce a diagnostic prompt-only fallback; invalid typed context can fail validation. It is not an automatic Hi-Res button and does not include an upscaler.
 
 ### ComfyUI Settings added by Continuum
 
@@ -702,4 +702,4 @@ The report field names are diagnostic text, not controls you need to set. For a 
 
 Driving Audio can be used with Review and Smart Regenerate. The Continuum Image, Audio, and Video loaders support native bypass for optional media paths.
 
-> **Second Pass limitation:** Finish the reviewed sequence before running Second Pass. Second Pass / `refine_context` is not supported on a partial Review sequence.
+> **Second Pass version boundary:** V3.8 does not support partial-Review context inheritance. V3.9 supports validated context for the actual output groups, including partial Review. See the [current guide](SECOND_PASS_GUIDE.md).

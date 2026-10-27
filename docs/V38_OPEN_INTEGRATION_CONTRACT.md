@@ -1,5 +1,9 @@
 # V3.8 Open Integration Contract
 
+For current V3.9 wiring, SIGMAS and partial-Review behavior, see the
+[Second Pass guide](SECOND_PASS_GUIDE.md) ([日本語](SECOND_PASS_GUIDE_JA.md)).
+The processing/group invariants below still describe the external boundary.
+
 This document defines the supported boundary between H3 Continuum V3.8 and
 external processing, decoder, and acceleration nodes. It does not add a public
 node or change the Sampling, State, Session, Run Storage, or Assembly Plan

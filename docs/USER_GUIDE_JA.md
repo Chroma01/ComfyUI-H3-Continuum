@@ -307,3 +307,9 @@ Run Storageを有効にすると、Production表示に**Render History / Takes**
 Takeを選択してもcanonical結果は変わりません。**Use This Take**でそのrevisionを
 canonicalにし、**Continue From Here**で選択したTakeまでを保持して後続groupだけを
 再生成します。どちらの操作も自動Queueは行いません。
+
+## V3.9 Second Passの接続
+
+現行版の[接続図・ソケット表・SIGMAS・外部拡大の説明](SECOND_PASS_GUIDE_JA.md)を参照してください。
+FinalizeにはSecond Passの`updated_assembly_plan`を使います。V3.9では検証済みの実出力区間contextを
+継承でき、旧V3.8の途中Review制約とは区別します。同解像度のRefinementも可能です。

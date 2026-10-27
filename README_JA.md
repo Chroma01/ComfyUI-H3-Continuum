@@ -459,10 +459,11 @@ Run／Takeや完成動画は移動しません。変更・削除は実行中／�
 同じ物理ドライブ内のフォルダー移動だけでは、書き込みを別機器へ逃がせません。
 [保存方式・削除・制約](docs/TEMPORARY_STORAGE_JA.md)。
 
-**Second Pass**は外部のRefinement・拡大処理へ渡す任意の機能です。
-チャンク継続や通常のReview Retryとは別で、V3.8X2標準WorkflowにHi-Res Fixは不要です。
-V3.8ではReview途中のpartial sequenceに対応しません。V3.9は検証済みの実出力groupの条件を継承できます。
-[外部連携の仕様](docs/V38_OPEN_INTEGRATION_CONTRACT.md)。
+**Second Pass**は、同解像度のRefinementや、対応する外部Upscalerで加工した映像latentの再生成に使う任意機能です。拡大処理そのものは内蔵していません。
+元音声・Plan・refine_contextの接続と、Finalizeへ渡す更新後Planを含め、現行V3.9の手順をまとめました。
+V3.8の途中Review制約と、V3.9の検証済み出力区間への条件継承は区別してください。
+**[接続図・ソケット表・SIGMAS・拡大時の注意点](docs/SECOND_PASS_GUIDE_JA.md)**。
+従来の標準Workflowや保存Takeを変更する必要はありません。
 
 ## 互換性・検証範囲
 

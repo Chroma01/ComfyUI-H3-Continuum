@@ -1,5 +1,14 @@
 # Public source status
 
+## Second Pass documentation — Issue #37
+
+Current Second Pass guides: docs/SECOND_PASS_GUIDE.md and SECOND_PASS_GUIDE_JA.md.
+Version scope is package 3.10.2 / V3.9; product code and registered schemas are
+unchanged. README and user-guide links point to these source documents.
+Documentation-only publication does not imply new browser/GPU acceptance,
+a new Release, or inclusion in the existing 3.10.2 release assets. Existing Takes and
+workflow files remain unchanged.
+
 ## 3.10.2 — Review history and regeneration hotfix
 
 Protect finalized Take history through separate working storage revisions and

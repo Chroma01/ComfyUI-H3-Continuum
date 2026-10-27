@@ -494,12 +494,11 @@ Change or clean it only with empty running/pending queues.
 Moving folders on one physical drive does not reduce that drive's writes.
 [Storage modes, cleanup and limits](docs/TEMPORARY_STORAGE_JA.md).
 
-**Second Pass** is an optional bridge for external refinement/upscaling.
-It is separate from chunk continuation and ordinary Review retries.
-The V3.8X2 standard workflow does not require Hi-Res Fix.
-V3.8 Second Pass does not support partial Review sequences; V3.9 can inherit
-validated conditioning for its actual output groups.
-[Integration contract](docs/V38_OPEN_INTEGRATION_CONTRACT.md).
+**Second Pass** optionally refines video at the same resolution or after a compatible external upscaler; it does not contain an upscaler itself.
+The current V3.9 guide shows the matching audio/Plan/context connections and the updated Plan required by Finalize.
+It distinguishes V3.8 partial-Review restrictions from V3.9 validated output-scope inheritance.
+**[Wiring diagram, socket checklist, SIGMAS and upscaling guidance](docs/SECOND_PASS_GUIDE.md).**
+Existing standard workflows and saved Takes need no changes.
 
 ## Compatibility and verification scope
 
