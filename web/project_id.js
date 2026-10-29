@@ -2454,6 +2454,9 @@ async function synchronizeReviewQueue({discover = false} = {}) {
         const present = new Set(queued.map(item => String(item[1])));
         if (discover) {
             for (const item of queued) {
+                // Accepted output IDs differ from optional pre-submit targets:
+                // an explicit empty accepted set executes no Sampler.
+                if (Array.isArray(item?.[4]) && item[4].length === 0) continue;
                 const promptId = String(item[1] || "");
                 const output = item[2] || {};
                 if (!promptId || reviewPrompts.has(promptId)) continue;

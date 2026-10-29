@@ -263,6 +263,30 @@ await test('missed websocket completion is recovered from exact prompt history',
  await e.emit('status',{exec_info:{queue_remaining:0}});
  assert(!n.__h3ContinuumModeSetup);assert(e.visible(n,'Use it and continue'));
 });
+for (const [label,targets,busy] of [
+ ['empty',[],false],['legacy missing',undefined,true],
+ ['downstream',['save'],true],['unrelated',['other-output'],false],
+]) {
+await test(`reconnect accepted targets: ${label}`,async e=>{
+ const n=e.makeNode();e.w(n,'generation_mode').value='Review Each Chunk';await e.load(n,project(1));
+ const inputs=await e.inputs(n);
+ const output={'312':{class_type:n.comfyClass,inputs},
+  save:{class_type:'SaveImage',inputs:{images:['312',0]}},'other-output':{class_type:'SaveImage',inputs:{}}};
+ const queued=[1,'accepted-target-probe',output,{}];if(targets!==undefined)queued.push(targets);
+ e.setFetchHook(async url=>({ok:true,status:200,json:async()=>String(url).startsWith('/queue')
+  ?{queue_running:[queued],queue_pending:[]}:project(1)}));
+ await e.emit('reconnected',{});
+ assert.equal(/Queued|generating/i.test(e.f.reviewStatus(n)),busy);
+ if(!busy)assert.match(e.f.reviewStatus(n),/ready for review/i);
+});
+}
+await test('pre-submit empty partial targets still queue the full graph',async e=>{
+ const n=e.makeNode();await e.load(n,project(1));e.w(n,'Run').callback('Review Each Chunk');
+ const q=await e.queue(n,{partialExecutionTargets:[]});
+ assert.match(e.f.reviewStatus(n),/Queued|generating/i);
+ e.setSaved(project(2));await e.emit('execution_success',{prompt_id:q.prompt_id});
+ assert.match(e.f.reviewStatus(n),/Chunk 2 is ready for review/i);
+});
 await test('reconnect discovers the exact queued node/run after browser state loss',async e=>{
  const n=e.makeNode();e.w(n,'generation_mode').value='Review Each Chunk';await e.load(n,null);
  const inputs=await e.inputs(n);const queued=[1,'survived-prompt',{'312':{class_type:n.comfyClass,inputs}}, {},['312']];

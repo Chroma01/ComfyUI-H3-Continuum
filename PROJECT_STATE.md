@@ -1,5 +1,24 @@
 # Public source status
 
+## F1/F2/F3 repairs — source update
+
+Per-Run OS exclusion covers stale owner recovery and the complete writer lifetime.
+Reconnect distinguishes empty accepted output IDs from optional submission targets.
+Legacy State sidecar fallback applies only to missing embedded metadata.
+Sampling v6 / Graph v4, stored formats and workflow files are unchanged.
+Windows owner checks also distinguish an exited process from a retained monitor
+handle, while preserving unknown/alive owners. Full CPU/JavaScript regression:
+2,267 passed, 2 skipped, zero failures and zero CUDA initialization attempts.
+Review JavaScript: 95 cases passed; the same tests reproduce the empty-target
+failure against the original source. Real State I/O: 10 cases passed.
+Local runtime deployment matched all 516 source files. Installed CPU checks:
+23 passed; installed Review JavaScript: 95 passed. After restart, twelve public
+nodes and matching frontend source were confirmed. Chrome checks covered normal
+Sampler display and existing Manager Project/trial/savepoint browsing, with
+saved data and workflows unchanged. Take adoption/Continue execution and GPU
+generation were not exercised. Package version remains 3.10.2; no new Release
+or Registry submission accompanies this source update.
+
 ## Second Pass documentation — Issue #37
 
 Current Second Pass guides: docs/SECOND_PASS_GUIDE.md and SECOND_PASS_GUIDE_JA.md.

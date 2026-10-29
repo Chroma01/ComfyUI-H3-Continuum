@@ -1,5 +1,31 @@
 # Public development log
 
+## 2026-10-29 — F1/F2/F3 repairs (source update)
+
+Limit production changes to Run lock recovery/lifetime, reconnect accepted-target
+filtering and legacy State metadata fallback. Keep the JSON owner marker and add
+a stable per-Run OS guard; do not unify Manager/scratch lock policies. Preserve
+old metadata-free states while rejecting corrupt embedded JSON. Review's normal
+pre-submit empty-target behavior remains intact.
+Targeted results: 40 lock/history/transaction CPU cases, 95 Review JS cases and
+10 State I/O CPU cases passed. Windows process-exit coverage terminates the actual
+owner recorded by the lock, including when Python starts through a venv launcher.
+The real process-exit test exposed a Windows owner probe that counted exited PIDs
+with retained handles as alive. Query exit status too; unknown status remains
+protected. Lock/PID regression: 12 passed. Full CPU/JavaScript: 2,267 passed,
+2 skipped, zero failures, zero CUDA initialization attempts. CPU registration
+disables GPU availability probing only during Core import; real KJ and Spectrum
+provider fixtures are configured. These checks do not validate GPU kernels.
+Deploy the reviewed source to the existing local runtime: all 516 source files
+matched, with 23 installed CPU checks and 95 Review JavaScript cases passed.
+After the user's restart, confirm twelve public node registrations and matching
+frontend source. Chrome checks cover normal Sampler display, existing Manager
+Project/trial/savepoint browsing and the enabled preparation control without
+applying it. Protected Run/Take, settings and workflow hashes remain unchanged.
+Take adoption/Continue execution and GPU generation are not part of this browser
+check. Publish source changes only; retain package version 3.10.2 and existing
+Release/Registry artifacts.
+
 ## 2026-10-27 — Issue #37 Second Pass guide (documentation-only)
 
 Check the registered Second Pass and V3.9 Sampler against existing documents.

@@ -237,7 +237,8 @@ def test_automatic_storage_name_is_stable_for_sampler_node():
     assert first.startswith("run_auto_")
 
 
-def test_windows_pid_probe_uses_open_process(monkeypatch):
+@pytest.mark.parametrize("exit_code,query_success,expected", [(259, True, True), (0, True, False), (1, True, False), (0, False, True)])
+def test_windows_pid_probe_uses_open_process(monkeypatch, exit_code, query_success, expected):
     class Function:
         def __init__(self, result):
             self.result = result
@@ -245,16 +246,19 @@ def test_windows_pid_probe_uses_open_process(monkeypatch):
             self.restype = None
 
         def __call__(self, *args):
+            if len(args) == 2:
+                args[1]._obj.value = exit_code
             return self.result
 
     class Kernel32:
         OpenProcess = Function(123)
         CloseHandle = Function(True)
+        GetExitCodeProcess = Function(query_success)
 
     monkeypatch.setattr(ctypes, "WinDLL", lambda *args, **kwargs: Kernel32(), raising=False)
     monkeypatch.setattr(ctypes, "set_last_error", lambda value: None, raising=False)
     monkeypatch.setattr(ctypes, "get_last_error", lambda: 0, raising=False)
-    assert _pid_exists_windows(12345)
+    assert _pid_exists_windows(12345) is expected
 
 
 def test_automatic_project_key_ignores_settings_but_tracks_topology():

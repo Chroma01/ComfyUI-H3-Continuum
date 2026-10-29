@@ -26,6 +26,10 @@ _SAFE_PREFIX = re.compile(r"[^A-Za-z0-9._-]+")
 _HEADER_KEY = "h3_continuum_state_json"
 
 
+class _MissingEmbeddedMetadata(ValueError):
+    """Only pre-embedded legacy states may use their JSON sidecar."""
+
+
 def sanitize_prefix(prefix: str) -> str:
     value = _SAFE_PREFIX.sub("_", str(prefix).strip()).strip("._")
     return value or "h3_continuum"
@@ -114,9 +118,9 @@ def save_state(state: dict[str, Any], *, prefix: str, slot: int) -> tuple[Path, 
 def _load_authoritative(tensor_path: Path) -> dict[str, Any]:
     with safe_open(str(tensor_path), framework="pt", device="cpu") as handle:
         header = handle.metadata() or {}
-        serialized = header.get(_HEADER_KEY)
-        if serialized is None:
-            raise ValueError("state safetensors has no embedded Continuum metadata")
+        if _HEADER_KEY not in header:
+            raise _MissingEmbeddedMetadata("state safetensors has no embedded Continuum metadata")
+        serialized = header[_HEADER_KEY]
         state = json.loads(serialized)
         state["video_tail"] = handle.get_tensor("video_tail")
         state["audio_tail"] = handle.get_tensor("audio_tail")
@@ -129,7 +133,7 @@ def load_state(*, prefix: str, slot: int) -> dict[str, Any]:
         raise FileNotFoundError(f"state slot does not exist: {tensor_path.name}")
     try:
         state = _load_authoritative(tensor_path)
-    except ValueError as exc:
+    except _MissingEmbeddedMetadata as exc:
         # Backward-compatible path for early development states that stored
         # metadata only in the JSON sidecar.
         if not json_path.is_file():

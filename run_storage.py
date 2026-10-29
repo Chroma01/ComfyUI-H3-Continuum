@@ -1587,6 +1587,8 @@ def _pid_exists_windows(pid: int) -> bool:
     kernel32.OpenProcess.restype = wintypes.HANDLE
     kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
     kernel32.CloseHandle.restype = wintypes.BOOL
+    kernel32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
     ctypes.set_last_error(0)
     handle = kernel32.OpenProcess(
         process_query_limited_information,
@@ -1594,8 +1596,13 @@ def _pid_exists_windows(pid: int) -> bool:
         int(pid),
     )
     if handle:
-        kernel32.CloseHandle(handle)
-        return True
+        try:
+            exit_code = wintypes.DWORD()
+            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+                return True  # Unknown ownership is protected.
+            return exit_code.value == 259  # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
     return ctypes.get_last_error() == error_access_denied
 
 
@@ -1622,9 +1629,54 @@ class _RunLock:
         self.path = path
         self.token = uuid.uuid4().hex
         self.acquired = False
+        self._guard = None
+
+    def _acquire_guard(self) -> None:
+        # Keep this inode stable: unlinking a held lock would let another writer
+        # lock a different file. The JSON owner marker remains legacy-compatible.
+        guard_path = self.path.with_name(self.path.name + ".guard")
+        if guard_path.is_symlink():
+            raise RunStorageError("Run Storage guard must not be a symbolic link")
+        stream = None
+        try:
+            stream = guard_path.open("a+b")
+            if os.fstat(stream.fileno()).st_size == 0:
+                stream.write(b"\0")
+                stream.flush()
+            stream.seek(0)
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BaseException as exc:
+            if stream is not None:
+                stream.close()
+            if isinstance(exc, OSError):
+                raise RunStorageError("Run Storage is locked or its guard is unavailable") from exc
+            raise
+        self._guard = stream
+
+    def _release_guard(self) -> None:
+        stream, self._guard = self._guard, None
+        if stream is not None:
+            # Closing releases the OS lock on both Windows and POSIX, also when
+            # acquisition or owner-marker cleanup failed.
+            stream.close()
 
     def acquire(self) -> None:
+        if self.acquired or self._guard is not None:
+            raise RunStorageError("Run Storage lock is already acquired")
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._acquire_guard()
+        try:
+            self._acquire_owner()
+        except BaseException:
+            self._release_guard()
+            raise
+
+    def _acquire_owner(self) -> None:
         payload = {
             "pid": os.getpid(), "hostname": socket.gethostname(),
             "started_utc": _now(), "token": self.token,
@@ -1663,6 +1715,7 @@ class _RunLock:
                 self.path.unlink()
         finally:
             self.acquired = False
+            self._release_guard()
 
 
 def _entry_metadata(entry: dict[str, Any]) -> dict[str, Any]:

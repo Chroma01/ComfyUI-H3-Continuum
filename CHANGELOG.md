@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — Run exclusion and metadata recovery
+
+Protect stale Run lock recovery with a per-Run nonblocking OS guard held until
+release. Preserve legacy owner checks; leave the guard file in place.
+Windows PID checks distinguish exited processes from retained monitor handles;
+unreadable process status remains protected. Concurrent
+old/new runtimes writing the same Run and network filesystem locking are outside
+the verified scope. Reconnect now ignores explicitly empty accepted Queue targets.
+State loading uses the legacy JSON sidecar only when embedded metadata is absent,
+and rejects corrupt embedded metadata. Saved formats, Take reuse contracts and
+workflow files remain unchanged. Targeted CPU/JavaScript and local browser checks
+passed; no new GPU acceptance. This source update does not create a new Release
+or Registry package.
+
 ## Unreleased — Second Pass documentation
 
 Add current V3.9 English/Japanese wiring diagrams, socket tables, low-denoise
